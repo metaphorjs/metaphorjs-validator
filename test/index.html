@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Validator test</title>
+    <script src="../../metaphorjs-observable/metaphorjs.observable.js"></script>
+    <script src="../metaphorjs.validator.js"></script>
+    <script>
+        window.onload = function() {
+
+            new MetaphorJs.lib.Validator(document.getElementById("form"));
+
+        }
+    </script>
+</head>
+<body>
+
+    <form id="form">
+
+        <input name="textfield" data-validate-required/>
+
+        <input type="submit" value="Submit"/>
+
+
+    </form>
+
+</body>
+</html>

@@ -92,14 +92,17 @@
                 src,
                 k;
 
-            while (src = args.shift()) {
-                for (k in src) {
-                    if (src.hasOwnProperty(k)) {
-                        if (dst[k] && typeof dst[k] == "object" && typeof src[k] == "object") {
-                            extend(dst[k], src[k]);
-                        }
-                        else {
-                            dst[k] = src[k];
+            while (args.length) {
+                src = args.shift();
+                if (src) {
+                    for (k in src) {
+                        if (src.hasOwnProperty(k)) {
+                            if (dst[k] && typeof dst[k] == "object" && typeof src[k] == "object") {
+                                extend(dst[k], src[k]);
+                            }
+                            else {
+                                dst[k] = src[k];
+                            }
                         }
                     }
                 }
@@ -1445,7 +1448,7 @@
 
             self.trigger('beforeAjax', self, ajax);
 
-            var ajaxFn = window.jQuery ? jQuery.ajax : MetaphorJs.ajax;
+            var ajaxFn = window.MetaphorJs ? MetaphorJs.ajax : jQuery.ajax;
 
             self.pending = ajaxFn(ajax);
 

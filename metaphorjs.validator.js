@@ -7,178 +7,25 @@
 
     var vldId   = 0,
 
-        validators  = {},
+        validators      = {},
 
-        rreturn = /\r/g,
+        m               = window.MetaphorJs,
 
-        getValue    = function(elem) {
+        getValue        = m.getValue,
+        extend          = m.extend,
+        isArray         = m.isArray,
+        trim            = m.trim,
+        bind            = m.bind,
+        addListener     = m.addListener,
+        removeListener  = m.removeListener,
+        addClass        = m.addClass,
+        removeClass     = m.removeClass,
+        Input           = m.lib.Input,
+        select          = m.select,
 
-            var hooks, ret;
+        normalizeEvent  = m.normalizeEvent,
 
-            hooks = valHooks[ elem.type ] ||
-                    valHooks[ elem.nodeName.toLowerCase() ];
-
-            if ( hooks && (ret = hooks( elem, "value" )) !== undefined ) {
-                return ret;
-            }
-
-            ret = elem.value;
-
-            return typeof ret === "string" ?
-                // Handle most common string cases
-                   ret.replace(rreturn, "") :
-                // Handle cases where value is null/undef or number
-                   ret == null ? "" : ret;
-
-        },
-
-        valHooks = {
-            option: function( elem ) {
-                //var val = jQuery.find.attr( elem, "value" );
-                var val = elem.getAttribute("value");
-
-                return val != null ?
-                       val :
-                       trim( elem.innerText || elem.textContent );
-            },
-            select: function( elem ) {
-                var value, option,
-                    options = elem.options,
-                    index = elem.selectedIndex,
-                    one = elem.type === "select-one" || index < 0,
-                    values = one ? null : [],
-                    max = one ? index + 1 : options.length,
-                    disabled,
-                    i = index < 0 ?
-                        max :
-                        one ? index : 0;
-
-                // Loop through all the selected options
-                for ( ; i < max; i++ ) {
-                    option = options[ i ];
-
-                    disabled = option.disabled || option.getAttribute("disabled") !== null ||
-                               options.parentNode.disabled;
-
-                    // IE6-9 doesn't update selected after form reset (#2551)
-                    if ( ( option.selected || i === index ) && !disabled ) {
-
-                        // Get the specific value for the option
-                        value = getValue(option);
-
-                        // We don't need an array for one selects
-                        if ( one ) {
-                            return value;
-                        }
-
-                        // Multi-Selects return an array
-                        values.push( value );
-                    }
-                }
-
-                return values;
-            }
-        };
-
-    valHooks["radio"] = valHooks["checkbox"] = function( elem ) {
-        return elem.getAttribute("value") === null ? "on" : elem.value;
-    };
-
-    var slice = Array.prototype.slice,
-
-        extend = function() {
-            var args        = slice.call(arguments),
-                dst         = args.shift(),
-                src,
-                k;
-
-            while (args.length) {
-                src = args.shift();
-                if (src) {
-                    for (k in src) {
-                        if (src.hasOwnProperty(k)) {
-                            if (dst[k] && typeof dst[k] == "object" && typeof src[k] == "object") {
-                                extend(dst[k], src[k]);
-                            }
-                            else {
-                                dst[k] = src[k];
-                            }
-                        }
-                    }
-                }
-            }
-
-            return dst;
-        },
-
-        isArray = function(value) {
-            return value && typeof value == 'object' && typeof value.length == 'number' &&
-                Object.prototype.toString.call(value) == '[object Array]' || false;
-        },
-
-        trim = (function() {
-            // native trim is way faster: http://jsperf.com/angular-trim-test
-            // but IE doesn't have it... :-(
-            if (!String.prototype.trim) {
-                return function(value) {
-                    return typeof value == "string" ?
-                        value.replace(/^\s\s*/, '').replace(/\s\s*$/, '') : value;
-                };
-            }
-            return function(value) {
-                return typeof value == "string" ? value.trim() : value;
-            };
-        })(),
-
-        bind = Function.prototype.bind ?
-                      function(fn, fnScope){
-                          return fn.bind(fnScope);
-                      } :
-                      function(fn, fnScope) {
-                          return function() {
-                              fn.apply(fnScope, arguments);
-                          };
-                      },
-
-        addListener = function(el, event, func) {
-            if (el.attachEvent) {
-                el.attachEvent('on' + event, func);
-            } else {
-                el.addEventListener(event, func, false);
-            }
-        },
-
-        removeListener = function(el, event, func) {
-            if (el.detachEvent) {
-                el.detachEvent('on' + event, func);
-            } else {
-                el.removeEventListener(event, func, false);
-            }
-        },
-
-        clsRegCache = {},
-        getClsReg   = function(cls) {
-            return clsRegCache[cls] ||
-                   (clsRegCache[cls] = new RegExp('(?:^|\\s)'+cls+'(?!\\S)', 'g'));
-        },
-
-        hasClass = function(el, cls) {
-            var reg = getClsReg(cls);
-            return reg.test(el.className);
-        },
-
-        addClass = function(el, cls) {
-            if (!hasClass(el, cls)) {
-                el.className += " " + cls;
-            }
-        },
-
-        removeClass = function(el, cls) {
-            var reg = getClsReg(cls);
-            el.className = el.className.replace(reg, '');
-        },
-
-        eachNode = function(el, fn, fnScope) {
+        eachNode        = function(el, fn, fnScope) {
             var i, len,
                 children = el.childNodes;
 
@@ -196,13 +43,6 @@
         // from http://bassistance.de/jquery-plugins/jquery-plugin-validation/
         checkable = function(elem) {
             return /radio|checkbox/i.test(elem.type);
-        },
-
-        isSubmittable	= function(elem) {
-            var tag 	= elem.nodeName.toLowerCase(),
-                type	= elem.type ? elem.type.toLowerCase() : '';
-
-            return tag == 'input' && type != 'radio' && type != 'checkbox';
         },
 
         // from http://bassistance.de/jquery-plugins/jquery-plugin-validation/
@@ -594,36 +434,27 @@
 
         self.cfg            = cfg = extend({}, fieldDefaults,
                 fixFieldShorthands(Validator.fieldDefaults),
-                fixFieldShorthands(options)
+                fixFieldShorthands(options),
+                true
         );
 
-        var inputType	    = (elem.type || '').toLowerCase();
+        self.input          = new Input(elem, self.onInputChange, self, self.onInputSubmit);
 
         self.elem           = elem;
         self.vldr           = vldr;
-        self.callbackScope  = scope = cfg.callback.scope,
-        self.inputType      = inputType;
-        self.enabled        = elem.getAttribute("disabled") === null;
+        self.callbackScope  = scope = cfg.callback.scope;
+        self.enabled        = !elem.disabled;
         self.id             = elem.getAttribute('name') || elem.getAttribute.attr('id');
-        self.isField        = isField(elem);
-        self.checkbox       = inputType == 'checkbox';
-        self.radio          = inputType == 'radio';
-        self.phldr          = elem.getAttribute('placeholder');
-        self.submittable    = isSubmittable(elem);
         self.data           = options.data;
         self.rules			= {};
 
-        cfg.messages        = extend({}, messages, Validator.messages, cfg.messages);
+        cfg.messages        = extend({}, messages, Validator.messages, cfg.messages, true);
 
         elem.setAttribute("data-validator", vldr.getVldId());
 
-        if (self.radio) {
+        if (self.input.radio) {
             self.initRadio();
         }
-
-        self.onChangeDelegate = bind(self.onChange, self);
-
-
 
         for (var i in cfg.callback) {
             if (cfg.callback[i]) {
@@ -636,9 +467,8 @@
         }
 
         self.readRules();
-        self.setEvents('bind');
 
-        self.prev 	= self.getValue();
+        self.prev 	= self.input.getValue();
 
         if (cfg.disabled) {
             self.disable();
@@ -653,7 +483,8 @@
         cfg:            null,
         callbackScope:  null,
 
-        inputType:      null,
+        input:          null,
+
         enabled:		true,
         valid:			null,			// the field has been checked and is valid (null - not checked yet)
         dirty:			false,			// the field's value changed, hasn't been rechecked yet
@@ -662,17 +493,9 @@
         error:			null,
         errorRule:      null,
         pending: 		null,
-        isField:		true,
-        checkbox:		false,
-        radio:			false,
-        radios:         null,
         rulesNum:		0,
-        phldr:			null,
-        submittable:	false,
         displayState:	false,
         data:			null,
-        lastEvent:		null,
-        processingEvent:false,
         checking:		false,
         checkTmt:		null,
         errorBox:       null,
@@ -685,30 +508,13 @@
         initRadio: function() {
 
             var self    = this,
-                elem    = self.elem,
-                name    = elem.getAttribute("name"),
-                form    = self.vldr.getElem(),
-                elms,
-                i, l;
+                radios  = self.input.radio,
+                vldId   = self.vldr.getVldId(),
+                i,l;
 
-            if (form.querySelectorAll) {
-                elms = form.querySelectorAll('input[type=radio][name='+name+']');
+            for(i = 0, l = radios.length; i < l; i++) {
+                radios[i].setAttribute("data-validator", vldId);
             }
-            else {
-                elms = [];
-                eachNode(elem, function(node){
-                    if (node.nodeName.toLowerCase() == "input" && node.type == "radio" &&
-                        node.getAttribute("name") == name) {
-                        elms.push(node);
-                    }
-                });
-            }
-
-            for(i = 0, l = elms.length; i < l; i++) {
-                elms[i].setAttribute("data-validator", "");
-            }
-
-            self.radios = elms;
         },
 
         /**
@@ -869,30 +675,7 @@
          * Get field value
          */
         getValue: function() {
-
-            var self = this,
-                elem = self.elem;
-
-            if (!self.isField) {
-                return null;
-            }
-
-            var val	= getValue(elem);
-
-            if (self.checkbox) {
-                return elem.checked ? (val || '1') : '';
-            }
-            else if (self.radio) {
-                var rds = self.radios,
-                    i, l;
-                for (i = 0, l = rds.length; i < l; i++) {
-                    if (rds[i].checked) {
-                        return getValue(rds[i]);
-                    }
-                }
-            }
-
-            return self.phldr ? (val == self.phldr ? '' : val) : val;
+            return this.input.getValue();
         },
 
         /**
@@ -1208,6 +991,9 @@
                 self.errorBox.parentNode.removeChild(self.errorBox);
             }
 
+            self.input.destroy();
+            delete self.input;
+
             self._observable.destroy();
 
             delete self._observable;
@@ -1257,126 +1043,33 @@
             self.check(false);
         },
 
-
-        setEvents: function(mode) {
+        onInputChange: function(val) {
 
             var self    = this,
-                elem    = self.elem,
-                fn      = mode == "bind" ? addListener : removeListener,
-                events  = [],
-                radio   = self.radio,
-                radios  = self.radios,
-                i, l,
-                j,
-                z       = radios ? radios.length : 0;
+                prev    = self.prev;
 
-            if (!self.isField) {
-                return;
-            }
-
-            if (!self.checkbox && !self.radio) {
-                events.push('focus');
-                events.push('blur');
-                events.push('keyup');
-
-                if (self.submittable && self.cfg.allowSubmit) {
-                    events.push('keypress');
-                }
-            }
-
-            events.push('click');
-            events.push('change');
-
-            for (i = -1, l = events.length; ++i < l;){
-                if (!radio) {
-                    fn(elem, events[i], self.onChangeDelegate)
-                }
-                else {
-                    for (j = -1; ++j < z; fn(radios[j], events[i], self.onChangeDelegate)){}
-                }
-            }
-        },
-
-
-        onChange: function(e) {
-
-            var self = this;
-
-            e = e || window.event;
-
-            if (self.processingEvent) {
-                self.lastEvent = null;
-                self.lastEvent = e;
-                setTimeout(bind(self.processEventTimeout, self), 100);
-                return true;
-            }
-
-            self.processingEvent = true;
-
-            var val = self.getValue();
-
-            if (e.type != 'keypress') {
-                if (self.prev !== val) {
-                    self.dirty = true;
-                    self.abort();
-                }
-            }
-
-            switch (e.type) {
-                case 'focus':
-                case 'click': {
-                    if (self.checkbox || self.radio || !self.pending) {
-                        if (!self.pending) {
-                            self.check(false);
-                        }
-                    }
-                    break;
-                }
-                case 'blur': {
-                    if (self.dirty) {
-                        self.check(false);
-                    }
-                    break;
-                }
-                case 'keypress': {
-                    if (self.submittable && self.cfg.allowSubmit && e.keyCode == 13) {
-
-                        if (e.isDefaultPrevented && !e.isDefaultPrevented()) {
-                            self.trigger('submit', self, e);
-                            e.preventDefault && e.preventDefault(); // ? here or if triggered event has returned false ?
-                        }
-                        self.processingEvent = false;
-                        return false;
-                    }
-                    break;
-                }
-                case 'keyup':
-                case 'change': {
-                    self.customError = false;
+            if (prev !== val) {
+                self.dirty = true;
+                self.customError = false;
+                self.abort();
+                if (!self.pending) {
                     self.check(false);
-                    break;
                 }
+
+                self.prev = self.input.getValue();
             }
-
-            self.prev = val;
-            self.processingEvent = false;
-
-            return true;
         },
 
-        processEventTimeout: function() {
+        onInputSubmit: function(e) {
 
-            var self = this;
+            e = normalizeEvent(e);
 
-            if (self.processingEvent) {
-                self.lastEvent = null;
-                return;
-            }
-
-            if (self.lastEvent) {
-                var e = self.lastEvent;
-                self.lastEvent = null;
-                self.onChange(e);
+            if (!e.isDefaultPrevented || !e.isDefaultPrevented()) {
+                var res = this.trigger("submit", this, e);
+                if (res === false) {
+                    e.preventDefault();
+                    return false;
+                }
             }
         },
 
@@ -1401,8 +1094,9 @@
                 self.errorBox = document.createElement(tag);
                 self.errorBox.className = cls;
 
-                var f = self.radio ?
-                        self.radios[self.radios.length - 1] :
+                var r = self.input.radio,
+                    f = r ?
+                        r[r - 1] :
                         self.elem;
 
                 if (pos == 'appendParent') {
@@ -1426,7 +1120,7 @@
                 val 	= self.getValue(),
                 cfg     = self.cfg;
 
-            var ajax 	= extend({}, typeof rm == 'string' ? {url: rm} : rm);
+            var ajax 	= extend({}, typeof rm == 'string' ? {url: rm} : rm, true);
 
             //ajax.success 	= self.onAjaxSuccess;
             //ajax.error 		= self.onAjaxError;
@@ -1572,7 +1266,8 @@
         self.cfg            = cfg = extend({},
                                 groupDefaults,
                                 Validator.groupDefaults,
-                                options
+                                options,
+                                true
         );
 
         self.callbackScope  = scope = cfg.callback.scope;
@@ -1585,7 +1280,7 @@
         self.fields         = {};
         self.rules		    = {};
 
-        cfg.messages        = extend({}, messages, Validator.messages, cfg.messages);
+        cfg.messages        = extend({}, messages, Validator.messages, cfg.messages, true);
 
 
         var i, len;
@@ -2103,7 +1798,7 @@
         }
 
         self._observable    = new Observable;
-        self.cfg            = cfg = extend({}, defaults, Validator.defaults, Validator[preset], options);
+        self.cfg            = cfg = extend({}, defaults, Validator.defaults, Validator[preset], options, true);
         self.callbackScope  = scope = cfg.callback.scope;
 
         self.isForm         = tag == 'form';
@@ -2412,7 +2107,7 @@
                 fcfg 	= {rules: [fcfg]};
             }
 
-            fcfg 	= extend({}, cfg.all || {}, fcfg);
+            fcfg 	= extend({}, cfg.all || {}, fcfg, true);
 
             if (fcfg.ignore) {
                 return self;
@@ -2566,21 +2261,8 @@
                 self.add(el);
                 return self;
             }
-            if (self.isForm) {
-                els = el.elements;
-            }
-            else if (el.querySelectorAll) {
-                els = el.querySelectorAll('input, textarea, select');
-            }
-            else {
-                els = [];
-                eachNode(el, function(node){
-                    var tag = node.nodeName.toLowerCase();
-                    if (tag == "input" || tag == "textarea" || tag == "select") {
-                        els.push(node);
-                    }
-                });
-            }
+
+            els = select("input, textarea, select", el);
 
             for (i = -1, l = els.length; ++i < l; self.add(els[i])){}
 
@@ -2592,8 +2274,8 @@
             var self    = this,
                 el      = self.el,
                 nodes   = el.getElementsByTagName("input"),
-                submits = el.getElementsByClassName("submit"),
-                resets  = el.getElementsByClassName("reset"),
+                submits = select(".submit", el),
+                resets  = select(".reset", el),
                 fn      = mode == "bind" ? addListener : removeListener,
                 i, l,
                 type,
@@ -2612,12 +2294,12 @@
 
             for (i = -1, l = submits.length;
                  ++i < l;
-                 !hasClass(submits[i], "submit") && fn(submits[i], "click", self.onSubmitClickDelegate)
+                 submits[i].type != "submit" && fn(submits[i], "click", self.onSubmitClickDelegate)
                 ){}
 
             for (i = -1, l = resets.length;
                  ++i < l;
-                 !hasClass(resets[i], "reset") && fn(resets[i], "click", self.resetDelegate)
+                 resets[i].type != "reset" && fn(resets[i], "click", self.resetDelegate)
                 ){}
 
             if (self.isForm) {
@@ -2626,17 +2308,22 @@
         },
 
         onRealSubmitClick: function(e) {
-            e = e || window.event;
+            e = normalizeEvent(e || window.event);
             this.submitButton  = e.target || e.srcElement;
             return this.onSubmit(e);
         },
 
         onSubmitClick: function(e) {
-            return this.onSubmit(e || window.event);
+            return this.onSubmit(normalizeEvent(e || window.event));
         },
 
         onFormSubmit: function(e) {
-            return this.onSubmit(e || window.event);
+            e = normalizeEvent(e);
+            if (!this.isValid()) {
+                e.preventDefault();
+                return false;
+            }
+            //return this.onSubmit(normalizeEvent(e || window.event));
         },
 
         onFieldSubmit: function(fapi, e) {
@@ -2656,7 +2343,7 @@
             self.enableDisplayState();
 
             if (self.pending) {
-                e && e.preventDefault && e.preventDefault();
+                e && e.preventDefault();
                 return false;
             }
 
@@ -2688,7 +2375,7 @@
                 self.onFieldStateChange();
 
                 if (self.pending) {
-                    e && e.preventDefault && e.preventDefault();
+                    e && e.preventDefault();
                     return false;
                 }
             }
@@ -2696,8 +2383,9 @@
             if (self.trigger('beforesubmit', self) === false || !self.isValid()) {
 
                 if (e) {
-                    e.preventDefault && e.preventDefault();
-                    e.stopPropagation && e.stopPropagation();
+
+                    e.preventDefault();
+                    e.stopPropagation();
                 }
 
                 if (!self.pending) {

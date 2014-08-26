@@ -1,4 +1,18 @@
-
+//#require ../../metaphorjs/src/func/dom/getValue.js
+//#require ../../metaphorjs/src/func/extend.js
+//#require ../../metaphorjs/src/func/array/isArray.js
+//#require ../../metaphorjs/src/func/trim.js
+//#require ../../metaphorjs/src/func/bind.js
+//#require ../../metaphorjs/src/func/event/addListener.js
+//#require ../../metaphorjs/src/func/event/removeListener.js
+//#require ../../metaphorjs/src/func/dom/addClass.js
+//#require ../../metaphorjs/src/func/dom/removeClass.js
+//#require ../../metaphorjs/src/func/dom/select.js
+//#require ../../metaphorjs/src/func/dom/eachNode.js
+//#require ../../metaphorjs/src/func/dom/isField.js
+//#require ../../metaphorjs/src/func/event/normalizeEvent.js
+//#require ../../metaphorjs/src/vars/Input.js
+//#require ../../metaphorjs/src/vars/Observable.js
 
 (function(){
 
@@ -8,37 +22,6 @@
     var vldId   = 0,
 
         validators      = {},
-
-        m               = window.MetaphorJs,
-
-        getValue        = m.getValue,
-        extend          = m.extend,
-        isArray         = m.isArray,
-        trim            = m.trim,
-        bind            = m.bind,
-        addListener     = m.addListener,
-        removeListener  = m.removeListener,
-        addClass        = m.addClass,
-        removeClass     = m.removeClass,
-        Input           = m.lib.Input,
-        select          = m.select,
-
-        normalizeEvent  = m.normalizeEvent,
-
-        eachNode        = function(el, fn, fnScope) {
-            var i, len,
-                children = el.childNodes;
-
-            if (fn.call(fnScope, el) !== false) {
-                for(i =- 1, len = children.length>>>0;
-                    ++i !== len;
-                    eachNode(children[i], fn, fnScope)){}
-            }
-        },
-
-
-        Observable  = MetaphorJs.lib.Observable,
-
 
         // from http://bassistance.de/jquery-plugins/jquery-plugin-validation/
         checkable = function(elem) {
@@ -106,17 +89,6 @@
                  str = str.replace(new RegExp("\\{" + i + "\\}", "g"), params[i])){}
 
             return str;
-        },
-
-        isField	= function(el) {
-            var tag	= el.nodeName.toLowerCase(),
-                type = el.type;
-            if (tag == 'input' || tag == 'textarea' || tag == 'select') {
-                if (type != "submit" && type != "reset") {
-                    return true;
-                }
-            }
-            return false;
         },
 
         methods = {};
@@ -435,7 +407,7 @@
         self.cfg            = cfg = extend({}, fieldDefaults,
                 fixFieldShorthands(Validator.fieldDefaults),
                 fixFieldShorthands(options),
-                true
+                true, true
         );
 
         self.input          = new Input(elem, self.onInputChange, self, self.onInputSubmit);
@@ -448,7 +420,7 @@
         self.data           = options.data;
         self.rules			= {};
 
-        cfg.messages        = extend({}, messages, Validator.messages, cfg.messages, true);
+        cfg.messages        = extend({}, messages, Validator.messages, cfg.messages, true, true);
 
         elem.setAttribute("data-validator", vldr.getVldId());
 
@@ -475,7 +447,7 @@
         }
     };
 
-    extend(Field.prototype, {
+    Field.prototype = {
 
         vldr:           null,
         elem:           null,
@@ -1204,7 +1176,7 @@
                 self.trigger('afterAjax', self);
             }
         }
-    });
+    };
 
 
 
@@ -1267,7 +1239,7 @@
                                 groupDefaults,
                                 Validator.groupDefaults,
                                 options,
-                                true
+                                true, true
         );
 
         self.callbackScope  = scope = cfg.callback.scope;
@@ -1280,7 +1252,7 @@
         self.fields         = {};
         self.rules		    = {};
 
-        cfg.messages        = extend({}, messages, Validator.messages, cfg.messages, true);
+        cfg.messages        = extend({}, messages, Validator.messages, cfg.messages, true, true);
 
 
         var i, len;
@@ -1306,7 +1278,7 @@
         self.enabled = !cfg.disabled;
     };
 
-    extend(Group.prototype, {
+    Group.prototype = {
 
         fields:         null,
         rules:          null,
@@ -1731,7 +1703,7 @@
             self.trigger("fieldstatechange", self, f, valid);
             self.check();
         }
-    });
+    };
 
 
 
@@ -1798,7 +1770,7 @@
         }
 
         self._observable    = new Observable;
-        self.cfg            = cfg = extend({}, defaults, Validator.defaults, Validator[preset], options, true);
+        self.cfg            = cfg = extend({}, defaults, Validator.defaults, Validator[preset], options, true, true);
         self.callbackScope  = scope = cfg.callback.scope;
 
         self.isForm         = tag == 'form';
@@ -1848,7 +1820,7 @@
         self.enabled = true;
     };
 
-    extend(Validator.prototype, {
+    Validator.prototype = {
 
         vldId:          null,
         el:             null,
@@ -2107,7 +2079,7 @@
                 fcfg 	= {rules: [fcfg]};
             }
 
-            fcfg 	= extend({}, cfg.all || {}, fcfg, true);
+            fcfg 	= extend({}, cfg.all || {}, fcfg, true, true);
 
             if (fcfg.ignore) {
                 return self;
@@ -2318,6 +2290,7 @@
         },
 
         onFormSubmit: function(e) {
+
             e = normalizeEvent(e);
             if (!this.isValid()) {
                 e.preventDefault();
@@ -2362,7 +2335,7 @@
                 if (self.submitButton && /input|button/.test(self.submitButton.nodeName)) {
                     self.hidden = document.createElement("input");
                     self.hidden.type = "hidden";
-                    self.hidden.setAttribute("name", self.submitButton.name)
+                    self.hidden.setAttribute("name", self.submitButton.name);
                     self.hidden.value = self.submitButton.value;
                     self.el.appendChild(self.hidden);
                 }
@@ -2560,7 +2533,7 @@
             delete self.cfg;
         }
 
-    });
+    };
 
 
 
@@ -2583,14 +2556,8 @@
         return validators[vldId] || null;
     };
 
-    if (window.MetaphorJs && MetaphorJs.ns) {
-        MetaphorJs.ns.register("MetaphorJs.lib.Validator", Validator);
-    }
-    else {
-        window.MetaphorJs   = window.MetaphorJs || {};
-        MetaphorJs.lib      = MetaphorJs.lib || {};
-        MetaphorJs.lib.Validator   = Validator;
-    }
+
+    MetaphorJs.lib.Validator   = Validator;
 
 
     /*

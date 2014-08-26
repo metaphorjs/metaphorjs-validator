@@ -1,0 +1,22 @@
+{
+    "metaphorjs": {
+        "files": [
+            "src/view/*"
+        ]
+    },
+
+    "standalone": {
+        "auto": true,
+        "wrap": true,
+        "target": "dist/metaphorjs.validator.js",
+        "files": [
+            "../metaphorjs/src/MetaphorJs.js",
+            "src/metaphorjs.validator.js"
+        ]
+    },
+
+    "compile-standalone": {
+        "target": "dist/metaphorjs.validator.min.js",
+        "compile": "standalone"
+    }
+}

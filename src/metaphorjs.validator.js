@@ -1,23 +1,28 @@
-//#require ../../metaphorjs/src/func/dom/getValue.js
-//#require ../../metaphorjs/src/func/extend.js
-//#require ../../metaphorjs/src/func/array/isArray.js
-//#require ../../metaphorjs/src/func/trim.js
-//#require ../../metaphorjs/src/func/bind.js
-//#require ../../metaphorjs/src/func/event/addListener.js
-//#require ../../metaphorjs/src/func/event/removeListener.js
-//#require ../../metaphorjs/src/func/dom/addClass.js
-//#require ../../metaphorjs/src/func/dom/removeClass.js
-//#require ../../metaphorjs/src/func/dom/select.js
-//#require ../../metaphorjs/src/func/dom/eachNode.js
-//#require ../../metaphorjs/src/func/dom/isField.js
-//#require ../../metaphorjs/src/func/event/normalizeEvent.js
-//#require ../../metaphorjs/src/vars/Input.js
-//#require ../../metaphorjs/src/vars/Observable.js
 
-(function(){
+var MetaphorJs      = require("../../metaphorjs/src/MetaphorJs.js"),
+    getValue        = require("../../metaphorjs/src/func/dom/getValue.js"),
+    extend          = require("../../metaphorjs/src/func/extend.js"),
+    isArray         = require("../../metaphorjs/src/func/isArray.js"),
+    trim            = require("../../metaphorjs/src/func/trim.js"),
+    bind            = require("../../metaphorjs/src/func/bind.js"),
+    addListener     = require("../../metaphorjs/src/func/event/addListener.js"),
+    removeListener  = require("../../metaphorjs/src/func/event/removeListener.js"),
+    addClass        = require("../../metaphorjs/src/func/dom/addClass.js"),
+    removeClass     = require("../../metaphorjs/src/func/dom/removeClass.js"),
+    select          = require("../../metaphorjs/src/func/dom/select.js"),
+    eachNode        = require("../../metaphorjs/src/func/dom/eachNode.js"),
+    isField         = require("../../metaphorjs/src/func/dom/isField.js"),
+    normalizeEvent  = require("../../metaphorjs/src/func/event/normalizeEvent.js"),
+    Input           = require("../../metaphorjs/src/lib/Input.js"),
+    Observable      = require("../../metaphorjs-observable/src/metaphorjs.observable.js"),
+    isFunction      = require("../../metaphorjs/src/func/isFunction.js"),
+    isString        = require("../../metaphorjs/src/func/isString.js"),
+    isBool          = require("../../metaphorjs/src/func/isBool.js");
 
-    "use strict";
 
+
+
+var Validator = function(){
 
     var vldId   = 0,
 
@@ -77,7 +82,7 @@
 
         format = function(str, params) {
 
-            if (typeof params == "function") return str;
+            if (isFunction(params)) return str;
 
             if (!isArray(params)) {
                 params = [params];
@@ -224,7 +229,7 @@
 
         // http://docs.jquery.com/Plugins/Validation/Methods/accept
         accept: function(value, element, param) {
-            param = typeof param == "string" ? param.replace(/,/g, '|') : "png|jpe?g|gif";
+            param = isString(param) ? param.replace(/,/g, '|') : "png|jpe?g|gif";
             return empty(value, element) || value.match(new RegExp(".(" + param + ")$", "i"));
         },
 
@@ -362,17 +367,15 @@
 
             switch (type) {
                 case "string": {
-                    yes     = typeof value == "string";
+                    yes     = isString(value);
                     break;
                 }
                 case "function": {
-                    yes     = typeof value == "function";
+                    yes     = isFunction(value);
                     break;
                 }
                 case "boolean": {
-                    if (value === true || value === false) {
-                        yes = true;
-                    }
+                    yes = isBool(value);
                     break;
                 }
             }
@@ -862,7 +865,7 @@
                     continue;
                 }
 
-                var fn = typeof rules[i] == "function" ? rules[i] : methods[i];
+                var fn = isFunction(rules[i]) ? rules[i] : methods[i];
 
                 if ((msg = fn.call(self.callbackScope, val, elem, rules[i], self)) !== true) {
                     valid = false;
@@ -1092,7 +1095,7 @@
                 val 	= self.getValue(),
                 cfg     = self.cfg;
 
-            var ajax 	= extend({}, typeof rm == 'string' ? {url: rm} : rm, true);
+            var ajax 	= extend({}, isString(rm) ? {url: rm} : rm, true);
 
             //ajax.success 	= self.onAjaxSuccess;
             //ajax.error 		= self.onAjaxError;
@@ -1522,7 +1525,7 @@
 
             for (i in rules) {
 
-                var fn = typeof rules[i] == "function" ? rules[i] : methods[i];
+                var fn = isFunction(rules[i]) ? rules[i] : methods[i];
 
                 if ((msg = fn.call(self.callbackScope, val, null, rules[i], self, vals)) !== true) {
 
@@ -1608,7 +1611,7 @@
             }
             else if (!self.errorBox) {
 
-                if (typeof cfg.errorBox == "function") {
+                if (isFunction(cfg.errorBox)) {
                     self.errorBox	= cfg.errorBox.call(self.callbackScope, self);
                 }
                 else {
@@ -1764,7 +1767,7 @@
 
         self.el     = el;
 
-        if (preset && typeof preset != "string") {
+        if (preset && !isString(preset)) {
             options         = preset;
             preset          = null;
         }
@@ -2075,7 +2078,7 @@
 
             fcfg 	= cfg.fields && cfg.fields[id] ? cfg.fields[id] : (fieldCfg || {});
 
-            if (typeof fcfg == 'string') {
+            if (isString(fcfg)) {
                 fcfg 	= {rules: [fcfg]};
             }
 
@@ -2197,7 +2200,7 @@
                 return;
             }
 
-            if (typeof el.submit == "function") {
+            if (isFunction(el.submit)) {
 
                 if (self.trigger('beforesubmit', self) !== false &&
                     self.trigger('submit', self) !== false) {
@@ -2556,49 +2559,10 @@
         return validators[vldId] || null;
     };
 
-
-    MetaphorJs.lib.Validator   = Validator;
-
-
-    /*
-    jQuery.fn.metaphorjsValidator = function(options, instanceName) {
-
-        var dataName    = "metaphorjsValidator",
-            preset;
-
-        if (typeof options == "string" && options != "destroy") {
-            preset          = options;
-            options         = arguments[1];
-            instanceName    = arguments[2];
-        }
-
-        instanceName    = instanceName || "default";
-        options         = options || {};
-        dataName        += "-" + instanceName;
-
-        this.each(function() {
-
-            var o = $(this),
-                v = o.data(dataName);
-
-            if (options == "destroy") {
-                if (v) {
-                    v.destroy();
-                    o.data(dataName, null);
-                }
-            }
-            else {
-                if (!v) {
-                    options.form            = o;
-                    options.instanceName    = instanceName;
-                    o.data(dataName, new validator(preset, options));
-                }
-                else {
-                    throw new Error("MetaphorJs validator is already instantiated for this html element");
-                }
-            }
-        });
-    };*/
+    return Validator;
+}();
 
 
-}());
+MetaphorJs.lib.Validator   = Validator;
+
+module.exports = Validator;

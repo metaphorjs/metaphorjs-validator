@@ -8,9 +8,9 @@
     "standalone": {
         "auto": true,
         "wrap": true,
+        "global": true,
         "target": "dist/metaphorjs.validator.js",
         "files": [
-            "../metaphorjs/src/MetaphorJs.js",
             "src/metaphorjs.validator.js"
         ]
     },

@@ -1,15 +1,13 @@
-//#require ../vars/Validator.js
-//#require ../../../metaphorjs/src/func/bind.js
-//#require ../../../metaphorjs/src/func/createFunc.js
-//#require ../../../metaphorjs/src/func/class/defineClass.js
-//#require ../../../metaphorjs/src/func/directive.js
-//#require ../../../metaphorjs/src/func/error.js
-//#require ../../../metaphorjs/src/func/nsGet.js
-//#require ../../../metaphorjs/src/func/dom/eachNode.js
-//#require ../../../metaphorjs/src/func/dom/isField.js
 
-
-
+var Validator = require("../metaphorjs.validator.js"),
+    defineClass = require("../../../metaphorjs-class/src/func/defineClass.js"),
+    bind = require("../../../metaphorjs/src/func/bind.js"),
+    createFunc = require("../../../metaphorjs-watchable/src/func/createFunc.js"),
+    error = require("../../../metaphorjs/src/func/error.js"),
+    eachNode = require("../../../metaphorjs/src/func/dom/eachNode.js"),
+    isField = require("../../../metaphorjs/src/func/dom/isField.js"),
+    registerAttributeHandler = require("../../../metaphorjs/src/func/directive/registerAttributeHandler.js"),
+    nsGet = require("../../../metaphorjs-namespace/src/func/nsGet.js");
 
 
 defineClass("MetaphorJs.view.Validator", {

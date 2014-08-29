@@ -2,10 +2,10 @@
 "use strict";
 
 var MetaphorJs = {
-    lib: {}
+    lib: {},
+    cmp: {},
+    view: {}
 };
-
-
 
 var isNull = function(value) {
     return value === null;
@@ -20,6 +20,23 @@ var isUndefined = function(any) {
 var isString = function(value) {
     return typeof value == "string";
 };
+
+
+/**
+ * @param {String} value
+ */
+var trim = function() {
+    // native trim is way faster: http://jsperf.com/angular-trim-test
+    // but IE doesn't have it... :-(
+    if (!String.prototype.trim) {
+        return function(value) {
+            return isString(value) ? value.replace(/^\s\s*/, '').replace(/\s\s*$/, '') : value;
+        };
+    }
+    return function(value) {
+        return isString(value) ? value.trim() : value;
+    };
+}();
 
 
 /**
@@ -202,23 +219,6 @@ var isArray = function(value) {
     return !!(value && isObject(value) && isNumber(value.length) &&
                 toString.call(value) == '[object Array]' || false);
 };
-
-
-/**
- * @param {String} value
- */
-var trim = function() {
-    // native trim is way faster: http://jsperf.com/angular-trim-test
-    // but IE doesn't have it... :-(
-    if (!String.prototype.trim) {
-        return function(value) {
-            return isString(value) ? value.replace(/^\s\s*/, '').replace(/\s\s*$/, '') : value;
-        };
-    }
-    return function(value) {
-        return isString(value) ? value.trim() : value;
-    };
-}();
 /**
  * @param {Function} fn
  * @param {*} context
@@ -349,11 +349,11 @@ var select = function() {
         bcn         = !!doc.getElementsByClassName,
         qsa         = !!doc.querySelectorAll,
 
-    /*
-     function calls for CSS2/3 modificatos. Specification taken from
-     http://www.w3.org/TR/2005/WD-css3-selectors-20051215/
-     on success return negative result.
-     */
+        /*
+         function calls for CSS2/3 modificatos. Specification taken from
+         http://www.w3.org/TR/2005/WD-css3-selectors-20051215/
+         on success return negative result.
+         */
         mods        = {
             /* W3C: "an E element, first child of its parent" */
             'first-child': function (child) {
@@ -526,7 +526,7 @@ var select = function() {
         };
 
 
-    return function (selector, root) {
+    var select = function (selector, root) {
 
         /* clean root with document */
         root = root || doc;
@@ -883,6 +883,21 @@ var select = function() {
         /* return and cache results */
         return sets;
     };
+
+    select.is = function(el, selector) {
+
+        var els = select(selector, el.parentNode),
+            i, l;
+
+        for (i = -1, l = els.length; ++i < l;) {
+            if (els[i] === el) {
+                return true;
+            }
+        }
+        return false;
+    };
+
+    return select;
 }();
 var eachNode = function(el, fn, context) {
     var i, len,
@@ -1026,8 +1041,6 @@ NormalizedEvent.prototype = {
         this.stopPropagation();
     }
 };
-
-MetaphorJs.lib.NormalizedEvent = NormalizedEvent;
 
 
 
@@ -1537,7 +1550,9 @@ Input.prototype = {
     }
 };
 
-MetaphorJs.lib.Input = Input;
+Input.getValue = getValue;
+Input.setValue = setValue;
+
 
 
 
@@ -2250,12 +2265,1581 @@ Event.prototype = {
     }
 };
 
-(function(){
-    var globalObservable    = new Observable;
-    extend(MetaphorJs, globalObservable.getApi(), true, false);
-}());
 
-MetaphorJs.lib.Observable = Observable;
+/**
+ * @param {Function} fn
+ * @param {Object} context
+ * @param {[]} args
+ */
+var async = function(fn, context, args) {
+    setTimeout(function(){
+        fn.apply(context, args || []);
+    }, 0);
+};
+
+var emptyFn = function(){};
+
+
+var parseJSON = function() {
+
+    return isUndefined(JSON) ?
+           function(data) {
+               return JSON.parse(data);
+           } :
+           function(data) {
+               return (new Function("return " + data))();
+           };
+}();
+
+
+
+
+var parseXML = function(data, type) {
+
+    var xml, tmp;
+
+    if (!data || !isString(data)) {
+        return null;
+    }
+
+    // Support: IE9
+    try {
+        tmp = new DOMParser();
+        xml = tmp.parseFromString(data, type || "text/xml");
+    } catch (thrownError) {
+        xml = undefined;
+    }
+
+    if (!xml || xml.getElementsByTagName("parsererror").length) {
+        throw "Invalid XML: " + data;
+    }
+
+    return xml;
+};
+
+
+/**
+ * Returns 'then' function or false
+ * @param {*} any
+ * @returns {Function|boolean}
+ */
+var isThenable = function(any) {
+    var then;
+    if (!any) {
+        return false;
+    }
+    if (!isObject(any) && !isFunction(any)) {
+        return false;
+    }
+    return isFunction((then = any.then)) ?
+           then : false;
+};
+
+
+
+
+var Promise = function(){
+
+    var PENDING     = 0,
+        FULFILLED   = 1,
+        REJECTED    = 2,
+
+        queue       = [],
+        qRunning    = false,
+
+
+        nextTick    = typeof process != strUndef ?
+                        process.nextTick :
+                        function(fn) {
+                            setTimeout(fn, 0);
+                        },
+
+        // synchronous queue of asynchronous functions:
+        // callbacks must be called in "platform stack"
+        // which means setTimeout/nextTick;
+        // also, they must be called in a strict order.
+        nextInQueue = function() {
+            qRunning    = true;
+            var next    = queue.shift();
+            nextTick(function(){
+                next[0].apply(next[1], next[2]);
+                if (queue.length) {
+                    nextInQueue();
+                }
+                else {
+                    qRunning = false;
+                }
+            }, 0);
+        },
+
+        /**
+         * add to execution queue
+         * @param {Function} fn
+         * @param {Object} scope
+         * @param {[]} args
+         */
+        next        = function(fn, scope, args) {
+            args = args || [];
+            queue.push([fn, scope, args]);
+            if (!qRunning) {
+                nextInQueue();
+            }
+        },
+
+        /**
+         * returns function which receives value from previous promise
+         * and tries to resolve next promise with new value returned from given function(prev value)
+         * or reject on error.
+         * promise1.then(success, failure) -> promise2
+         * wrapper(success, promise2) -> fn
+         * fn(promise1 resolve value) -> new value
+         * promise2.resolve(new value)
+         *
+         * @param {Function} fn
+         * @param {Promise} promise
+         * @returns {Function}
+         */
+        wrapper     = function(fn, promise) {
+            return function(value) {
+                try {
+                    promise.resolve(fn(value));
+                }
+                catch (thrownError) {
+                    promise.reject(thrownError);
+                }
+            };
+        };
+
+
+    /**
+     * @param {Function} fn -- function(resolve, reject)
+     * @param {Object} fnScope
+     * @returns {Promise}
+     * @constructor
+     */
+    var Promise = function(fn, fnScope) {
+
+        if (fn instanceof Promise) {
+            return fn;
+        }
+
+        if (!(this instanceof Promise)) {
+            return new Promise(fn, fnScope);
+        }
+
+        var self = this;
+
+        self._fulfills   = [];
+        self._rejects    = [];
+        self._dones      = [];
+        self._fails      = [];
+
+        if (!isUndefined(fn)) {
+
+            if (isThenable(fn) || !isFunction(fn)) {
+                self.resolve(fn);
+            }
+            else {
+                try {
+                    fn.call(fnScope,
+                            bind(self.resolve, self),
+                            bind(self.reject, self));
+                }
+                catch (thrownError) {
+                    self.reject(thrownError);
+                }
+            }
+        }
+    };
+
+    Promise.prototype = {
+
+        _state: PENDING,
+
+        _fulfills: null,
+        _rejects: null,
+        _dones: null,
+        _fails: null,
+
+        _wait: 0,
+
+        _value: null,
+        _reason: null,
+
+        _triggered: false,
+
+        isPending: function() {
+            return this._state == PENDING;
+        },
+
+        isFulfilled: function() {
+            return this._state == FULFILLED;
+        },
+
+        isRejected: function() {
+            return this._state == REJECTED;
+        },
+
+        _cleanup: function() {
+            var self    = this;
+
+            delete self._fulfills;
+            delete self._rejects;
+            delete self._dones;
+            delete self._fails;
+        },
+
+        _processValue: function(value, cb) {
+
+            var self    = this,
+                then;
+
+            if (self._state != PENDING) {
+                return;
+            }
+
+            if (value === self) {
+                self._doReject(new TypeError("cannot resolve promise with itself"));
+                return;
+            }
+
+            try {
+                if (then = isThenable(value)) {
+                    if (value instanceof Promise) {
+                        value.then(
+                            bind(self._processResolveValue, self),
+                            bind(self._processRejectReason, self));
+                    }
+                    else {
+                        (new Promise(then, value)).then(
+                            bind(self._processResolveValue, self),
+                            bind(self._processRejectReason, self));
+                    }
+                    return;
+                }
+            }
+            catch (thrownError) {
+                if (self._state == PENDING) {
+                    self._doReject(thrownError);
+                }
+                return;
+            }
+
+            cb.call(self, value);
+        },
+
+
+        _callResolveHandlers: function() {
+
+            var self    = this;
+
+            self._done();
+
+            var cbs  = self._fulfills,
+                cb;
+
+            while (cb = cbs.shift()) {
+                next(cb[0], cb[1], [self._value]);
+            }
+
+            self._cleanup();
+        },
+
+
+        _doResolve: function(value) {
+            var self    = this;
+
+            self._value = value;
+            self._state = FULFILLED;
+
+            if (self._wait == 0) {
+                self._callResolveHandlers();
+            }
+        },
+
+        _processResolveValue: function(value) {
+            this._processValue(value, this._doResolve);
+        },
+
+        /**
+         * @param {*} value
+         */
+        resolve: function(value) {
+
+            var self    = this;
+
+            if (self._triggered) {
+                return self;
+            }
+
+            self._triggered = true;
+            self._processResolveValue(value);
+
+            return self;
+        },
+
+
+        _callRejectHandlers: function() {
+
+            var self    = this;
+
+            self._fail();
+
+            var cbs  = self._rejects,
+                cb;
+
+            while (cb = cbs.shift()) {
+                next(cb[0], cb[1], [self._reason]);
+            }
+
+            self._cleanup();
+        },
+
+        _doReject: function(reason) {
+
+            var self        = this;
+
+            self._state     = REJECTED;
+            self._reason    = reason;
+
+            if (self._wait == 0) {
+                self._callRejectHandlers();
+            }
+        },
+
+
+        _processRejectReason: function(reason) {
+            this._processValue(reason, this._doReject);
+        },
+
+        /**
+         * @param {*} reason
+         */
+        reject: function(reason) {
+
+            var self    = this;
+
+            if (self._triggered) {
+                return self;
+            }
+
+            self._triggered = true;
+
+            self._processRejectReason(reason);
+
+            return self;
+        },
+
+        /**
+         * @param {Function} resolve -- called when this promise is resolved; returns new resolve value
+         * @param {Function} reject -- called when this promise is rejects; returns new reject reason
+         * @returns {Promise} new promise
+         */
+        then: function(resolve, reject) {
+
+            var self            = this,
+                promise         = new Promise,
+                state           = self._state;
+
+            if (state == PENDING || self._wait != 0) {
+
+                if (resolve && isFunction(resolve)) {
+                    self._fulfills.push([wrapper(resolve, promise), null]);
+                }
+                else {
+                    self._fulfills.push([promise.resolve, promise])
+                }
+
+                if (reject && isFunction(reject)) {
+                    self._rejects.push([wrapper(reject, promise), null]);
+                }
+                else {
+                    self._rejects.push([promise.reject, promise]);
+                }
+            }
+            else if (state == FULFILLED) {
+
+                if (resolve && isFunction(resolve)) {
+                    next(wrapper(resolve, promise), null, [self._value]);
+                }
+                else {
+                    promise.resolve(self._value);
+                }
+            }
+            else if (state == REJECTED) {
+                if (reject && isFunction(reject)) {
+                    next(wrapper(reject, promise), null, [self._reason]);
+                }
+                else {
+                    promise.reject(self._reason);
+                }
+            }
+
+            return promise;
+        },
+
+        /**
+         * @param {Function} reject -- same as then(null, reject)
+         * @returns {Promise} new promise
+         */
+        "catch": function(reject) {
+            return this.then(null, reject);
+        },
+
+        _done: function() {
+
+            var self    = this,
+                cbs     = self._dones,
+                cb;
+
+            while (cb = cbs.shift()) {
+                cb[0].call(cb[1] || null, self._value);
+            }
+        },
+
+        /**
+         * @param {Function} fn -- function to call when promise is resolved
+         * @param {Object} fnScope -- function's "this" object
+         * @returns {Promise} same promise
+         */
+        done: function(fn, fnScope) {
+            var self    = this,
+                state   = self._state;
+
+            if (state == FULFILLED && self._wait == 0) {
+                fn.call(fnScope || null, self._value);
+            }
+            else if (state == PENDING) {
+                self._dones.push([fn, fnScope]);
+            }
+
+            return self;
+        },
+
+        _fail: function() {
+
+            var self    = this,
+                cbs     = self._fails,
+                cb;
+
+            while (cb = cbs.shift()) {
+                cb[0].call(cb[1] || null, self._reason);
+            }
+        },
+
+        /**
+         * @param {Function} fn -- function to call when promise is rejected.
+         * @param {Object} fnScope -- function's "this" object
+         * @returns {Promise} same promise
+         */
+        fail: function(fn, fnScope) {
+
+            var self    = this,
+                state   = self._state;
+
+            if (state == REJECTED && self._wait == 0) {
+                fn.call(fnScope || null, self._reason);
+            }
+            else if (state == PENDING) {
+                self._fails.push([fn, fnScope]);
+            }
+
+            return self;
+        },
+
+        /**
+         * @param {Function} fn -- function to call when promise resolved or rejected
+         * @param {Object} fnScope -- function's "this" object
+         * @return {Promise} same promise
+         */
+        always: function(fn, fnScope) {
+            this.done(fn, fnScope);
+            this.fail(fn, fnScope);
+            return this;
+        },
+
+        /**
+         * @returns {{then: function, done: function, fail: function, always: function}}
+         */
+        promise: function() {
+            var self = this;
+            return {
+                then: bind(self.then, self),
+                done: bind(self.done, self),
+                fail: bind(self.fail, self),
+                always: bind(self.always, self)
+            };
+        },
+
+        after: function(value) {
+
+            var self = this;
+
+            if (isThenable(value)) {
+
+                self._wait++;
+
+                var done = function() {
+                    self._wait--;
+                    if (self._wait == 0 && self._state != PENDING) {
+                        self._state == FULFILLED ?
+                            self._callResolveHandlers() :
+                            self._callRejectHandlers();
+                    }
+                };
+
+                if (isFunction(value.done)) {
+                    value.done(done);
+                }
+                else {
+                    value.then(done);
+                }
+            }
+
+            return self;
+        }
+    };
+
+    /**
+     * @param {*} value
+     * @returns {Promise}
+     */
+    Promise.resolve = function(value) {
+        return new Promise(value);
+    };
+
+
+    /**
+     * @param {*} reason
+     * @returns {Promise}
+     */
+    Promise.reject = function(reason) {
+        var p = new Promise;
+        p.reject(reason);
+        return p;
+    };
+
+
+    /**
+     * @param {[]} promises -- array of promises or resolve values
+     * @returns {Promise}
+     */
+    Promise.all = function(promises) {
+
+        if (!promises.length) {
+            return Promise.resolve(null);
+        }
+
+        var p       = new Promise,
+            len     = promises.length,
+            values  = new Array(len),
+            cnt     = len,
+            i,
+            item,
+            done    = function(value, inx) {
+                values[inx] = value;
+                cnt--;
+
+                if (cnt == 0) {
+                    p.resolve(values);
+                }
+            };
+
+        for (i = 0; i < len; i++) {
+
+            (function(inx){
+                item = promises[i];
+
+                if (item instanceof Promise) {
+                    item.done(function(value){
+                        done(value, inx);
+                    })
+                        .fail(p.reject, p);
+                }
+                else if (isThenable(item) || isFunction(item)) {
+                    (new Promise(item))
+                        .done(function(value){
+                            done(value, inx);
+                        })
+                        .fail(p.reject, p);
+                }
+                else {
+                    done(item, inx);
+                }
+            })(i);
+        }
+
+        return p;
+    };
+
+    /**
+     * @param {Promise|*} promise1
+     * @param {Promise|*} promise2
+     * @param {Promise|*} promiseN
+     * @returns {Promise}
+     */
+    Promise.when = function() {
+        return Promise.all(arguments);
+    };
+
+    /**
+     * @param {[]} promises -- array of promises or resolve values
+     * @returns {Promise}
+     */
+    Promise.allResolved = function(promises) {
+
+        if (!promises.length) {
+            return Promise.resolve(null);
+        }
+
+        var p       = new Promise,
+            len     = promises.length,
+            values  = [],
+            cnt     = len,
+            i,
+            item,
+            settle  = function(value) {
+                values.push(value);
+                proceed();
+            },
+            proceed = function() {
+                cnt--;
+                if (cnt == 0) {
+                    p.resolve(values);
+                }
+            };
+
+        for (i = 0; i < len; i++) {
+            item = promises[i];
+
+            if (item instanceof Promise) {
+                item.done(settle).fail(proceed);
+            }
+            else if (isThenable(item) || isFunction(item)) {
+                (new Promise(item)).done(settle).fail(proceed);
+            }
+            else {
+                settle(item);
+            }
+        }
+
+        return p;
+    };
+
+    /**
+     * @param {[]} promises -- array of promises or resolve values
+     * @returns {Promise}
+     */
+    Promise.race = function(promises) {
+
+        if (!promises.length) {
+            return Promise.resolve(null);
+        }
+
+        var p   = new Promise,
+            len = promises.length,
+            i,
+            item;
+
+        for (i = 0; i < len; i++) {
+            item = promises[i];
+
+            if (item instanceof Promise) {
+                item.done(p.resolve, p).fail(p.reject, p);
+            }
+            else if (isThenable(item) || isFunction(item)) {
+                (new Promise(item)).done(p.resolve, p).fail(p.reject, p);
+            }
+            else {
+                p.resolve(item);
+            }
+
+            if (!p.isPending()) {
+                break;
+            }
+        }
+
+        return p;
+    };
+
+    return Promise;
+}();
+
+
+
+
+
+
+/*
+* Contents of this file are partially taken from jQuery
+*/
+
+var ajax = function(){
+
+    
+
+    var rhash       = /#.*$/,
+
+        rts         = /([?&])_=[^&]*/,
+
+        rquery      = /\?/,
+
+        rurl        = /^([\w.+-]+:)(?:\/\/(?:[^\/?#]*@|)([^\/?#:]*)(?::(\d+)|)|)/,
+
+        rgethead    = /^(?:GET|HEAD)$/i,
+
+        jsonpCb     = 0,
+
+        buildParams     = function(data, params, name) {
+
+            var i, len;
+
+            if (isString(data) && name) {
+                params.push(encodeURIComponent(name) + "=" + encodeURIComponent(data));
+            }
+            else if (isArray(data) && name) {
+                for (i = 0, len = data.length; i < len; i++) {
+                    buildParams(data[i], params, name + "["+i+"]");
+                }
+            }
+            else if (isObject(data)) {
+                for (i in data) {
+                    if (data.hasOwnProperty(i)) {
+                        buildParams(data[i], params, name ? name + "["+i+"]" : i);
+                    }
+                }
+            }
+        },
+
+        prepareParams   = function(data) {
+            var params = [];
+            buildParams(data, params, null);
+            return params.join("&").replace(/%20/g, "+");
+        },
+
+        prepareUrl  = function(url, opt) {
+
+            url.replace(rhash, "");
+
+            if (opt.cache === false) {
+
+                var stamp   = (new Date).getTime();
+
+                return rts.test(url) ?
+                    // If there is already a '_' parameter, set its value
+                       url.replace(rts, "$1_=" + stamp) :
+                    // Otherwise add one to the end
+                       url + (rquery.test(url) ? "&" : "?" ) + "_=" + stamp;
+            }
+
+            if (opt.data && (!window.FormData || !(opt.data instanceof window.FormData))) {
+                opt.data = !isString(opt.data) ? prepareParams(opt.data) : opt.data;
+                if (rgethead.test(opt.method)) {
+                    url += (rquery.test(url) ? "&" : "?") + opt.data;
+                    opt.data = null;
+                }
+            }
+
+            return url;
+        },
+
+        accepts     = {
+            xml:        "application/xml, text/xml",
+            html:       "text/html",
+            script:     "text/javascript, application/javascript",
+            json:       "application/json, text/javascript",
+            text:       "text/plain",
+            _default:   "*/*"
+        },
+
+        defaults    = {
+            url:            null,
+            data:           null,
+            method:         "GET",
+            headers:        null,
+            username:       null,
+            password:       null,
+            cache:          null,
+            dataType:       null,
+            timeout:        0,
+            contentType:    "application/x-www-form-urlencoded",
+            xhrFields:      null,
+            jsonp:          false,
+            jsonpParam:     null,
+            jsonpCallback:  null,
+            transport:      null,
+            replace:        false,
+            selector:       null,
+            form:           null,
+            beforeSend:     null,
+            progress:       null,
+            uploadProgress: null,
+            processResponse:null,
+            callbackScope:  null
+        },
+
+        defaultSetup    = {},
+
+        globalEvents    = new Observable,
+
+        createXHR       = function() {
+
+            var xhr;
+
+            if (!window.XMLHttpRequest || !(xhr = new XMLHttpRequest())) {
+                if (!(xhr = new ActiveXObject("Msxml2.XMLHTTP"))) {
+                    if (!(xhr = new ActiveXObject("Microsoft.XMLHTTP"))) {
+                        throw "Unable to create XHR object";
+                    }
+                }
+            }
+
+            return xhr;
+        },
+
+        globalEval      = function(code){
+            var script, indirect = eval;
+            if (code) {
+                if (/^[^\S]*use strict/.test(code)) {
+                    script = document.createElement("script");
+                    script.text = code;
+                    document.head.appendChild(script)
+                        .parentNode.removeChild(script);
+                } else {
+                    indirect(code);
+                }
+            }
+        },
+
+        data2form       = function(data, form, name) {
+
+            var i, input, len;
+
+            if (!isObject(data) && !isFunction(data) && name) {
+                input   = document.createElement("input");
+                input.setAttribute("type", "hidden");
+                input.setAttribute("name", name);
+                input.setAttribute("value", data);
+                form.appendChild(input);
+            }
+            else if (isArray(data) && name) {
+                for (i = 0, len = data.length; i < len; i++) {
+                    data2form(data[i], form, name + "["+i+"]");
+                }
+            }
+            else if (isObject(data)) {
+                for (i in data) {
+                    if (data.hasOwnProperty(i)) {
+                        data2form(data[i], form, name ? name + "["+i+"]" : i);
+                    }
+                }
+            }
+        },
+
+        // https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest/Using_XMLHttpRequest
+        serializeForm   = function(form) {
+
+            var oField, sFieldType, nFile, sSearch = "";
+
+            for (var nItem = 0; nItem < form.elements.length; nItem++) {
+
+                oField = form.elements[nItem];
+
+                if (!oField.hasAttribute("name")) {
+                    continue;
+                }
+
+                sFieldType = oField.nodeName.toUpperCase() === "INPUT" ?
+                             oField.getAttribute("type").toUpperCase() : "TEXT";
+
+                if (sFieldType === "FILE") {
+                    for (nFile = 0;
+                         nFile < oField.files.length;
+                         sSearch += "&" + encodeURIComponent(oField.name) + "=" +
+                                    encodeURIComponent(oField.files[nFile++].name)){}
+
+                } else if ((sFieldType !== "RADIO" && sFieldType !== "CHECKBOX") || oField.checked) {
+                    sSearch += "&" + encodeURIComponent(oField.name) + "=" + encodeURIComponent(oField.value);
+                }
+            }
+
+            return sSearch;
+        },
+
+        httpSuccess     = function(r) {
+            try {
+                return (!r.status && !isUndefined(location) && location.protocol == "file:")
+                           || (r.status >= 200 && r.status < 300)
+                           || r.status === 304 || r.status === 1223; // || r.status === 0;
+            } catch(thrownError){}
+            return false;
+        },
+
+        processData     = function(data, opt, ct) {
+
+            var type        = opt ? opt.dataType : null,
+                selector    = opt ? opt.selector : null,
+                doc;
+
+            if (!isString(data)) {
+                return data;
+            }
+
+            ct = ct || "";
+
+            if (type === "xml" || !type && ct.indexOf("xml") >= 0) {
+                doc = parseXML(trim(data));
+                return selector ? select(selector, doc) : doc;
+            }
+            else if (type === "html") {
+                doc = parseXML(data, "text/html");
+                return selector ? select(selector, doc) : doc;
+            }
+            else if (type == "fragment") {
+                var fragment    = document.createDocumentFragment(),
+                    div         = document.createElement("div");
+
+                div.innerHTML   = data;
+
+                while (div.firstChild) {
+                    fragment.appendChild(div.firstChild);
+                }
+
+                return fragment;
+            }
+            else if (type === "json" || !type && ct.indexOf("json") >= 0) {
+                return parseJSON(trim(data));
+            }
+            else if (type === "script" || !type && ct.indexOf("javascript") >= 0) {
+                globalEval(data);
+            }
+
+            return data + "";
+        };
+
+
+
+
+    var AJAX    = function(opt) {
+
+        var self        = this,
+            href        = !isUndefined(window) ? window.location.href : "",
+            local       = rurl.exec(href.toLowerCase()) || [],
+            parts       = rurl.exec(opt.url.toLowerCase());
+
+        self._opt       = opt;
+
+        opt.crossDomain = !!(parts &&
+                             (parts[1] !== local[1] || parts[2] !== local[2] ||
+                              (parts[3] || (parts[1] === "http:" ? "80" : "443")) !==
+                              (local[3] || (local[1] === "http:" ? "80" : "443"))));
+
+        var deferred    = new Promise,
+            transport;
+
+        if (opt.transport == "iframe" && !opt.form) {
+            self.createForm();
+            opt.form = self._form;
+        }
+        else if (opt.form) {
+            self._form = opt.form;
+            if (opt.method == "POST" && (isUndefined(window) || !window.FormData) &&
+                opt.transport != "iframe") {
+
+                opt.transport = "iframe";
+            }
+        }
+
+        if (opt.form && opt.transport != "iframe") {
+            if (opt.method == "POST") {
+                opt.data = new FormData(opt.form);
+            }
+            else {
+                opt.data = serializeForm(opt.form);
+            }
+        }
+
+        opt.url = prepareUrl(opt.url, opt);
+
+        if ((opt.crossDomain || opt.transport == "script") && !opt.form) {
+            transport   = new ScriptTransport(opt, deferred, self);
+        }
+        else if (opt.transport == "iframe") {
+            transport   = new IframeTransport(opt, deferred, self);
+        }
+        else {
+            transport   = new XHRTransport(opt, deferred, self);
+        }
+
+        self._deferred      = deferred;
+        self._transport     = transport;
+
+        deferred.done(function(value) {
+            globalEvents.trigger("success", value);
+        });
+        deferred.fail(function(reason) {
+            globalEvents.trigger("error", reason);
+        });
+        deferred.always(function(){
+            globalEvents.trigger("end");
+        });
+
+        globalEvents.trigger("start");
+
+
+        if (opt.timeout) {
+            self._timeout = setTimeout(bind(self.onTimeout, self), opt.timeout);
+        }
+
+        if (opt.jsonp) {
+            self.createJsonp();
+        }
+
+        if (globalEvents.trigger("beforeSend", opt, transport) === false) {
+            self._promise = Promise.reject();
+        }
+        if (opt.beforeSend && opt.beforeSend.call(opt.callbackScope, opt, transport) === false) {
+            self._promise = Promise.reject();
+        }
+
+        if (!self._promise) {
+            async(transport.send, transport);
+
+            deferred.abort = bind(self.abort, self);
+            deferred.always(self.destroy, self);
+
+            self._promise = deferred;
+        }
+    };
+
+    AJAX.prototype = {
+
+        _jsonpName: null,
+        _transport: null,
+        _opt: null,
+        _deferred: null,
+        _promise: null,
+        _timeout: null,
+        _form: null,
+        _removeForm: false,
+
+        promise: function() {
+            return this._promise;
+        },
+
+        abort: function(reason) {
+            this._transport.abort();
+            this._deferred.reject(reason || "abort");
+        },
+
+        onTimeout: function() {
+            this.abort("timeout");
+        },
+
+        createForm: function() {
+
+            var self    = this,
+                form    = document.createElement("form");
+
+            form.style.display = "none";
+            form.setAttribute("method", self._opt.method);
+
+            data2form(self._opt.data, form, null);
+
+            document.body.appendChild(form);
+
+            self._form = form;
+            self._removeForm = true;
+        },
+
+        createJsonp: function() {
+
+            var self        = this,
+                opt         = self._opt,
+                paramName   = opt.jsonpParam || "callback",
+                cbName      = opt.jsonpCallback || "jsonp_" + (++jsonpCb);
+
+            opt.url += (rquery.test(opt.url) ? "&" : "?") + paramName + "=" + cbName;
+
+            self._jsonpName = cbName;
+
+            if (!isUndefined(window)) {
+                window[cbName] = bind(self.jsonpCallback, self);
+            }
+            if (!isUndefined(global)) {
+                global[cbName] = bind(self.jsonpCallback, self);
+            }
+
+            return cbName;
+        },
+
+        jsonpCallback: function(data) {
+
+            var self    = this;
+
+            try {
+                self._deferred.resolve(self.processResponseData(data));
+            }
+            catch (thrownError) {
+                self._deferred.reject(thrownError);
+            }
+        },
+
+        processResponseData: function(data, contentType) {
+
+            var self    = this,
+                opt     = self._opt;
+
+            data    = processData(data, opt, contentType);
+
+            if (globalEvents.hasListener("processResponse")) {
+                data    = globalEvents.trigger("processResponse", data, self._deferred);
+            }
+
+            if (opt.processResponse) {
+                data    = opt.processResponse.call(opt.callbackScope, data, self._deferred);
+            }
+
+            return data;
+        },
+
+        processResponse: function(data, contentType) {
+
+            var self        = this,
+                deferred    = self._deferred;
+
+            if (!self._opt.jsonp) {
+                try {
+                    deferred.resolve(self.processResponseData(data, contentType));
+                }
+                catch (thrownError) {
+                    deferred.reject(thrownError);
+                }
+            }
+            else {
+                if (!data) {
+                    deferred.reject("jsonp script is empty");
+                    return;
+                }
+
+                try {
+                    globalEval(data);
+                }
+                catch (thrownError) {
+                    deferred.reject(thrownError);
+                }
+
+                if (deferred.isPending()) {
+                    deferred.reject("jsonp script didn't invoke callback");
+                }
+            }
+        },
+
+        destroy: function() {
+
+            var self    = this;
+
+            if (self._timeout) {
+                clearTimeout(self._timeout);
+            }
+
+            if (self._form && self._form.parentNode && self._removeForm) {
+                self._form.parentNode.removeChild(self._form);
+            }
+
+            self._transport.destroy();
+
+            delete self._transport;
+            delete self._opt;
+            delete self._deferred;
+            delete self._promise;
+            delete self._timeout;
+            delete self._form;
+
+            if (self._jsonpName) {
+                if (!isUndefined(window)) {
+                    delete window[self._jsonpName];
+                }
+                if (!isUndefined(global)) {
+                    delete global[self._jsonpName];
+                }
+            }
+        }
+    };
+
+
+
+    var ajax    = function(url, opt) {
+
+        opt = opt || {};
+
+        if (url && !isString(url)) {
+            opt = url;
+        }
+        else {
+            opt.url = url;
+        }
+
+        if (!opt.url) {
+            if (opt.form) {
+                opt.url = opt.form.getAttribute("action");
+            }
+            if (!opt.url) {
+                throw "Must provide url";
+            }
+        }
+
+        extend(opt, defaultSetup, false, true);
+        extend(opt, defaults, false, true);
+
+        if (!opt.method) {
+            if (opt.form) {
+                opt.method = opt.form.getAttribute("method").toUpperCase() || "GET";
+            }
+            else {
+                opt.method = "GET";
+            }
+        }
+        else {
+            opt.method = opt.method.toUpperCase();
+        }
+
+        return (new AJAX(opt)).promise();
+    };
+
+    ajax.setup  = function(opt) {
+        extend(defaultSetup, opt, true, true);
+    };
+
+    ajax.on     = function() {
+        globalEvents.on.apply(globalEvents, arguments);
+    };
+
+    ajax.un     = function() {
+        globalEvents.un.apply(globalEvents, arguments);
+    };
+
+    ajax.get    = function(url, opt) {
+        opt = opt || {};
+        opt.method = "GET";
+        return ajax(url, opt);
+    };
+
+    ajax.post   = function(url, opt) {
+        opt = opt || {};
+        opt.method = "POST";
+        return ajax(url, opt);
+    };
+
+    ajax.load   = function(el, url, opt) {
+
+        opt = opt || {};
+
+        if (!isString(url)) {
+            opt = url;
+        }
+
+        opt.dataType = "fragment";
+
+        return ajax(url, opt).done(function(fragment){
+            if (opt.replace) {
+                while (el.firstChild) {
+                    el.removeChild(el.firstChild);
+                }
+            }
+            el.appendChild(fragment);
+        });
+    };
+
+    ajax.loadScript = function(url) {
+        return ajax(url, {transport: "script"});
+    };
+
+    ajax.submit = function(form, opt) {
+
+        opt = opt || {};
+        opt.form = form;
+
+        return ajax(null, opt);
+    };
+
+
+
+
+
+
+
+
+
+    var XHRTransport     = function(opt, deferred, ajax) {
+
+        var self    = this,
+            xhr;
+
+        self._xhr = xhr     = createXHR();
+        self._deferred      = deferred;
+        self._opt           = opt;
+        self._ajax          = ajax;
+
+        if (opt.progress) {
+            addListener(xhr, "progress", bind(opt.progress, opt.callbackScope));
+        }
+        if (opt.uploadProgress && xhr.upload) {
+            addListener(xhr.upload, "progress", bind(opt.uploadProgress, opt.callbackScope));
+        }
+
+        try {
+            var i;
+            if (opt.xhrFields) {
+                for (i in opt.xhrFields) {
+                    xhr[i] = opt.xhrFields[i];
+                }
+            }
+            if (opt.data && opt.contentType) {
+                xhr.setRequestHeader("Content-Type", opt.contentType);
+            }
+            xhr.setRequestHeader("X-Requested-With", "XMLHttpRequest");
+            xhr.setRequestHeader("Accept",
+                opt.dataType && accepts[opt.dataType] ?
+                accepts[opt.dataType] + ", */*; q=0.01" :
+                accepts._default
+            );
+            for (i in opt.headers) {
+                xhr.setRequestHeader(i, opt.headers[i]);
+            }
+        } catch(thrownError){}
+
+        xhr.onreadystatechange = bind(self.onReadyStateChange, self);
+    };
+
+    XHRTransport.prototype = {
+
+        _xhr: null,
+        _deferred: null,
+        _ajax: null,
+
+        onReadyStateChange: function() {
+
+            var self        = this,
+                xhr         = self._xhr,
+                deferred    = self._deferred;
+
+            if (xhr.readyState === 0) {
+                xhr.onreadystatechange = emptyFn;
+                deferred.resolve(xhr);
+                return;
+            }
+
+            if (xhr.readyState === 4) {
+                xhr.onreadystatechange = emptyFn;
+
+                if (httpSuccess(xhr)) {
+
+                    self._ajax.processResponse(
+                        isString(xhr.responseText) ? xhr.responseText : undefined,
+                        xhr.getResponseHeader("content-type") || ''
+                    );
+                }
+                else {
+                    deferred.reject(xhr);
+                }
+            }
+        },
+
+        abort: function() {
+            var self    = this;
+            self._xhr.onreadystatechange = emptyFn;
+            self._xhr.abort();
+        },
+
+        send: function() {
+
+            var self    = this,
+                opt     = self._opt;
+
+            try {
+                self._xhr.open(opt.method, opt.url, true, opt.username, opt.password);
+                self._xhr.send(opt.data);
+            }
+            catch (thrownError) {
+                self._deferred.reject(thrownError);
+            }
+        },
+
+        destroy: function() {
+            var self    = this;
+
+            delete self._xhr;
+            delete self._deferred;
+            delete self._opt;
+            delete self._ajax;
+
+        }
+
+    };
+
+
+
+    var ScriptTransport  = function(opt, deferred, ajax) {
+
+
+        var self        = this;
+
+        self._opt       = opt;
+        self._ajax      = ajax;
+        self._deferred  = deferred;
+
+    };
+
+    ScriptTransport.prototype = {
+
+        _opt: null,
+        _deferred: null,
+        _ajax: null,
+        _el: null,
+
+        send: function() {
+
+            var self    = this,
+                script  = document.createElement("script");
+
+            script.setAttribute("async", "async");
+            script.setAttribute("charset", "utf-8");
+            script.setAttribute("src", self._opt.url);
+
+            addListener(script, "load", bind(self.onLoad, self));
+            addListener(script, "error", bind(self.onError, self));
+
+            document.head.appendChild(script);
+
+            self._el = script;
+        },
+
+        onLoad: function(evt) {
+            if (this._deferred) { // haven't been destroyed yet
+                this._deferred.resolve(evt);
+            }
+        },
+
+        onError: function(evt) {
+            this._deferred.reject(evt);
+        },
+
+        abort: function() {
+            var self    = this;
+
+            if (self._el.parentNode) {
+                self._el.parentNode.removeChild(self._el);
+            }
+        },
+
+        destroy: function() {
+
+            var self    = this;
+
+            if (self._el.parentNode) {
+                self._el.parentNode.removeChild(self._el);
+            }
+
+            delete self._el;
+            delete self._opt;
+            delete self._ajax;
+            delete self._deferred;
+
+        }
+
+    };
+
+
+
+    var IframeTransport = function(opt, deferred, ajax) {
+        var self        = this;
+
+        self._opt       = opt;
+        self._ajax      = ajax;
+        self._deferred  = deferred;
+    };
+
+    IframeTransport.prototype = {
+
+        _opt: null,
+        _deferred: null,
+        _ajax: null,
+        _el: null,
+
+        send: function() {
+
+            var self    = this,
+                frame   = document.createElement("iframe"),
+                id      = "frame-" + (++jsonpCb),
+                form    = self._opt.form;
+
+            frame.setAttribute("id", id);
+            frame.setAttribute("name", id);
+            frame.style.display = "none";
+            document.body.appendChild(frame);
+
+            form.setAttribute("action", self._opt.url);
+            form.setAttribute("target", id);
+
+            addListener(frame, "load", bind(self.onLoad, self));
+            addListener(frame, "error", bind(self.onError, self));
+
+            self._el = frame;
+
+            try {
+                form.submit();
+            }
+            catch (thrownError) {
+                self._deferred.reject(thrownError);
+            }
+        },
+
+        onLoad: function() {
+
+            var self    = this,
+                frame   = self._el,
+                doc,
+                data;
+
+            if (self._opt && !self._opt.jsonp) {
+                doc		= frame.contentDocument || frame.contentWindow.document;
+                data    = doc.body.innerHTML;
+                self._ajax.processResponse(data);
+            }
+        },
+
+        onError: function(evt) {
+            this._deferred.reject(evt);
+        },
+
+        abort: function() {
+            var self    = this;
+
+            if (self._el.parentNode) {
+                self._el.parentNode.removeChild(self._el);
+            }
+        },
+
+        destroy: function() {
+            var self    = this;
+
+            if (self._el.parentNode) {
+                self._el.parentNode.removeChild(self._el);
+            }
+
+            delete self._el;
+            delete self._opt;
+            delete self._ajax;
+            delete self._deferred;
+
+        }
+
+    };
+
+    return ajax;
+}();
+
 
 
 
@@ -3336,31 +4920,29 @@ var Validator = function(){
                 val 	= self.getValue(),
                 cfg     = self.cfg;
 
-            var ajax 	= extend({}, isString(rm) ? {url: rm} : rm, true);
+            var acfg 	= extend({}, isString(rm) ? {url: rm} : rm, true);
 
             //ajax.success 	= self.onAjaxSuccess;
             //ajax.error 		= self.onAjaxError;
-            ajax.data 		= ajax.data || {};
-            ajax.data[
-                ajax.paramName ||
+            acfg.data 		= acfg.data || {};
+            acfg.data[
+                acfg.paramName ||
                 elem.getAttribute('name') ||
                 elem.getAttribute('id')] = val;
 
-            if (!ajax.handler) {
-                ajax.dataType 	= 'text';
+            if (!acfg.handler) {
+                acfg.dataType 	= 'text';
             }
 
-            ajax.cache 		= false;
+            acfg.cache 		= false;
 
             if (cfg.cls.ajax) {
                 addClass(elem, cfg.cls.ajax);
             }
 
-            self.trigger('beforeAjax', self, ajax);
+            self.trigger('beforeAjax', self, acfg);
 
-            var ajaxFn = window.MetaphorJs ? MetaphorJs.ajax : jQuery.ajax;
-
-            self.pending = ajaxFn(ajax);
+            self.pending = ajax(acfg);
 
             self.pending.done(bind(self.onAjaxSuccess, self));
             self.pending.fail(bind(self.onAjaxError, self));
@@ -4804,9 +6386,49 @@ var Validator = function(){
 }();
 
 
-MetaphorJs.lib.Validator   = Validator;
+if (window.jQuery) {
 
+    jQuery.fn.metaphorjsValidator = function(options, instanceName) {
 
-typeof global != "undefined" ? (global.MetaphorJs = MetaphorJs) : (window.MetaphorJs = MetaphorJs);
+        var dataName    = "metaphorjsValidator",
+            preset;
+
+        if (typeof options == "string" && options != "destroy") {
+            preset          = options;
+            options         = arguments[1];
+            instanceName    = arguments[2];
+        }
+
+        instanceName    = instanceName || "default";
+        options         = options || {};
+        dataName        += "-" + instanceName;
+
+        this.each(function() {
+
+            var o = $(this),
+                v = o.data(dataName);
+
+            if (options == "destroy") {
+                if (v) {
+                    v.destroy();
+                    o.data(dataName, null);
+                }
+            }
+            else {
+                if (!v) {
+                    options.form            = o;
+                    options.instanceName    = instanceName;
+                    o.data(dataName, new Validator(preset, options));
+                }
+                else {
+                    throw new Error("MetaphorJs validator is already instantiated for this html element");
+                }
+            }
+        });
+    };
+}
+MetaphorJs.lib['Validator'] = Validator;
+
+typeof global != "undefined" ? (global['MetaphorJs'] = MetaphorJs) : (window['MetaphorJs'] = MetaphorJs);
 
 }());

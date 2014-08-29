@@ -1,0 +1,2 @@
+
+var getValue = Input.getValue;

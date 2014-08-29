@@ -1,28 +1,370 @@
+define("metaphorjs-validator", ['metaphorjs-observable', 'metaphorjs-ajax', 'metaphorjs-select', 'metaphorjs-input'], function(Observable, ajax, select, Input) {
 
-var getValue        = require("../../metaphorjs-input/src/func/getValue.js"),
-    extend          = require("../../metaphorjs/src/func/extend.js"),
-    isArray         = require("../../metaphorjs/src/func/isArray.js"),
-    trim            = require("../../metaphorjs/src/func/trim.js"),
-    bind            = require("../../metaphorjs/src/func/bind.js"),
-    addListener     = require("../../metaphorjs/src/func/event/addListener.js"),
-    removeListener  = require("../../metaphorjs/src/func/event/removeListener.js"),
-    addClass        = require("../../metaphorjs/src/func/dom/addClass.js"),
-    removeClass     = require("../../metaphorjs/src/func/dom/removeClass.js"),
-    select          = require("../../metaphorjs-select/src/metaphorjs.select.js"),
-    eachNode        = require("../../metaphorjs/src/func/dom/eachNode.js"),
-    isField         = require("../../metaphorjs/src/func/dom/isField.js"),
-    normalizeEvent  = require("../../metaphorjs/src/func/event/normalizeEvent.js"),
-    Input           = require("../../metaphorjs-input/src/metaphorjs.input.js"),
-    Observable      = require("../../metaphorjs-observable/src/metaphorjs.observable.js"),
-    isFunction      = require("../../metaphorjs/src/func/isFunction.js"),
-    isString        = require("../../metaphorjs/src/func/isString.js"),
-    isBool          = require("../../metaphorjs/src/func/isBool.js"),
-    ajax            = require("../../metaphorjs-ajax/src/metaphorjs.ajax.js");
+var getValue = Input.getValue;
+
+var slice = Array.prototype.slice;
+/**
+ * @param {*} obj
+ * @returns {boolean}
+ */
+var isPlainObject = function(obj) {
+    return !!(obj && obj.constructor === Object);
+};
+
+var isBool = function(value) {
+    return typeof value == "boolean";
+};
+var strUndef = "undefined";
 
 
+var isUndefined = function(any) {
+    return typeof any == strUndef;
+};
+
+var isNull = function(value) {
+    return value === null;
+};
 
 
-module.exports = function(){
+/**
+ * @param {Object} dst
+ * @param {Object} src
+ * @param {Object} src2 ... srcN
+ * @param {boolean} override = false
+ * @param {boolean} deep = false
+ * @returns {*}
+ */
+var extend = function extend() {
+
+
+    var override    = false,
+        deep        = false,
+        args        = slice.call(arguments),
+        dst         = args.shift(),
+        src,
+        k,
+        value;
+
+    if (isBool(args[args.length - 1])) {
+        override    = args.pop();
+    }
+    if (isBool(args[args.length - 1])) {
+        deep        = override;
+        override    = args.pop();
+    }
+
+    while (args.length) {
+        if (src = args.shift()) {
+            for (k in src) {
+
+                if (src.hasOwnProperty(k) && !isUndefined((value = src[k]))) {
+
+                    if (deep) {
+                        if (dst[k] && isPlainObject(dst[k]) && isPlainObject(value)) {
+                            extend(dst[k], value, override, deep);
+                        }
+                        else {
+                            if (override === true || isUndefined(dst[k]) || isNull(dst[k])) {
+                                if (isPlainObject(value)) {
+                                    dst[k] = {};
+                                    extend(dst[k], value, override, true);
+                                }
+                                else {
+                                    dst[k] = value;
+                                }
+                            }
+                        }
+                    }
+                    else {
+                        if (override === true || isUndefined(dst[k]) || isNull(dst[k])) {
+                            dst[k] = value;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    return dst;
+};
+
+
+var toString = Object.prototype.toString;
+var isObject = function(value) {
+    return value != null && typeof value === 'object';
+};
+var isNumber = function(value) {
+    return typeof value == "number" && !isNaN(value);
+};
+
+
+/**
+ * @param {*} value
+ * @returns {boolean}
+ */
+var isArray = function(value) {
+    return !!(value && isObject(value) && isNumber(value.length) &&
+                toString.call(value) == '[object Array]' || false);
+};
+var isString = function(value) {
+    return typeof value == "string";
+};
+
+
+/**
+ * @param {String} value
+ */
+var trim = function() {
+    // native trim is way faster: http://jsperf.com/angular-trim-test
+    // but IE doesn't have it... :-(
+    if (!String.prototype.trim) {
+        return function(value) {
+            return isString(value) ? value.replace(/^\s\s*/, '').replace(/\s\s*$/, '') : value;
+        };
+    }
+    return function(value) {
+        return isString(value) ? value.trim() : value;
+    };
+}();
+/**
+ * @param {Function} fn
+ * @param {*} context
+ */
+var bind = Function.prototype.bind ?
+              function(fn, context){
+                  return fn.bind(context);
+              } :
+              function(fn, context) {
+                  return function() {
+                      return fn.apply(context, arguments);
+                  };
+              };
+
+
+var addListener = function(el, event, func) {
+    if (el.attachEvent) {
+        el.attachEvent('on' + event, func);
+    } else {
+        el.addEventListener(event, func, false);
+    }
+};
+
+var removeListener = function(el, event, func) {
+    if (el.detachEvent) {
+        el.detachEvent('on' + event, func);
+    } else {
+        el.removeEventListener(event, func, false);
+    }
+};/**
+ * @param {String} expr
+ */
+var getRegExp = function(){
+
+    var cache = {};
+
+    return function(expr) {
+        return cache[expr] || (cache[expr] = new RegExp(expr));
+    };
+}();
+
+
+/**
+ * @param {String} cls
+ * @returns {RegExp}
+ */
+var getClsReg = function(cls) {
+    return getRegExp('(?:^|\\s)'+cls+'(?!\\S)');
+};
+
+
+/**
+ * @param {Element} el
+ * @param {String} cls
+ * @returns {boolean}
+ */
+var hasClass = function(el, cls) {
+    return cls ? getClsReg(cls).test(el.className) : false;
+};
+
+
+/**
+ * @param {Element} el
+ * @param {String} cls
+ */
+var addClass = function(el, cls) {
+    if (cls && !hasClass(el, cls)) {
+        el.className += " " + cls;
+    }
+};
+
+
+/**
+ * @param {Element} el
+ * @param {String} cls
+ */
+var removeClass = function(el, cls) {
+    if (cls) {
+        el.className = el.className.replace(getClsReg(cls), '');
+    }
+};
+var eachNode = function(el, fn, context) {
+    var i, len,
+        children = el.childNodes;
+
+    if (fn.call(context, el) !== false) {
+        for(i =- 1, len = children.length>>>0;
+            ++i !== len;
+            eachNode(children[i], fn, context)){}
+    }
+};
+
+
+var isField = function(el) {
+    var tag	= el.nodeName.toLowerCase(),
+        type = el.type;
+    if (tag == 'input' || tag == 'textarea' || tag == 'select') {
+        if (type != "submit" && type != "reset" && type != "button") {
+            return true;
+        }
+    }
+    return false;
+};
+var returnFalse = function() {
+    return false;
+};
+
+var returnTrue = function() {
+    return true;
+};
+
+
+// from jQuery
+
+var NormalizedEvent = function(src) {
+
+    if (src instanceof NormalizedEvent) {
+        return src;
+    }
+
+    // Allow instantiation without the 'new' keyword
+    if (!(this instanceof NormalizedEvent)) {
+        return new NormalizedEvent(src);
+    }
+
+
+    var self    = this;
+
+    for (var i in src) {
+        if (!self[i]) {
+            try {
+                self[i] = src[i];
+            }
+            catch (thrownError){}
+        }
+    }
+
+
+    // Event object
+    self.originalEvent = src;
+    self.type = src.type;
+
+    if (!self.target && src.srcElement) {
+        self.target = src.srcElement;
+    }
+
+
+    var eventDoc, doc, body,
+        button = src.button;
+
+    // Calculate pageX/Y if missing and clientX/Y available
+    if (isUndefined(self.pageX) && !isNull(src.clientX)) {
+        eventDoc = self.target ? self.target.ownerDocument || document : document;
+        doc = eventDoc.documentElement;
+        body = eventDoc.body;
+
+        self.pageX = src.clientX +
+                      ( doc && doc.scrollLeft || body && body.scrollLeft || 0 ) -
+                      ( doc && doc.clientLeft || body && body.clientLeft || 0 );
+        self.pageY = src.clientY +
+                      ( doc && doc.scrollTop  || body && body.scrollTop  || 0 ) -
+                      ( doc && doc.clientTop  || body && body.clientTop  || 0 );
+    }
+
+    // Add which for click: 1 === left; 2 === middle; 3 === right
+    // Note: button is not normalized, so don't use it
+    if ( !self.which && button !== undefined ) {
+        self.which = ( button & 1 ? 1 : ( button & 2 ? 3 : ( button & 4 ? 2 : 0 ) ) );
+    }
+
+    // Events bubbling up the document may have been marked as prevented
+    // by a handler lower down the tree; reflect the correct value.
+    self.isDefaultPrevented = src.defaultPrevented ||
+                              isUndefined(src.defaultPrevented) &&
+                                  // Support: Android<4.0
+                              src.returnValue === false ?
+                              returnTrue :
+                              returnFalse;
+
+
+    // Create a timestamp if incoming event doesn't have one
+    self.timeStamp = src && src.timeStamp || (new Date).getTime();
+};
+
+// Event is based on DOM3 Events as specified by the ECMAScript Language Binding
+// http://www.w3.org/TR/2003/WD-DOM-Level-3-Events-20030331/ecma-script-binding.html
+NormalizedEvent.prototype = {
+
+    isDefaultPrevented: returnFalse,
+    isPropagationStopped: returnFalse,
+    isImmediatePropagationStopped: returnFalse,
+
+    preventDefault: function() {
+        var e = this.originalEvent;
+
+        this.isDefaultPrevented = returnTrue;
+        e.returnValue = false;
+
+        if ( e && e.preventDefault ) {
+            e.preventDefault();
+        }
+    },
+    stopPropagation: function() {
+        var e = this.originalEvent;
+
+        this.isPropagationStopped = returnTrue;
+
+        if ( e && e.stopPropagation ) {
+            e.stopPropagation();
+        }
+    },
+    stopImmediatePropagation: function() {
+        var e = this.originalEvent;
+
+        this.isImmediatePropagationStopped = returnTrue;
+
+        if ( e && e.stopImmediatePropagation ) {
+            e.stopImmediatePropagation();
+        }
+
+        this.stopPropagation();
+    }
+};
+
+
+
+var normalizeEvent = function(originalEvent) {
+    return new NormalizedEvent(originalEvent);
+};
+
+var isFunction = function(value) {
+    return typeof value === 'function';
+};
+
+
+
+
+
+var Validator = function(){
 
     var vldId   = 0,
 
@@ -2560,3 +2902,47 @@ module.exports = function(){
     return Validator;
 }();
 
+
+if (window.jQuery) {
+
+    jQuery.fn.metaphorjsValidator = function(options, instanceName) {
+
+        var dataName    = "metaphorjsValidator",
+            preset;
+
+        if (typeof options == "string" && options != "destroy") {
+            preset          = options;
+            options         = arguments[1];
+            instanceName    = arguments[2];
+        }
+
+        instanceName    = instanceName || "default";
+        options         = options || {};
+        dataName        += "-" + instanceName;
+
+        this.each(function() {
+
+            var o = $(this),
+                v = o.data(dataName);
+
+            if (options == "destroy") {
+                if (v) {
+                    v.destroy();
+                    o.data(dataName, null);
+                }
+            }
+            else {
+                if (!v) {
+                    options.form            = o;
+                    options.instanceName    = instanceName;
+                    o.data(dataName, new Validator(preset, options));
+                }
+                else {
+                    throw new Error("MetaphorJs validator is already instantiated for this html element");
+                }
+            }
+        });
+    };
+}
+return Validator;
+});

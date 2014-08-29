@@ -1,0 +1,28 @@
+{
+  "name": "metaphorjs-validator",
+  "version": "0.1.0",
+  "description": "",
+  "main": "dist/metaphorjs.validator.npm.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kuindji/metaphorjs-validator.git"
+  },
+  "author": "kuindji",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/kuindji/metaphorjs-validator/issues"
+  },
+  "homepage": "https://github.com/kuindji/metaphorjs-validator",
+  "dependencies": {
+      "metaphorjs-observable": "*",
+      "metaphorjs-ajax": "*",
+      "metaphorjs-select": "*",
+      "metaphorjs-input": "*"
+  }
+}

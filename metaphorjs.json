@@ -14,6 +14,28 @@
         ]
     },
 
+    "npm": {
+        "target": "dist/metaphorjs.validator.npm.js",
+        "files": [
+            ["src/metaphorjs.validator.js", {"keepExports": true}]
+        ],
+        "omit": [
+            "../metaphorjs-observable/src/metaphorjs.observable.js",
+            "../metaphorjs-promise/src/metaphorjs.promise.js",
+            "../metaphorjs-ajax/src/metaphorjs.ajax.js",
+            "../metaphorjs-select/src/metaphorjs.select.js",
+            "../metaphorjs-input/src/metaphorjs.input.js",
+            "../metaphorjs-input/src/func/getValue.js",
+            "../metaphorjs-input/src/func/setValue.js"
+        ],
+        "require": {
+            "metaphorjs-observable": "Observable",
+            "metaphorjs-ajax": "ajax",
+            "metaphorjs-select": "select",
+            "metaphorjs-input": "Input"
+        }
+    },
+
     "amd": {
         "target": "dist/metaphorjs.validator.amd.js",
         "files": [

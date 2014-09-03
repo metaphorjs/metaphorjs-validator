@@ -1,30 +1,30 @@
 {
-  "name": "metaphorjs-validator",
-  "version": "0.9.0",
-  "authors": [
-    "kuindji <kuindji@gmail.com>"
-  ],
-  "description": "Form validator",
-  "main": "dist/metaphorjs.validator.amd.min.js",
-  "moduleType": [
-    "amd"
-  ],
-  "keywords": [
-    "form",
-    "validate"
-  ],
-  "license": "MIT",
-  "homepage": "https://github.com/kuindji/metaphorjs-validator",
-  "ignore": [
-    "node_modules",
-    "bower_components",
-    "test",
-    "tests"
-  ],
-  "dependencies": {
-      "metaphorjs-observable": "*",
-      "metaphorjs-ajax": "*",
-      "metaphorjs-select": "*",
-      "metaphorjs-input": "*"
-  }
+    "name": "metaphorjs-validator",
+    "version": "0.9.1",
+    "authors": [
+        "kuindji <kuindji@gmail.com>"
+    ],
+    "description": "Form validator",
+    "main": "dist/metaphorjs.validator.amd.min.js",
+    "moduleType": [
+        "amd"
+    ],
+    "keywords": [
+        "form",
+        "validate"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/kuindji/metaphorjs-validator",
+    "ignore": [
+        "node_modules",
+        "bower_components",
+        "test",
+        "tests"
+    ],
+    "dependencies": {
+        "metaphorjs-observable": "*",
+        "metaphorjs-ajax": "*",
+        "metaphorjs-select": "*",
+        "metaphorjs-input": "*"
+    }
 }

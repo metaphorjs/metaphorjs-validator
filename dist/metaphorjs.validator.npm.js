@@ -5,24 +5,74 @@ var Input = require('metaphorjs-input');
 
 
 var slice = Array.prototype.slice;
-/**
- * @param {*} obj
- * @returns {boolean}
- */
-var isPlainObject = function(obj) {
-    return !!(obj && obj.constructor === Object);
+var toString = Object.prototype.toString;
+var undf = undefined;
+
+
+
+var varType = function(){
+
+    var types = {
+        '[object String]': 0,
+        '[object Number]': 1,
+        '[object Boolean]': 2,
+        '[object Object]': 3,
+        '[object Function]': 4,
+        '[object Array]': 5,
+        '[object RegExp]': 9,
+        '[object Date]': 10
+    };
+
+
+    /**
+        'string': 0,
+        'number': 1,
+        'boolean': 2,
+        'object': 3,
+        'function': 4,
+        'array': 5,
+        'null': 6,
+        'undefined': 7,
+        'NaN': 8,
+        'regexp': 9,
+        'date': 10
+    */
+
+    return function(val) {
+
+        if (!val) {
+            if (val === null) {
+                return 6;
+            }
+            if (val === undf) {
+                return 7;
+            }
+        }
+
+        var num = types[toString.call(val)];
+
+        if (num === undf) {
+            return -1;
+        }
+
+        if (num == 1 && isNaN(val)) {
+            num = 8;
+        }
+
+        return num;
+    };
+
+}();
+
+
+var isPlainObject = function(value) {
+    return varType(value) === 3;
 };
+
 
 var isBool = function(value) {
-    return typeof value == "boolean";
+    return varType(value) === 2;
 };
-var strUndef = "undefined";
-
-
-var isUndefined = function(any) {
-    return typeof any == strUndef;
-};
-
 var isNull = function(value) {
     return value === null;
 };
@@ -59,14 +109,14 @@ var extend = function extend() {
         if (src = args.shift()) {
             for (k in src) {
 
-                if (src.hasOwnProperty(k) && !isUndefined((value = src[k]))) {
+                if (src.hasOwnProperty(k) && (value = src[k]) !== undf) {
 
                     if (deep) {
                         if (dst[k] && isPlainObject(dst[k]) && isPlainObject(value)) {
                             extend(dst[k], value, override, deep);
                         }
                         else {
-                            if (override === true || isUndefined(dst[k]) || isNull(dst[k])) {
+                            if (override === true || dst[k] == undf) { // == checks for null and undefined
                                 if (isPlainObject(value)) {
                                     dst[k] = {};
                                     extend(dst[k], value, override, true);
@@ -78,7 +128,7 @@ var extend = function extend() {
                         }
                     }
                     else {
-                        if (override === true || isUndefined(dst[k]) || isNull(dst[k])) {
+                        if (override === true || dst[k] == undf) {
                             dst[k] = value;
                         }
                     }
@@ -91,13 +141,6 @@ var extend = function extend() {
 };
 
 
-var toString = Object.prototype.toString;
-var isObject = function(value) {
-    return value != null && typeof value === 'object';
-};
-var isNumber = function(value) {
-    return typeof value == "number" && !isNaN(value);
-};
 
 
 /**
@@ -105,11 +148,12 @@ var isNumber = function(value) {
  * @returns {boolean}
  */
 var isArray = function(value) {
-    return !!(value && isObject(value) && isNumber(value.length) &&
-                toString.call(value) == '[object Array]' || false);
+    return varType(value) === 5;
 };
+
+
 var isString = function(value) {
-    return typeof value == "string";
+    return varType(value) === 0;
 };
 
 
@@ -279,7 +323,7 @@ var NormalizedEvent = function(src) {
         button = src.button;
 
     // Calculate pageX/Y if missing and clientX/Y available
-    if (isUndefined(self.pageX) && !isNull(src.clientX)) {
+    if (self.pageX === undf && !isNull(src.clientX)) {
         eventDoc = self.target ? self.target.ownerDocument || document : document;
         doc = eventDoc.documentElement;
         body = eventDoc.body;
@@ -294,14 +338,14 @@ var NormalizedEvent = function(src) {
 
     // Add which for click: 1 === left; 2 === middle; 3 === right
     // Note: button is not normalized, so don't use it
-    if ( !self.which && button !== undefined ) {
+    if ( !self.which && button !== undf ) {
         self.which = ( button & 1 ? 1 : ( button & 2 ? 3 : ( button & 4 ? 2 : 0 ) ) );
     }
 
     // Events bubbling up the document may have been marked as prevented
     // by a handler lower down the tree; reflect the correct value.
     self.isDefaultPrevented = src.defaultPrevented ||
-                              isUndefined(src.defaultPrevented) &&
+                              src.defaultPrevented === undf &&
                                   // Support: Android<4.0
                               src.returnValue === false ?
                               returnTrue :
@@ -359,7 +403,7 @@ var normalizeEvent = function(originalEvent) {
 };
 
 var isFunction = function(value) {
-    return typeof value === 'function';
+    return typeof value == 'function';
 };
 
 
@@ -405,7 +449,7 @@ module.exports = function(){
         empty = function(value, element) {
 
             if (!element) {
-                return value === undefined || value === '' || value === null;
+                return value == undf || value === '';
             }
 
             switch(element.nodeName.toLowerCase()) {
@@ -705,7 +749,7 @@ module.exports = function(){
             var value   = options[level1],
                 yes     = false;
 
-            if (value === undefined) {
+            if (value === undf) {
                 return;
             }
 
@@ -843,7 +887,7 @@ module.exports = function(){
 
             var self    = this;
 
-            check = check == undefined ? true : check;
+            check = check == undf ? true : check;
 
             for (var i in list) {
                 self.setRule(i, list[i], false);
@@ -867,7 +911,7 @@ module.exports = function(){
             var self    = this,
                 rules   = self.rules;
 
-            check = check == undefined ? true : check;
+            check = check == undf ? true : check;
 
             if (value === null) {
                 if (rules[rule]) {
@@ -941,7 +985,7 @@ module.exports = function(){
 
                     val = elem.getAttribute(i) || elem.getAttribute("data-validate-" + i);
 
-                    if (val === null || val == undefined || val === false) {
+                    if (val == undf || val === false) {
                         continue;
                     }
                     if ((i == 'minlength' || i == 'maxlength') && parseInt(val, 10) == -1) {
@@ -1715,7 +1759,7 @@ module.exports = function(){
 
             var self = this;
 
-            check = check == undefined ? true : check;
+            check = check == undf ? true : check;
 
             for (var i in list) {
                 self.setRule(i, list[i], false);
@@ -1741,7 +1785,7 @@ module.exports = function(){
             var self = this,
                 rules = self.rules;
 
-            check = check == undefined ? true : check;
+            check = check == undf ? true : check;
 
             if (value === null) {
                 if (rules[rule]) {

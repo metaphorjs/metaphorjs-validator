@@ -1,7 +1,7 @@
 (function(){
 "use strict";
 
-var MetaphorJs = {
+ {
     lib: {},
     cmp: {},
     view: {}
@@ -10,15 +10,68 @@ var MetaphorJs = {
 var isNull = function(value) {
     return value === null;
 };
-var strUndef = "undefined";
+var toString = Object.prototype.toString;
+var undf = undefined;
 
 
-var isUndefined = function(any) {
-    return typeof any == strUndef;
-};
+
+var varType = function(){
+
+    var types = {
+        '[object String]': 0,
+        '[object Number]': 1,
+        '[object Boolean]': 2,
+        '[object Object]': 3,
+        '[object Function]': 4,
+        '[object Array]': 5,
+        '[object RegExp]': 9,
+        '[object Date]': 10
+    };
+
+
+    /**
+        'string': 0,
+        'number': 1,
+        'boolean': 2,
+        'object': 3,
+        'function': 4,
+        'array': 5,
+        'null': 6,
+        'undefined': 7,
+        'NaN': 8,
+        'regexp': 9,
+        'date': 10
+    */
+
+    return function(val) {
+
+        if (!val) {
+            if (val === null) {
+                return 6;
+            }
+            if (val === undf) {
+                return 7;
+            }
+        }
+
+        var num = types[toString.call(val)];
+
+        if (num === undf) {
+            return -1;
+        }
+
+        if (num == 1 && isNaN(val)) {
+            num = 8;
+        }
+
+        return num;
+    };
+
+}();
+
 
 var isString = function(value) {
-    return typeof value == "string";
+    return varType(value) === 0;
 };
 
 
@@ -52,7 +105,7 @@ var getValue = function(){
         option: function(elem) {
             var val = elem.getAttribute("value") || elem.value;
 
-            return !isNull(val) && !isUndefined(val) ?
+            return val != undf ?
                    val :
                    trim( elem.innerText || elem.textContent );
         },
@@ -110,7 +163,7 @@ var getValue = function(){
 
         hook = hooks[elem.type] || hooks[elem.nodeName.toLowerCase()];
 
-        if (hook && !isUndefined((ret = hook(elem, "value")))) {
+        if (hook && (ret = hook(elem, "value")) !== undf) {
             return ret;
         }
 
@@ -126,16 +179,15 @@ var getValue = function(){
 }();
 
 var slice = Array.prototype.slice;
-/**
- * @param {*} obj
- * @returns {boolean}
- */
-var isPlainObject = function(obj) {
-    return !!(obj && obj.constructor === Object);
+
+
+var isPlainObject = function(value) {
+    return varType(value) === 3;
 };
 
+
 var isBool = function(value) {
-    return typeof value == "boolean";
+    return varType(value) === 2;
 };
 
 
@@ -170,14 +222,14 @@ var extend = function extend() {
         if (src = args.shift()) {
             for (k in src) {
 
-                if (src.hasOwnProperty(k) && !isUndefined((value = src[k]))) {
+                if (src.hasOwnProperty(k) && (value = src[k]) !== undf) {
 
                     if (deep) {
                         if (dst[k] && isPlainObject(dst[k]) && isPlainObject(value)) {
                             extend(dst[k], value, override, deep);
                         }
                         else {
-                            if (override === true || isUndefined(dst[k]) || isNull(dst[k])) {
+                            if (override === true || dst[k] == undf) { // == checks for null and undefined
                                 if (isPlainObject(value)) {
                                     dst[k] = {};
                                     extend(dst[k], value, override, true);
@@ -189,7 +241,7 @@ var extend = function extend() {
                         }
                     }
                     else {
-                        if (override === true || isUndefined(dst[k]) || isNull(dst[k])) {
+                        if (override === true || dst[k] == undf) {
                             dst[k] = value;
                         }
                     }
@@ -202,13 +254,6 @@ var extend = function extend() {
 };
 
 
-var toString = Object.prototype.toString;
-var isObject = function(value) {
-    return value != null && typeof value === 'object';
-};
-var isNumber = function(value) {
-    return typeof value == "number" && !isNaN(value);
-};
 
 
 /**
@@ -216,8 +261,7 @@ var isNumber = function(value) {
  * @returns {boolean}
  */
 var isArray = function(value) {
-    return !!(value && isObject(value) && isNumber(value.length) &&
-                toString.call(value) == '[object Array]' || false);
+    return varType(value) === 5;
 };
 /**
  * @param {Function} fn
@@ -307,7 +351,7 @@ var removeClass = function(el, cls) {
  * @returns {[]}
  */
 var toArray = function(list) {
-    if (list && !isUndefined(list.length) && !isString(list)) {
+    if (list && !list.length != undf && !isString(list)) {
         for(var a = [], i =- 1, l = list.length>>>0; ++i !== l; a[i] = list[i]){}
         return a;
     }
@@ -969,7 +1013,7 @@ var NormalizedEvent = function(src) {
         button = src.button;
 
     // Calculate pageX/Y if missing and clientX/Y available
-    if (isUndefined(self.pageX) && !isNull(src.clientX)) {
+    if (self.pageX === undf && !isNull(src.clientX)) {
         eventDoc = self.target ? self.target.ownerDocument || document : document;
         doc = eventDoc.documentElement;
         body = eventDoc.body;
@@ -984,14 +1028,14 @@ var NormalizedEvent = function(src) {
 
     // Add which for click: 1 === left; 2 === middle; 3 === right
     // Note: button is not normalized, so don't use it
-    if ( !self.which && button !== undefined ) {
+    if ( !self.which && button !== undf ) {
         self.which = ( button & 1 ? 1 : ( button & 2 ? 3 : ( button & 4 ? 2 : 0 ) ) );
     }
 
     // Events bubbling up the document may have been marked as prevented
     // by a handler lower down the tree; reflect the correct value.
     self.isDefaultPrevented = src.defaultPrevented ||
-                              isUndefined(src.defaultPrevented) &&
+                              src.defaultPrevented === undf &&
                                   // Support: Android<4.0
                               src.returnValue === false ?
                               returnTrue :
@@ -1128,6 +1172,11 @@ var inArray = function(val, arr) {
 };
 
 
+var isNumber = function(value) {
+    return varType(value) === 1;
+};
+
+
 /**
  * @param {Element} el
  * @param {*} val
@@ -1187,7 +1236,7 @@ var setValue = function() {
         var hook = hooks[el.type] || hooks[el.nodeName.toLowerCase()];
 
         // If set returns undefined, fall back to normal setting
-        if (!hook || isUndefined(hook(el, val, "value"))) {
+        if (!hook || hook(el, val, "value") === undf) {
             el.value = val;
         }
     };
@@ -1241,7 +1290,7 @@ var browserHasEvent = function(){
         // it. In particular the event is not fired when backspace or delete key are pressed or
         // when cut operation is performed.
 
-        if (eventSupport[event] === undefined) {
+        if (eventSupport[event] === undf) {
 
             if (event == 'input' && isIE() == 9) {
                 return eventSupport[event] = false;
@@ -1587,7 +1636,7 @@ var nextUid = function(){
 }();
 
 var isFunction = function(value) {
-    return typeof value === 'function';
+    return typeof value == 'function';
 };
 
 
@@ -1967,7 +2016,7 @@ var Event = function(name, returnResult) {
     self.uni            = '$$' + name + '_' + self.hash;
     self.suspended      = false;
     self.lid            = 0;
-    self.returnResult   = isUndefined(returnResult) ? null : returnResult; // first|last|all
+    self.returnResult   = returnResult === undf ? null : returnResult; // first|last|all
 };
 
 
@@ -2278,11 +2327,12 @@ var async = function(fn, context, args) {
 };
 
 var emptyFn = function(){};
+var strUndef = "undefined";
 
 
 var parseJSON = function() {
 
-    return isUndefined(JSON) ?
+    return typeof JSON != strUndef ?
            function(data) {
                return JSON.parse(data);
            } :
@@ -2307,7 +2357,7 @@ var parseXML = function(data, type) {
         tmp = new DOMParser();
         xml = tmp.parseFromString(data, type || "text/xml");
     } catch (thrownError) {
-        xml = undefined;
+        xml = undf;
     }
 
     if (!xml || xml.getElementsByTagName("parsererror").length) {
@@ -2318,6 +2368,11 @@ var parseXML = function(data, type) {
 };
 
 
+var isObject = function(value) {
+    return value !== null && typeof value == "object" && varType(value) > 2;
+};
+
+
 /**
  * Returns 'then' function or false
  * @param {*} any
@@ -2325,14 +2380,29 @@ var parseXML = function(data, type) {
  */
 var isThenable = function(any) {
     var then;
-    if (!any) {
-        return false;
-    }
-    if (!isObject(any) && !isFunction(any)) {
+    if (!any || (!isObject(any) && !isFunction(any))) {
         return false;
     }
     return isFunction((then = any.then)) ?
            then : false;
+};
+
+
+var error = function(e) {
+
+    var stack = e.stack || (new Error).stack;
+
+    if (typeof console != strUndef && console.log) {
+        async(function(){
+            console.log(e);
+            if (stack) {
+                console.log(stack);
+            }
+        });
+    }
+    else {
+        throw e;
+    }
 };
 
 
@@ -2427,19 +2497,29 @@ var Promise = function(){
             return new Promise(fn, fnScope);
         }
 
-        var self = this;
+        var self = this,
+            then;
 
         self._fulfills   = [];
         self._rejects    = [];
         self._dones      = [];
         self._fails      = [];
 
-        if (!isUndefined(fn)) {
+        if (arguments.length > 0) {
 
-            if (isThenable(fn) || !isFunction(fn)) {
-                self.resolve(fn);
+            if (then = isThenable(fn)) {
+                if (fn instanceof Promise) {
+                    fn.then(
+                        bind(self.resolve, self),
+                        bind(self.reject, self));
+                }
+                else {
+                    (new Promise(then, fn)).then(
+                        bind(self.resolve, self),
+                        bind(self.reject, self));
+                }
             }
-            else {
+            else if (isFunction(fn)) {
                 try {
                     fn.call(fnScope,
                             bind(self.resolve, self),
@@ -2448,6 +2528,9 @@ var Promise = function(){
                 catch (thrownError) {
                     self.reject(thrownError);
                 }
+            }
+            else {
+                self.resolve(fn);
             }
         }
     };
@@ -2693,7 +2776,12 @@ var Promise = function(){
                 cb;
 
             while (cb = cbs.shift()) {
-                cb[0].call(cb[1] || null, self._value);
+                try {
+                    cb[0].call(cb[1] || null, self._value);
+                }
+                catch (thrown) {
+                    error(thrown);
+                }
             }
         },
 
@@ -2723,7 +2811,12 @@ var Promise = function(){
                 cb;
 
             while (cb = cbs.shift()) {
-                cb[0].call(cb[1] || null, self._reason);
+                try {
+                    cb[0].call(cb[1] || null, self._reason);
+                }
+                catch (thrown) {
+                    error(thrown);
+                }
             }
         },
 
@@ -2800,12 +2893,19 @@ var Promise = function(){
         }
     };
 
+
+    Promise.fcall = function(fn, context, args) {
+        return Promise.resolve(fn.apply(context, args || []));
+    };
+
     /**
      * @param {*} value
      * @returns {Promise}
      */
     Promise.resolve = function(value) {
-        return new Promise(value);
+        var p = new Promise;
+        p.resolve(value);
+        return p;
     };
 
 
@@ -2960,6 +3060,35 @@ var Promise = function(){
         }
 
         return p;
+    };
+
+    /**
+     * @param {[]} functions -- array of promises or resolve values or functions
+     * @returns {Promise}
+     */
+    Promise.waterfall = function(functions) {
+
+        if (!functions.length) {
+            return Promise.resolve(null);
+        }
+
+        var promise = Promise.fcall(functions.shift()),
+            fn;
+
+        while (fn = functions.shift()) {
+            if (isThenable(fn)) {
+                promise = promise.then(function(fn){
+                    return function(){
+                        return fn;
+                    };
+                }(fn));
+            }
+            else {
+                promise = promise.then(fn);
+            }
+        }
+
+        return promise;
     };
 
     return Promise;
@@ -3168,7 +3297,7 @@ var ajax = function(){
 
         httpSuccess     = function(r) {
             try {
-                return (!r.status && !isUndefined(location) && location.protocol == "file:")
+                return (!r.status && location && location.protocol == "file:")
                            || (r.status >= 200 && r.status < 300)
                            || r.status === 304 || r.status === 1223; // || r.status === 0;
             } catch(thrownError){}
@@ -3223,7 +3352,7 @@ var ajax = function(){
     var AJAX    = function(opt) {
 
         var self        = this,
-            href        = !isUndefined(window) ? window.location.href : "",
+            href        = window ? window.location.href : "",
             local       = rurl.exec(href.toLowerCase()) || [],
             parts       = rurl.exec(opt.url.toLowerCase());
 
@@ -3243,9 +3372,7 @@ var ajax = function(){
         }
         else if (opt.form) {
             self._form = opt.form;
-            if (opt.method == "POST" && (isUndefined(window) || !window.FormData) &&
-                opt.transport != "iframe") {
-
+            if (opt.method == "POST" && (!window || !window.FormData)) {
                 opt.transport = "iframe";
             }
         }
@@ -3363,10 +3490,10 @@ var ajax = function(){
 
             self._jsonpName = cbName;
 
-            if (!isUndefined(window)) {
+            if (window) {
                 window[cbName] = bind(self.jsonpCallback, self);
             }
-            if (!isUndefined(global)) {
+            if (global) {
                 global[cbName] = bind(self.jsonpCallback, self);
             }
 
@@ -3406,15 +3533,18 @@ var ajax = function(){
         processResponse: function(data, contentType) {
 
             var self        = this,
-                deferred    = self._deferred;
+                deferred    = self._deferred,
+                result;
 
             if (!self._opt.jsonp) {
                 try {
-                    deferred.resolve(self.processResponseData(data, contentType));
+                    result = self.processResponseData(data, contentType)
                 }
                 catch (thrownError) {
                     deferred.reject(thrownError);
                 }
+
+                deferred.resolve(result);
             }
             else {
                 if (!data) {
@@ -3457,10 +3587,10 @@ var ajax = function(){
             delete self._form;
 
             if (self._jsonpName) {
-                if (!isUndefined(window)) {
+                if (window) {
                     delete window[self._jsonpName];
                 }
-                if (!isUndefined(global)) {
+                if (global) {
                     delete global[self._jsonpName];
                 }
             }
@@ -3588,8 +3718,22 @@ var ajax = function(){
             addListener(xhr.upload, "progress", bind(opt.uploadProgress, opt.callbackScope));
         }
 
-        try {
-            var i;
+        xhr.onreadystatechange = bind(self.onReadyStateChange, self);
+    };
+
+    XHRTransport.prototype = {
+
+        _xhr: null,
+        _deferred: null,
+        _ajax: null,
+
+        setHeaders: function() {
+
+            var self = this,
+                opt = self._opt,
+                xhr = self._xhr,
+                i;
+
             if (opt.xhrFields) {
                 for (i in opt.xhrFields) {
                     xhr[i] = opt.xhrFields[i];
@@ -3607,16 +3751,8 @@ var ajax = function(){
             for (i in opt.headers) {
                 xhr.setRequestHeader(i, opt.headers[i]);
             }
-        } catch(thrownError){}
 
-        xhr.onreadystatechange = bind(self.onReadyStateChange, self);
-    };
-
-    XHRTransport.prototype = {
-
-        _xhr: null,
-        _deferred: null,
-        _ajax: null,
+        },
 
         onReadyStateChange: function() {
 
@@ -3636,7 +3772,7 @@ var ajax = function(){
                 if (httpSuccess(xhr)) {
 
                     self._ajax.processResponse(
-                        isString(xhr.responseText) ? xhr.responseText : undefined,
+                        isString(xhr.responseText) ? xhr.responseText : undf,
                         xhr.getResponseHeader("content-type") || ''
                     );
                 }
@@ -3659,6 +3795,7 @@ var ajax = function(){
 
             try {
                 self._xhr.open(opt.method, opt.url, true, opt.username, opt.password);
+                self.setHeaders();
                 self._xhr.send(opt.data);
             }
             catch (thrownError) {
@@ -3886,7 +4023,7 @@ var Validator = function(){
         empty = function(value, element) {
 
             if (!element) {
-                return value === undefined || value === '' || value === null;
+                return value == undf || value === '';
             }
 
             switch(element.nodeName.toLowerCase()) {
@@ -4186,7 +4323,7 @@ var Validator = function(){
             var value   = options[level1],
                 yes     = false;
 
-            if (value === undefined) {
+            if (value === undf) {
                 return;
             }
 
@@ -4324,7 +4461,7 @@ var Validator = function(){
 
             var self    = this;
 
-            check = check == undefined ? true : check;
+            check = check == undf ? true : check;
 
             for (var i in list) {
                 self.setRule(i, list[i], false);
@@ -4348,7 +4485,7 @@ var Validator = function(){
             var self    = this,
                 rules   = self.rules;
 
-            check = check == undefined ? true : check;
+            check = check == undf ? true : check;
 
             if (value === null) {
                 if (rules[rule]) {
@@ -4422,7 +4559,7 @@ var Validator = function(){
 
                     val = elem.getAttribute(i) || elem.getAttribute("data-validate-" + i);
 
-                    if (val === null || val == undefined || val === false) {
+                    if (val == undf || val === false) {
                         continue;
                     }
                     if ((i == 'minlength' || i == 'maxlength') && parseInt(val, 10) == -1) {
@@ -5196,7 +5333,7 @@ var Validator = function(){
 
             var self = this;
 
-            check = check == undefined ? true : check;
+            check = check == undf ? true : check;
 
             for (var i in list) {
                 self.setRule(i, list[i], false);
@@ -5222,7 +5359,7 @@ var Validator = function(){
             var self = this,
                 rules = self.rules;
 
-            check = check == undefined ? true : check;
+            check = check == undf ? true : check;
 
             if (value === null) {
                 if (rules[rule]) {

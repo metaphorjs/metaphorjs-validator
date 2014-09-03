@@ -17,7 +17,8 @@ var getValue        = require("../../metaphorjs-input/src/func/getValue.js"),
     isFunction      = require("../../metaphorjs/src/func/isFunction.js"),
     isString        = require("../../metaphorjs/src/func/isString.js"),
     isBool          = require("../../metaphorjs/src/func/isBool.js"),
-    ajax            = require("../../metaphorjs-ajax/src/metaphorjs.ajax.js");
+    ajax            = require("../../metaphorjs-ajax/src/metaphorjs.ajax.js"),
+    undf            = require("../../metaphorjs/src/var/undf.js");
 
 
 
@@ -61,7 +62,7 @@ module.exports = function(){
         empty = function(value, element) {
 
             if (!element) {
-                return value === undefined || value === '' || value === null;
+                return value == undf || value === '';
             }
 
             switch(element.nodeName.toLowerCase()) {
@@ -361,7 +362,7 @@ module.exports = function(){
             var value   = options[level1],
                 yes     = false;
 
-            if (value === undefined) {
+            if (value === undf) {
                 return;
             }
 
@@ -499,7 +500,7 @@ module.exports = function(){
 
             var self    = this;
 
-            check = check == undefined ? true : check;
+            check = check == undf ? true : check;
 
             for (var i in list) {
                 self.setRule(i, list[i], false);
@@ -523,7 +524,7 @@ module.exports = function(){
             var self    = this,
                 rules   = self.rules;
 
-            check = check == undefined ? true : check;
+            check = check == undf ? true : check;
 
             if (value === null) {
                 if (rules[rule]) {
@@ -597,7 +598,7 @@ module.exports = function(){
 
                     val = elem.getAttribute(i) || elem.getAttribute("data-validate-" + i);
 
-                    if (val === null || val == undefined || val === false) {
+                    if (val == undf || val === false) {
                         continue;
                     }
                     if ((i == 'minlength' || i == 'maxlength') && parseInt(val, 10) == -1) {
@@ -1371,7 +1372,7 @@ module.exports = function(){
 
             var self = this;
 
-            check = check == undefined ? true : check;
+            check = check == undf ? true : check;
 
             for (var i in list) {
                 self.setRule(i, list[i], false);
@@ -1397,7 +1398,7 @@ module.exports = function(){
             var self = this,
                 rules = self.rules;
 
-            check = check == undefined ? true : check;
+            check = check == undf ? true : check;
 
             if (value === null) {
                 if (rules[rule]) {

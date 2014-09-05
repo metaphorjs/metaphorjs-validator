@@ -29,6 +29,8 @@ defineClass("MetaphorJs.view.Validator", {
         self.initScope();
         self.initScopeState();
         self.initValidatorEvents();
+
+        self.validator.check();
     },
 
     createValidator: function() {
@@ -49,6 +51,8 @@ defineClass("MetaphorJs.view.Validator", {
                     }
                 }
             }(createFunc(submit), self.scope);
+
+            node.removeAttribute("mjs-validator-submit")
         }
 
         return new Validator(node, cfg);
@@ -113,6 +117,7 @@ defineClass("MetaphorJs.view.Validator", {
         state.$invalid = false;
         state.$pristine = true;
         state.$submit = bind(self.validator.onSubmit, self.validator);
+        state.$reset = bind(self.validator.reset, self.validator);
 
     },
 

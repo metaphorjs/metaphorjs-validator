@@ -2170,6 +2170,9 @@ module.exports = function(){
 
         extend(self, self._observable.getApi());
 
+        self._observable.createEvent("submit", false);
+        self._observable.createEvent("beforesubmit", false);
+
         self.onRealSubmitClickDelegate  = bind(self.onRealSubmitClick, self);
         self.resetDelegate = bind(self.reset, self);
         self.onSubmitClickDelegate = bind(self.onSubmitClick, self);
@@ -2226,6 +2229,8 @@ module.exports = function(){
         submitButton: 	null,
         hidden:			null,
         callbackScope:  null,
+
+        preventFormSubmit: false,
 
         _observable:    null,
 
@@ -2400,6 +2405,7 @@ module.exports = function(){
          * Check form for errors
          */
         check: function() {
+
 
             var self    = this,
                 fields  = self.fields,
@@ -2671,27 +2677,29 @@ module.exports = function(){
         onRealSubmitClick: function(e) {
             e = normalizeEvent(e || window.event);
             this.submitButton  = e.target || e.srcElement;
+            this.preventFormSubmit = false;
             return this.onSubmit(e);
         },
 
         onSubmitClick: function(e) {
+            this.preventFormSubmit = false;
             return this.onSubmit(normalizeEvent(e || window.event));
         },
 
         onFormSubmit: function(e) {
 
             e = normalizeEvent(e);
-            if (!this.isValid()) {
+            if (!this.isValid() || this.preventFormSubmit) {
                 e.preventDefault();
                 return false;
             }
-            //return this.onSubmit(normalizeEvent(e || window.event));
+
         },
 
         onFieldSubmit: function(fapi, e) {
 
             var self    = this;
-
+            self.preventFormSubmit = false;
             self.enableDisplayState();
             self.submitted = true;
 
@@ -2745,7 +2753,6 @@ module.exports = function(){
             if (self.trigger('beforesubmit', self) === false || !self.isValid()) {
 
                 if (e) {
-
                     e.preventDefault();
                     e.stopPropagation();
                 }
@@ -2763,7 +2770,9 @@ module.exports = function(){
                 self.submitted = false;
             }
 
-            return self.trigger('submit', self) !== false;
+            var res = self.trigger('submit', self);
+            self.preventFormSubmit = !res;
+            return res;
         },
 
         onFieldDestroy: function(f) {

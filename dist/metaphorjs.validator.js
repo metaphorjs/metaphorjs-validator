@@ -61,7 +61,7 @@ var varType = function(){
         }
 
         if (num == 1 && isNaN(val)) {
-            num = 8;
+            return 8;
         }
 
         return num;
@@ -71,7 +71,7 @@ var varType = function(){
 
 
 var isString = function(value) {
-    return varType(value) === 0;
+    return typeof value == "string" || varType(value) === 0;
 };
 
 
@@ -182,12 +182,13 @@ var slice = Array.prototype.slice;
 
 
 var isPlainObject = function(value) {
-    return varType(value) === 3;
+    // IE < 9 returns [object Object] from toString(htmlElement)
+    return typeof value == "object" && varType(value) === 3 && !value.nodeType;
 };
 
 
 var isBool = function(value) {
-    return varType(value) === 2;
+    return value === true || value === false;
 };
 
 
@@ -199,61 +200,64 @@ var isBool = function(value) {
  * @param {boolean} deep = false
  * @returns {*}
  */
-var extend = function extend() {
+var extend = function(){
+
+    var extend = function extend() {
 
 
-    var override    = false,
-        deep        = false,
-        args        = slice.call(arguments),
-        dst         = args.shift(),
-        src,
-        k,
-        value;
+        var override    = false,
+            deep        = false,
+            args        = slice.call(arguments),
+            dst         = args.shift(),
+            src,
+            k,
+            value;
 
-    if (isBool(args[args.length - 1])) {
-        override    = args.pop();
-    }
-    if (isBool(args[args.length - 1])) {
-        deep        = override;
-        override    = args.pop();
-    }
+        if (isBool(args[args.length - 1])) {
+            override    = args.pop();
+        }
+        if (isBool(args[args.length - 1])) {
+            deep        = override;
+            override    = args.pop();
+        }
 
-    while (args.length) {
-        if (src = args.shift()) {
-            for (k in src) {
+        while (args.length) {
+            if (src = args.shift()) {
+                for (k in src) {
 
-                if (src.hasOwnProperty(k) && (value = src[k]) !== undf) {
+                    if (src.hasOwnProperty(k) && (value = src[k]) !== undf) {
 
-                    if (deep) {
-                        if (dst[k] && isPlainObject(dst[k]) && isPlainObject(value)) {
-                            extend(dst[k], value, override, deep);
-                        }
-                        else {
-                            if (override === true || dst[k] == undf) { // == checks for null and undefined
-                                if (isPlainObject(value)) {
-                                    dst[k] = {};
-                                    extend(dst[k], value, override, true);
-                                }
-                                else {
-                                    dst[k] = value;
+                        if (deep) {
+                            if (dst[k] && isPlainObject(dst[k]) && isPlainObject(value)) {
+                                extend(dst[k], value, override, deep);
+                            }
+                            else {
+                                if (override === true || dst[k] == undf) { // == checks for null and undefined
+                                    if (isPlainObject(value)) {
+                                        dst[k] = {};
+                                        extend(dst[k], value, override, true);
+                                    }
+                                    else {
+                                        dst[k] = value;
+                                    }
                                 }
                             }
                         }
-                    }
-                    else {
-                        if (override === true || dst[k] == undf) {
-                            dst[k] = value;
+                        else {
+                            if (override === true || dst[k] == undf) {
+                                dst[k] = value;
+                            }
                         }
                     }
                 }
             }
         }
-    }
 
-    return dst;
-};
+        return dst;
+    };
 
-
+    return extend;
+}();
 
 
 /**
@@ -261,7 +265,7 @@ var extend = function extend() {
  * @returns {boolean}
  */
 var isArray = function(value) {
-    return varType(value) === 5;
+    return typeof value == "object" && varType(value) === 5;
 };
 /**
  * @param {Function} fn
@@ -360,6 +364,22 @@ var toArray = function(list) {
     }
     else {
         return [];
+    }
+};
+
+
+var attr = function(el, name, value) {
+    if (!el || !el.getAttribute) {
+        return null;
+    }
+    if (value === undf) {
+        return el.getAttribute(name);
+    }
+    else if (value === null) {
+        return el.removeAttribute(name);
+    }
+    else {
+        return el.setAttribute(name, value);
     }
 };
 
@@ -516,56 +536,65 @@ var select = function() {
 
         attrMods    = {
             /* W3C "an E element with a "attr" attribute" */
-            '': function (child, attr) {
-                return !!child.getAttribute(attr);
+            '': function (child, name) {
+                return attr(child, name) !== null;
             },
             /*
              W3C "an E element whose "attr" attribute value is
              exactly equal to "value"
              */
-            '=': function (child, attr, value) {
-                return (attr = child.getAttribute(attr)) && attr === value;
+            '=': function (child, name, value) {
+                var attrValue;
+                return (attrValue = attr(child, name)) && attrValue === value;
             },
             /*
              from w3.prg "an E element whose "attr" attribute value is
              a list of space-separated values, one of which is exactly
              equal to "value"
              */
-            '&=': function (child, attr, value) {
-                return (attr = child.getAttribute(attr)) && getAttrReg(value).test(attr);
+            '&=': function (child, name, value) {
+                var attrValue;
+                return (attrValue = attr(child, name)) && getAttrReg(value).test(attrValue);
             },
             /*
              from w3.prg "an E element whose "attr" attribute value
              begins exactly with the string "value"
              */
-            '^=': function (child, attr, value) {
-                return (attr = child.getAttribute(attr) + '') && !attr.indexOf(value);
+            '^=': function (child, name, value) {
+                var attrValue;
+                return (attrValue = attr(child, name) + '') && !attrValue.indexOf(value);
             },
             /*
              W3C "an E element whose "attr" attribute value
              ends exactly with the string "value"
              */
-            '$=': function (child, attr, value) {
-                return (attr = child.getAttribute(attr) + '') && attr.indexOf(value) == attr.length - value.length;
+            '$=': function (child, name, value) {
+                var attrValue;
+                return (attrValue = attr(child, name) + '') &&
+                       attrValue.indexOf(value) == attrValue.length - value.length;
             },
             /*
              W3C "an E element whose "attr" attribute value
              contains the substring "value"
              */
-            '*=': function (child, attr, value) {
-                return (attr = child.getAttribute(attr) + '') && attr.indexOf(value) != -1;
+            '*=': function (child, name, value) {
+                var attrValue;
+                return (attrValue = attr(child, name) + '') && attrValue.indexOf(value) != -1;
             },
             /*
              W3C "an E element whose "attr" attribute has
              a hyphen-separated list of values beginning (from the
              left) with "value"
              */
-            '|=': function (child, attr, value) {
-                return (attr = child.getAttribute(attr) + '') && (attr === value || !!attr.indexOf(value + '-'));
+            '|=': function (child, name, value) {
+                var attrValue;
+                return (attrValue = attr(child, name) + '') &&
+                       (attrValue === value || !!attrValue.indexOf(value + '-'));
             },
             /* attr doesn't contain given value */
-            '!=': function (child, attr, value) {
-                return !(attr = child.getAttribute(attr)) || !getAttrReg(value).test(attr);
+            '!=': function (child, name, value) {
+                var attrValue;
+                return !(attrValue = attr(child, name)) || !getAttrReg(value).test(attrValue);
             }
         };
 
@@ -580,7 +609,7 @@ var select = function() {
             qsaErr  = null,
             idx, cls, nodes,
             i, node, ind, mod,
-            attrs, attr, eql, value;
+            attrs, attrName, eql, value;
 
         if (qsa) {
             /* replace not quoted args with quoted one -- Safari doesn't understand either */
@@ -668,14 +697,14 @@ var select = function() {
                         nodes   = root.getElementsByTagName('*');
                         i       = 0;
                         attrs   = rGetSquare.exec(selector);
-                        attr    = attrs[1];
+                        attrName    = attrs[1];
                         eql     = attrs[2] || '';
                         value   = attrs[3];
 
                         while (node = nodes[i++]) {
                             /* check either attr is defined for given node or it's equal to given value */
-                            if (attrMods[eql] && (attrMods[eql](node, attr, value) ||
-                                                  (attr === 'class' && attrMods[eql](node, 'className', value)))) {
+                            if (attrMods[eql] && (attrMods[eql](node, attrName, value) ||
+                                                  (attrName === 'class' && attrMods[eql](node, 'className', value)))) {
                                 sets[idx++] = node;
                             }
                         }
@@ -742,7 +771,7 @@ var select = function() {
                             tag     = single[1] || '*';
                             id      = single[2];
                             klass   = single[3] ? ' ' + single[3] + ' ' : '';
-                            attr    = single[4];
+                            attrName    = single[4];
                             eql     = single[5] || '';
                             mod     = single[7];
 
@@ -793,9 +822,9 @@ var select = function() {
                                              */
                                             if ((!id || item.id === id) &&
                                                 (!klass || (' ' + item.className + ' ').indexOf(klass) != -1) &&
-                                                (!attr || (attrMods[eql] &&
-                                                           (attrMods[eql](item, attr, single[6]) ||
-                                                            (attr === 'class' &&
+                                                (!attrName || (attrMods[eql] &&
+                                                           (attrMods[eql](item, attrName, single[6]) ||
+                                                            (attrName === 'class' &&
                                                              attrMods[eql](item, 'className', single[6]))))) &&
                                                 !item.yeasss && !(mods[mod] ? mods[mod](item, ind) : mod)) {
 
@@ -821,9 +850,9 @@ var select = function() {
                                                 (tag === '*' || child.nodeName.toLowerCase() === tag) &&
                                                 (!id || child.id === id) &&
                                                 (!klass || (' ' + child.className + ' ').indexOf(klass) != -1) &&
-                                                (!attr || (attrMods[eql] &&
-                                                           (attrMods[eql](item, attr, single[6]) ||
-                                                            (attr === 'class' &&
+                                                (!attrName || (attrMods[eql] &&
+                                                           (attrMods[eql](item, attrName, single[6]) ||
+                                                            (attrName === 'class' &&
                                                              attrMods[eql](item, 'className', single[6]))))) &&
                                                 !child.yeasss &&
                                                 !(mods[mod] ? mods[mod](child, ind) : mod)) {
@@ -843,9 +872,9 @@ var select = function() {
                                             (child.nodeName.toLowerCase() === tag.toLowerCase() || tag === '*') &&
                                             (!id || child.id === id) &&
                                             (!klass || (' ' + item.className + ' ').indexOf(klass) != -1) &&
-                                            (!attr ||
-                                             (attrMods[eql] && (attrMods[eql](item, attr, single[6]) ||
-                                                                (attr === 'class' &&
+                                            (!attrName ||
+                                             (attrMods[eql] && (attrMods[eql](item, attrName, single[6]) ||
+                                                                (attrName === 'class' &&
                                                                  attrMods[eql](item, 'className', single[6]))))) &&
                                             !child.yeasss && !(mods[mod] ? mods[mod](child, ind) : mod)) {
 
@@ -864,9 +893,9 @@ var select = function() {
                                             if (item.parentNode === child &&
                                                 (!id || item.id === id) &&
                                                 (!klass || (' ' + item.className + ' ').indexOf(klass) != -1) &&
-                                                (!attr || (attrMods[eql] &&
-                                                           (attrMods[eql](item, attr, single[6]) ||
-                                                            (attr === 'class' &&
+                                                (!attrName || (attrMods[eql] &&
+                                                           (attrMods[eql](item, attrName, single[6]) ||
+                                                            (attrName === 'class' &&
                                                              attrMods[eql](item, 'className', single[6]))))) &&
                                                 !item.yeasss &&
                                                 !(mods[mod] ? mods[mod](item, ind) : mod)) {
@@ -1190,22 +1219,29 @@ var setValue = function() {
                 options     = elem.options,
                 values      = toArray(value),
                 i           = options.length,
+                selected,
                 setIndex    = -1;
 
             while ( i-- ) {
-                option = options[i];
+                option      = options[i];
+                selected    = inArray(option.value, values);
 
-                if ((option.selected = inArray(option.value, values))) {
+                //if ((option.selected = inArray(option.value, values))) {
+                if (selected) {
+                    option.setAttribute("selected", "selected");
                     optionSet = true;
                 }
-                else if (!isNull(option.getAttribute("mjs-default-option"))) {
+                else {
+                    option.removeAttribute("selected");
+                }
+
+                if (!selected && !isNull(option.getAttribute("mjs-default-option"))) {
                     setIndex = i;
                 }
             }
 
             // Force browsers to behave consistently when non-matching value is set
-            if ( !optionSet ) {
-
+            if (!optionSet) {
                 elem.selectedIndex = setIndex;
             }
             return values;
@@ -1315,7 +1351,7 @@ var Input = function(el, changeFn, changeFnContext, submitFn) {
     self.cb             = changeFn;
     self.scb            = submitFn;
     self.cbContext      = changeFnContext;
-    self.inputType      = type = (el.getAttribute("mjs-input-type") || el.type.toLowerCase());
+    self.inputType      = type = (attr(el, "mjs-input-type") || el.type.toLowerCase());
     self.listeners      = [];
     self.submittable    = isSubmittable(el);
 
@@ -1526,7 +1562,9 @@ Input.prototype = {
         var self    = this,
             val     = self.getValue();
 
-        self.cb.call(self.cbContext, val);
+        if (self.cb) {
+            self.cb.call(self.cbContext, val);
+        }
     },
 
     onCheckboxInputChange: function() {
@@ -1534,7 +1572,9 @@ Input.prototype = {
         var self    = this,
             node    = self.el;
 
-        self.cb.call(self.cbContext, node.checked ? (node.getAttribute("value") || true) : false);
+        if (self.cb) {
+            self.cb.call(self.cbContext, node.checked ? (attr(node, "value") || true) : false);
+        }
     },
 
     onRadioInputChange: function(e) {
@@ -1544,7 +1584,9 @@ Input.prototype = {
         var self    = this,
             trg     = e.target || e.srcElement;
 
-        self.cb.call(self.cbContext, trg.value);
+        if (self.cb) {
+            self.cb.call(self.cbContext, trg.value);
+        }
     },
 
     setValue: function(val) {
@@ -1559,10 +1601,7 @@ Input.prototype = {
             radio = self.radio;
 
             for (i = 0, len = radio.length; i < len; i++) {
-                if (radio[i].value == val) {
-                    radio[i].checked = true;
-                    break;
-                }
+                radio[i].checked = radio[i].value == val;
             }
         }
         else if (type == "checkbox") {
@@ -1591,7 +1630,7 @@ Input.prototype = {
             return null;
         }
         else if (type == "checkbox") {
-            return self.el.checked ? (self.el.getAttribute("value") || true) : false;
+            return self.el.checked ? (attr(self.el, "value") || true) : false;
         }
         else {
             return self.processValue(getValue(self.el));
@@ -2369,8 +2408,11 @@ var parseXML = function(data, type) {
 
 
 var isObject = function(value) {
+    if (value === null || typeof value != "object") {
+        return false;
+    }
     var vt = varType(value);
-    return value !== null && typeof value == "object" && (vt > 2 || vt == -1);
+    return vt > 2 || vt == -1;
 };
 
 
@@ -3073,7 +3115,8 @@ var Promise = function(){
             return Promise.resolve(null);
         }
 
-        var promise = Promise.fcall(functions.shift()),
+        var first   = functions.shift(),
+            promise = isFunction(first) ? Promise.fcall(first) : Promise.resolve(fn),
             fn;
 
         while (fn = functions.shift()) {
@@ -3084,10 +3127,27 @@ var Promise = function(){
                     };
                 }(fn));
             }
-            else {
+            else if (isFunction(fn)) {
                 promise = promise.then(fn);
             }
+            else {
+                promise.resolve(fn);
+            }
         }
+
+        return promise;
+    };
+
+    Promise.counter = function(cnt) {
+
+        var promise     = new Promise;
+
+        promise.countdown = function() {
+            cnt--;
+            if (cnt == 0) {
+                promise.resolve();
+            }
+        };
 
         return promise;
     };
@@ -3096,6 +3156,12 @@ var Promise = function(){
 }();
 
 
+
+
+var isPrimitive = function(value) {
+    var vt = varType(value);
+    return vt < 3 && vt > -1;
+};
 
 
 
@@ -3118,14 +3184,12 @@ var ajax = function(){
 
         rgethead    = /^(?:GET|HEAD)$/i,
 
-        jsonpCb     = 0,
-
         buildParams     = function(data, params, name) {
 
             var i, len;
 
-            if (isString(data) && name) {
-                params.push(encodeURIComponent(name) + "=" + encodeURIComponent(data));
+            if (isPrimitive(data) && name) {
+                params.push(encodeURIComponent(name) + "=" + encodeURIComponent(""+data));
             }
             else if (isArray(data) && name) {
                 for (i = 0, len = data.length; i < len; i++) {
@@ -3163,7 +3227,9 @@ var ajax = function(){
             }
 
             if (opt.data && (!window.FormData || !(opt.data instanceof window.FormData))) {
+
                 opt.data = !isString(opt.data) ? prepareParams(opt.data) : opt.data;
+
                 if (rgethead.test(opt.method)) {
                     url += (rquery.test(url) ? "&" : "?") + opt.data;
                     opt.data = null;
@@ -3247,9 +3313,9 @@ var ajax = function(){
 
             if (!isObject(data) && !isFunction(data) && name) {
                 input   = document.createElement("input");
-                input.setAttribute("type", "hidden");
-                input.setAttribute("name", name);
-                input.setAttribute("value", data);
+                attr(input, "type", "hidden");
+                attr(input, "name", name);
+                attr(input, "value", data);
                 form.appendChild(input);
             }
             else if (isArray(data) && name) {
@@ -3275,12 +3341,12 @@ var ajax = function(){
 
                 oField = form.elements[nItem];
 
-                if (!oField.hasAttribute("name")) {
+                if (attr(oField, "name") === null) {
                     continue;
                 }
 
                 sFieldType = oField.nodeName.toUpperCase() === "INPUT" ?
-                             oField.getAttribute("type").toUpperCase() : "TEXT";
+                             attr(oField, "type").toUpperCase() : "TEXT";
 
                 if (sFieldType === "FILE") {
                     for (nFile = 0;
@@ -3472,7 +3538,7 @@ var ajax = function(){
                 form    = document.createElement("form");
 
             form.style.display = "none";
-            form.setAttribute("method", self._opt.method);
+            attr(form, "method", self._opt.method);
 
             data2form(self._opt.data, form, null);
 
@@ -3487,7 +3553,7 @@ var ajax = function(){
             var self        = this,
                 opt         = self._opt,
                 paramName   = opt.jsonpParam || "callback",
-                cbName      = opt.jsonpCallback || "jsonp_" + (++jsonpCb);
+                cbName      = opt.jsonpCallback || "jsonp_" + nextUid();
 
             opt.url += (rquery.test(opt.url) ? "&" : "?") + paramName + "=" + cbName;
 
@@ -3625,7 +3691,7 @@ var ajax = function(){
 
         if (!opt.url) {
             if (opt.form) {
-                opt.url = opt.form.getAttribute("action");
+                opt.url = attr(opt.form, "action");
             }
             if (!opt.url) {
                 throw "Must provide url";
@@ -3637,7 +3703,7 @@ var ajax = function(){
 
         if (!opt.method) {
             if (opt.form) {
-                opt.method = opt.form.getAttribute("method").toUpperCase() || "GET";
+                opt.method = attr(opt.form, "method").toUpperCase() || "GET";
             }
             else {
                 opt.method = "GET";
@@ -3853,9 +3919,9 @@ var ajax = function(){
             var self    = this,
                 script  = document.createElement("script");
 
-            script.setAttribute("async", "async");
-            script.setAttribute("charset", "utf-8");
-            script.setAttribute("src", self._opt.url);
+            attr(script, "async", "async");
+            attr(script, "charset", "utf-8");
+            attr(script, "src", self._opt.url);
 
             addListener(script, "load", bind(self.onLoad, self));
             addListener(script, "error", bind(self.onError, self));
@@ -3921,16 +3987,16 @@ var ajax = function(){
 
             var self    = this,
                 frame   = document.createElement("iframe"),
-                id      = "frame-" + (++jsonpCb),
+                id      = "frame-" + nextUid(),
                 form    = self._opt.form;
 
-            frame.setAttribute("id", id);
-            frame.setAttribute("name", id);
+            attr(frame, "id", id);
+            attr(frame, "name", id);
             frame.style.display = "none";
             document.body.appendChild(frame);
 
-            form.setAttribute("action", self._opt.url);
-            form.setAttribute("target", id);
+            attr(form, "action", self._opt.url);
+            attr(form, "target", id);
 
             addListener(frame, "load", bind(self.onLoad, self));
             addListener(frame, "error", bind(self.onError, self));
@@ -4394,13 +4460,13 @@ var Validator = function(){
         self.vldr           = vldr;
         self.callbackScope  = scope = cfg.callback.scope;
         self.enabled        = !elem.disabled;
-        self.id             = elem.getAttribute('name') || elem.getAttribute.attr('id');
+        self.id             = attr(elem, 'name') || attr(elem, 'id');
         self.data           = options.data;
         self.rules			= {};
 
         cfg.messages        = extend({}, messages, Validator.messages, cfg.messages, true, true);
 
-        elem.setAttribute("data-validator", vldr.getVldId());
+        attr(elem, "data-validator", vldr.getVldId());
 
         if (self.input.radio) {
             self.initRadio();
@@ -4463,7 +4529,7 @@ var Validator = function(){
                 i,l;
 
             for(i = 0, l = radios.length; i < l; i++) {
-                radios[i].setAttribute("data-validator", vldId);
+                attr(radios[i], "data-validator", vldId);
             }
         },
 
@@ -4570,7 +4636,7 @@ var Validator = function(){
 
                 if (methods.hasOwnProperty(i)) {
 
-                    val = elem.getAttribute(i) || elem.getAttribute("data-validate-" + i);
+                    val = attr(elem, i) || attr(elem, "data-validate-" + i);
 
                     if (val == undf || val === false) {
                         continue;
@@ -4581,12 +4647,12 @@ var Validator = function(){
 
                     found[i] = val;
 
-                    val = elem.getAttribute("data-message-" + i);
+                    val = attr(elem, "data-message-" + i);
                     val && self.setMessage(i, val);
                 }
             }
 
-            if ((val = elem.getAttribute('remote'))) {
+            if ((val = attr(elem, 'remote'))) {
                 found['remote'] = val;
             }
 
@@ -4935,7 +5001,7 @@ var Validator = function(){
 
             self.trigger('destroy', self);
 
-            self.elem.removeAttribute("data-validator");
+            attr(self.elem, "data-validator", null);
 
             if (self.errorBox) {
                 self.errorBox.parentNode.removeChild(self.errorBox);
@@ -5077,8 +5143,8 @@ var Validator = function(){
             acfg.data 		= acfg.data || {};
             acfg.data[
                 acfg.paramName ||
-                elem.getAttribute('name') ||
-                elem.getAttribute('id')] = val;
+                attr(elem, 'name') ||
+                attr(elem, 'id')] = val;
 
             if (!acfg.handler) {
                 acfg.dataType 	= 'text';
@@ -5736,7 +5802,7 @@ var Validator = function(){
 
         validators[self.vldId] = self;
 
-        el.setAttribute("data-validator", self.vldId);
+        attr(el, "data-validator", self.vldId);
 
         self.el     = el;
 
@@ -6037,14 +6103,14 @@ var Validator = function(){
             if (!isField(node)) {
                 return self;
             }
-            if (node.getAttribute("data-no-validate") !== null) {
+            if (attr(node, "data-no-validate") !== null) {
                 return self;
             }
-            if (node.getAttribute("data-validator") !== null) {
+            if (attr(node, "data-validator") !== null) {
                 return self;
             }
 
-            var id 			= node.getAttribute('name') || node.getAttribute('id'),
+            var id 			= attr(node, 'name') || attr(node, 'id'),
                 cfg         = self.cfg,
                 fields      = self.fields,
                 fcfg,
@@ -6319,7 +6385,7 @@ var Validator = function(){
                 if (self.submitButton && /input|button/.test(self.submitButton.nodeName)) {
                     self.hidden = document.createElement("input");
                     self.hidden.type = "hidden";
-                    self.hidden.setAttribute("name", self.submitButton.name);
+                    attr(self.hidden, "name", self.submitButton.name);
                     self.hidden.value = self.submitButton.value;
                     self.el.appendChild(self.hidden);
                 }
@@ -6365,7 +6431,7 @@ var Validator = function(){
         onFieldDestroy: function(f) {
 
             var elem 	= f.getElem(),
-                id		= elem.getAttribute('name') || elem.getAttribute('id');
+                id		= attr(elem, 'name') || attr(elem, 'id');
 
             delete this.fields[id];
         },
@@ -6537,7 +6603,7 @@ var Validator = function(){
         }
     };
     Validator.getValidator      = function(el) {
-        var vldId = el.getAttribute("data-validator");
+        var vldId = attr(el, "data-validator");
         return validators[vldId] || null;
     };
 

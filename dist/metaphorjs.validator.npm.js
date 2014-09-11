@@ -56,7 +56,7 @@ var varType = function(){
         }
 
         if (num == 1 && isNaN(val)) {
-            num = 8;
+            return 8;
         }
 
         return num;
@@ -66,12 +66,13 @@ var varType = function(){
 
 
 var isPlainObject = function(value) {
-    return varType(value) === 3;
+    // IE < 9 returns [object Object] from toString(htmlElement)
+    return typeof value == "object" && varType(value) === 3 && !value.nodeType;
 };
 
 
 var isBool = function(value) {
-    return varType(value) === 2;
+    return value === true || value === false;
 };
 var isNull = function(value) {
     return value === null;
@@ -86,61 +87,64 @@ var isNull = function(value) {
  * @param {boolean} deep = false
  * @returns {*}
  */
-var extend = function extend() {
+var extend = function(){
+
+    var extend = function extend() {
 
 
-    var override    = false,
-        deep        = false,
-        args        = slice.call(arguments),
-        dst         = args.shift(),
-        src,
-        k,
-        value;
+        var override    = false,
+            deep        = false,
+            args        = slice.call(arguments),
+            dst         = args.shift(),
+            src,
+            k,
+            value;
 
-    if (isBool(args[args.length - 1])) {
-        override    = args.pop();
-    }
-    if (isBool(args[args.length - 1])) {
-        deep        = override;
-        override    = args.pop();
-    }
+        if (isBool(args[args.length - 1])) {
+            override    = args.pop();
+        }
+        if (isBool(args[args.length - 1])) {
+            deep        = override;
+            override    = args.pop();
+        }
 
-    while (args.length) {
-        if (src = args.shift()) {
-            for (k in src) {
+        while (args.length) {
+            if (src = args.shift()) {
+                for (k in src) {
 
-                if (src.hasOwnProperty(k) && (value = src[k]) !== undf) {
+                    if (src.hasOwnProperty(k) && (value = src[k]) !== undf) {
 
-                    if (deep) {
-                        if (dst[k] && isPlainObject(dst[k]) && isPlainObject(value)) {
-                            extend(dst[k], value, override, deep);
-                        }
-                        else {
-                            if (override === true || dst[k] == undf) { // == checks for null and undefined
-                                if (isPlainObject(value)) {
-                                    dst[k] = {};
-                                    extend(dst[k], value, override, true);
-                                }
-                                else {
-                                    dst[k] = value;
+                        if (deep) {
+                            if (dst[k] && isPlainObject(dst[k]) && isPlainObject(value)) {
+                                extend(dst[k], value, override, deep);
+                            }
+                            else {
+                                if (override === true || dst[k] == undf) { // == checks for null and undefined
+                                    if (isPlainObject(value)) {
+                                        dst[k] = {};
+                                        extend(dst[k], value, override, true);
+                                    }
+                                    else {
+                                        dst[k] = value;
+                                    }
                                 }
                             }
                         }
-                    }
-                    else {
-                        if (override === true || dst[k] == undf) {
-                            dst[k] = value;
+                        else {
+                            if (override === true || dst[k] == undf) {
+                                dst[k] = value;
+                            }
                         }
                     }
                 }
             }
         }
-    }
 
-    return dst;
-};
+        return dst;
+    };
 
-
+    return extend;
+}();
 
 
 /**
@@ -148,12 +152,12 @@ var extend = function extend() {
  * @returns {boolean}
  */
 var isArray = function(value) {
-    return varType(value) === 5;
+    return typeof value == "object" && varType(value) === 5;
 };
 
 
 var isString = function(value) {
-    return varType(value) === 0;
+    return typeof value == "string" || varType(value) === 0;
 };
 
 
@@ -404,6 +408,22 @@ var normalizeEvent = function(originalEvent) {
 
 var isFunction = function(value) {
     return typeof value == 'function';
+};
+
+
+var attr = function(el, name, value) {
+    if (!el || !el.getAttribute) {
+        return null;
+    }
+    if (value === undf) {
+        return el.getAttribute(name);
+    }
+    else if (value === null) {
+        return el.removeAttribute(name);
+    }
+    else {
+        return el.setAttribute(name, value);
+    }
 };
 
 
@@ -807,13 +827,13 @@ module.exports = function(){
         self.vldr           = vldr;
         self.callbackScope  = scope = cfg.callback.scope;
         self.enabled        = !elem.disabled;
-        self.id             = elem.getAttribute('name') || elem.getAttribute.attr('id');
+        self.id             = attr(elem, 'name') || attr(elem, 'id');
         self.data           = options.data;
         self.rules			= {};
 
         cfg.messages        = extend({}, messages, Validator.messages, cfg.messages, true, true);
 
-        elem.setAttribute("data-validator", vldr.getVldId());
+        attr(elem, "data-validator", vldr.getVldId());
 
         if (self.input.radio) {
             self.initRadio();
@@ -876,7 +896,7 @@ module.exports = function(){
                 i,l;
 
             for(i = 0, l = radios.length; i < l; i++) {
-                radios[i].setAttribute("data-validator", vldId);
+                attr(radios[i], "data-validator", vldId);
             }
         },
 
@@ -983,7 +1003,7 @@ module.exports = function(){
 
                 if (methods.hasOwnProperty(i)) {
 
-                    val = elem.getAttribute(i) || elem.getAttribute("data-validate-" + i);
+                    val = attr(elem, i) || attr(elem, "data-validate-" + i);
 
                     if (val == undf || val === false) {
                         continue;
@@ -994,12 +1014,12 @@ module.exports = function(){
 
                     found[i] = val;
 
-                    val = elem.getAttribute("data-message-" + i);
+                    val = attr(elem, "data-message-" + i);
                     val && self.setMessage(i, val);
                 }
             }
 
-            if ((val = elem.getAttribute('remote'))) {
+            if ((val = attr(elem, 'remote'))) {
                 found['remote'] = val;
             }
 
@@ -1348,7 +1368,7 @@ module.exports = function(){
 
             self.trigger('destroy', self);
 
-            self.elem.removeAttribute("data-validator");
+            attr(self.elem, "data-validator", null);
 
             if (self.errorBox) {
                 self.errorBox.parentNode.removeChild(self.errorBox);
@@ -1490,8 +1510,8 @@ module.exports = function(){
             acfg.data 		= acfg.data || {};
             acfg.data[
                 acfg.paramName ||
-                elem.getAttribute('name') ||
-                elem.getAttribute('id')] = val;
+                attr(elem, 'name') ||
+                attr(elem, 'id')] = val;
 
             if (!acfg.handler) {
                 acfg.dataType 	= 'text';
@@ -2149,7 +2169,7 @@ module.exports = function(){
 
         validators[self.vldId] = self;
 
-        el.setAttribute("data-validator", self.vldId);
+        attr(el, "data-validator", self.vldId);
 
         self.el     = el;
 
@@ -2450,14 +2470,14 @@ module.exports = function(){
             if (!isField(node)) {
                 return self;
             }
-            if (node.getAttribute("data-no-validate") !== null) {
+            if (attr(node, "data-no-validate") !== null) {
                 return self;
             }
-            if (node.getAttribute("data-validator") !== null) {
+            if (attr(node, "data-validator") !== null) {
                 return self;
             }
 
-            var id 			= node.getAttribute('name') || node.getAttribute('id'),
+            var id 			= attr(node, 'name') || attr(node, 'id'),
                 cfg         = self.cfg,
                 fields      = self.fields,
                 fcfg,
@@ -2732,7 +2752,7 @@ module.exports = function(){
                 if (self.submitButton && /input|button/.test(self.submitButton.nodeName)) {
                     self.hidden = document.createElement("input");
                     self.hidden.type = "hidden";
-                    self.hidden.setAttribute("name", self.submitButton.name);
+                    attr(self.hidden, "name", self.submitButton.name);
                     self.hidden.value = self.submitButton.value;
                     self.el.appendChild(self.hidden);
                 }
@@ -2778,7 +2798,7 @@ module.exports = function(){
         onFieldDestroy: function(f) {
 
             var elem 	= f.getElem(),
-                id		= elem.getAttribute('name') || elem.getAttribute('id');
+                id		= attr(elem, 'name') || attr(elem, 'id');
 
             delete this.fields[id];
         },
@@ -2950,7 +2970,7 @@ module.exports = function(){
         }
     };
     Validator.getValidator      = function(el) {
-        var vldId = el.getAttribute("data-validator");
+        var vldId = attr(el, "data-validator");
         return validators[vldId] || null;
     };
 

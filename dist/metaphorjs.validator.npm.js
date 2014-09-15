@@ -157,7 +157,8 @@ var isArray = function(value) {
 
 
 var isString = function(value) {
-    return typeof value == "string" || varType(value) === 0;
+    return typeof value == "string" || value === ""+value;
+    //return typeof value == "string" || varType(value) === 0;
 };
 
 
@@ -409,21 +410,14 @@ var normalizeEvent = function(originalEvent) {
 var isFunction = function(value) {
     return typeof value == 'function';
 };
-
-
-var attr = function(el, name, value) {
-    if (!el || !el.getAttribute) {
-        return null;
-    }
-    if (value === undf) {
-        return el.getAttribute(name);
-    }
-    else if (value === null) {
-        return el.removeAttribute(name);
-    }
-    else {
-        return el.setAttribute(name, value);
-    }
+var getAttr = function(el, name) {
+    return el.getAttribute(name);
+};
+var setAttr = function(el, name, value) {
+    return el.setAttribute(name, value);
+};
+var removeAttr = function(el, name) {
+    return el.removeAttribute(name);
 };
 
 
@@ -827,13 +821,13 @@ module.exports = function(){
         self.vldr           = vldr;
         self.callbackScope  = scope = cfg.callback.scope;
         self.enabled        = !elem.disabled;
-        self.id             = attr(elem, 'name') || attr(elem, 'id');
+        self.id             = getAttr(elem, 'name') || getAttr(elem, 'id');
         self.data           = options.data;
         self.rules			= {};
 
         cfg.messages        = extend({}, messages, Validator.messages, cfg.messages, true, true);
 
-        attr(elem, "data-validator", vldr.getVldId());
+        setAttr(elem, "data-validator", vldr.getVldId());
 
         if (self.input.radio) {
             self.initRadio();
@@ -896,7 +890,7 @@ module.exports = function(){
                 i,l;
 
             for(i = 0, l = radios.length; i < l; i++) {
-                attr(radios[i], "data-validator", vldId);
+                setAttr(radios[i], "data-validator", vldId);
             }
         },
 
@@ -1003,7 +997,7 @@ module.exports = function(){
 
                 if (methods.hasOwnProperty(i)) {
 
-                    val = attr(elem, i) || attr(elem, "data-validate-" + i);
+                    val = getAttr(elem, i) || getAttr(elem, "data-validate-" + i);
 
                     if (val == undf || val === false) {
                         continue;
@@ -1014,12 +1008,12 @@ module.exports = function(){
 
                     found[i] = val;
 
-                    val = attr(elem, "data-message-" + i);
+                    val = getAttr(elem, "data-message-" + i);
                     val && self.setMessage(i, val);
                 }
             }
 
-            if ((val = attr(elem, 'remote'))) {
+            if ((val = getAttr(elem, 'remote'))) {
                 found['remote'] = val;
             }
 
@@ -1368,7 +1362,7 @@ module.exports = function(){
 
             self.trigger('destroy', self);
 
-            attr(self.elem, "data-validator", null);
+            removeAttr(self.elem, "data-validator");
 
             if (self.errorBox) {
                 self.errorBox.parentNode.removeChild(self.errorBox);
@@ -1510,8 +1504,8 @@ module.exports = function(){
             acfg.data 		= acfg.data || {};
             acfg.data[
                 acfg.paramName ||
-                attr(elem, 'name') ||
-                attr(elem, 'id')] = val;
+                getAttr(elem, 'name') ||
+                getAttr(elem, 'id')] = val;
 
             if (!acfg.handler) {
                 acfg.dataType 	= 'text';
@@ -2169,7 +2163,7 @@ module.exports = function(){
 
         validators[self.vldId] = self;
 
-        attr(el, "data-validator", self.vldId);
+        setAttr(el, "data-validator", self.vldId);
 
         self.el     = el;
 
@@ -2470,14 +2464,14 @@ module.exports = function(){
             if (!isField(node)) {
                 return self;
             }
-            if (attr(node, "data-no-validate") !== null) {
+            if (getAttr(node, "data-no-validate") !== null) {
                 return self;
             }
-            if (attr(node, "data-validator") !== null) {
+            if (getAttr(node, "data-validator") !== null) {
                 return self;
             }
 
-            var id 			= attr(node, 'name') || attr(node, 'id'),
+            var id 			= getAttr(node, 'name') || getAttr(node, 'id'),
                 cfg         = self.cfg,
                 fields      = self.fields,
                 fcfg,
@@ -2752,7 +2746,7 @@ module.exports = function(){
                 if (self.submitButton && /input|button/.test(self.submitButton.nodeName)) {
                     self.hidden = document.createElement("input");
                     self.hidden.type = "hidden";
-                    attr(self.hidden, "name", self.submitButton.name);
+                    setAttr(self.hidden, "name", self.submitButton.name);
                     self.hidden.value = self.submitButton.value;
                     self.el.appendChild(self.hidden);
                 }
@@ -2798,7 +2792,7 @@ module.exports = function(){
         onFieldDestroy: function(f) {
 
             var elem 	= f.getElem(),
-                id		= attr(elem, 'name') || attr(elem, 'id');
+                id		= getAttr(elem, 'name') || getAttr(elem, 'id');
 
             delete this.fields[id];
         },
@@ -2970,7 +2964,7 @@ module.exports = function(){
         }
     };
     Validator.getValidator      = function(el) {
-        var vldId = attr(el, "data-validator");
+        var vldId = getAttr(el, "data-validator");
         return validators[vldId] || null;
     };
 

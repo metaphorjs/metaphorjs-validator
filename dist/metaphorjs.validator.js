@@ -7,7 +7,7 @@ var MetaphorJs = {
     view: {}
 };
 
-var isNull = function(value) {
+function isNull(value) {
     return value === null;
 };
 var toString = Object.prototype.toString;
@@ -43,7 +43,7 @@ var varType = function(){
         'date': 10
     */
 
-    return function(val) {
+    return function varType(val) {
 
         if (!val) {
             if (val === null) {
@@ -70,7 +70,7 @@ var varType = function(){
 }();
 
 
-var isString = function(value) {
+function isString(value) {
     return typeof value == "string" || value === ""+value;
     //return typeof value == "string" || varType(value) === 0;
 };
@@ -182,13 +182,17 @@ var getValue = function(){
 var slice = Array.prototype.slice;
 
 
-var isPlainObject = function(value) {
+function isPlainObject(value) {
     // IE < 9 returns [object Object] from toString(htmlElement)
-    return typeof value == "object" && varType(value) === 3 && !value.nodeType;
+    return typeof value == "object" &&
+           varType(value) === 3 &&
+            !value.nodeType &&
+            value.constructor === Object;
+
 };
 
 
-var isBool = function(value) {
+function isBool(value) {
     return value === true || value === false;
 };
 
@@ -265,7 +269,7 @@ var extend = function(){
  * @param {*} value
  * @returns {boolean}
  */
-var isArray = function(value) {
+function isArray(value) {
     return typeof value == "object" && varType(value) === 5;
 };
 /**
@@ -283,7 +287,7 @@ var bind = Function.prototype.bind ?
               };
 
 
-var addListener = function(el, event, func) {
+function addListener(el, event, func) {
     if (el.attachEvent) {
         el.attachEvent('on' + event, func);
     } else {
@@ -291,7 +295,7 @@ var addListener = function(el, event, func) {
     }
 };
 
-var removeListener = function(el, event, func) {
+function removeListener(el, event, func) {
     if (el.detachEvent) {
         el.detachEvent('on' + event, func);
     } else {
@@ -304,7 +308,7 @@ var getRegExp = function(){
 
     var cache = {};
 
-    return function(expr) {
+    return function getRegExp(expr) {
         return cache[expr] || (cache[expr] = new RegExp(expr));
     };
 }();
@@ -314,7 +318,7 @@ var getRegExp = function(){
  * @param {String} cls
  * @returns {RegExp}
  */
-var getClsReg = function(cls) {
+function getClsReg(cls) {
     return getRegExp('(?:^|\\s)'+cls+'(?!\\S)');
 };
 
@@ -324,7 +328,7 @@ var getClsReg = function(cls) {
  * @param {String} cls
  * @returns {boolean}
  */
-var hasClass = function(el, cls) {
+function hasClass(el, cls) {
     return cls ? getClsReg(cls).test(el.className) : false;
 };
 
@@ -333,7 +337,7 @@ var hasClass = function(el, cls) {
  * @param {Element} el
  * @param {String} cls
  */
-var addClass = function(el, cls) {
+function addClass(el, cls) {
     if (cls && !hasClass(el, cls)) {
         el.className += " " + cls;
     }
@@ -344,7 +348,7 @@ var addClass = function(el, cls) {
  * @param {Element} el
  * @param {String} cls
  */
-var removeClass = function(el, cls) {
+function removeClass(el, cls) {
     if (cls) {
         el.className = el.className.replace(getClsReg(cls), '');
     }
@@ -355,7 +359,7 @@ var removeClass = function(el, cls) {
  * @param {*} list
  * @returns {[]}
  */
-var toArray = function(list) {
+function toArray(list) {
     if (list && !list.length != undf && list !== ""+list) {
         for(var a = [], i =- 1, l = list.length>>>0; ++i !== l; a[i] = list[i]){}
         return a;
@@ -367,7 +371,7 @@ var toArray = function(list) {
         return [];
     }
 };
-var getAttr = function(el, name) {
+function getAttr(el, name) {
     return el.getAttribute(name);
 };
 
@@ -960,7 +964,7 @@ var select = function() {
 
     return select;
 }();
-var eachNode = function(el, fn, context) {
+function eachNode(el, fn, context) {
     var i, len,
         children = el.childNodes;
 
@@ -972,7 +976,7 @@ var eachNode = function(el, fn, context) {
 };
 
 
-var isField = function(el) {
+function isField(el) {
     var tag	= el.nodeName.toLowerCase(),
         type = el.type;
     if (tag == 'input' || tag == 'textarea' || tag == 'select') {
@@ -982,11 +986,11 @@ var isField = function(el) {
     }
     return false;
 };
-var returnFalse = function() {
+function returnFalse() {
     return false;
 };
 
-var returnTrue = function() {
+function returnTrue() {
     return true;
 };
 
@@ -1065,7 +1069,7 @@ var NormalizedEvent = function(src) {
 
 // Event is based on DOM3 Events as specified by the ECMAScript Language Binding
 // http://www.w3.org/TR/2003/WD-DOM-Level-3-Events-20030331/ecma-script-binding.html
-NormalizedEvent.prototype = {
+extend(NormalizedEvent.prototype, {
 
     isDefaultPrevented: returnFalse,
     isPropagationStopped: returnFalse,
@@ -1101,11 +1105,11 @@ NormalizedEvent.prototype = {
 
         this.stopPropagation();
     }
-};
+}, true, false);
 
 
 
-var normalizeEvent = function(originalEvent) {
+function normalizeEvent(originalEvent) {
     return new NormalizedEvent(originalEvent);
 };
 
@@ -1184,12 +1188,12 @@ if (!aIndexOf) {
  * @param {[]} arr
  * @returns {boolean}
  */
-var inArray = function(val, arr) {
+function inArray(val, arr) {
     return arr ? (aIndexOf.call(arr, val) != -1) : false;
 };
 
 
-var isNumber = function(value) {
+function isNumber(value) {
     return varType(value) === 1;
 };
 
@@ -1268,7 +1272,7 @@ var setValue = function() {
  * @param {Element} elem
  * @returns {boolean}
  */
-var isSubmittable = function(elem) {
+function isSubmittable(elem) {
     var type	= elem.type ? elem.type.toLowerCase() : '';
     return elem.nodeName.toLowerCase() == 'input' && type != 'radio' && type != 'checkbox';
 };
@@ -1279,7 +1283,7 @@ var isAndroid = function(){
 
     var android = parseInt((/android (\d+)/.exec(uaString) || [])[1], 10) || false;
 
-    return function() {
+    return function isAndroid() {
         return android;
     };
 
@@ -1294,7 +1298,7 @@ var isIE = function(){
         msie    = parseInt((/trident\/.*; rv:(\d+)/.exec(uaString) || [])[1], 10) || false;
     }
 
-    return function() {
+    return function isIE() {
         return msie;
     };
 }();//#require isIE.js
@@ -1309,7 +1313,7 @@ var browserHasEvent = function(){
 
     var eventSupport = {};
 
-    return function(event) {
+    return function browserHasEvent(event) {
         // IE9 implements 'input' event it's so fubared that we rather pretend that it doesn't have
         // it. In particular the event is not fired when backspace or delete key are pressed or
         // when cut operation is performed.
@@ -1328,18 +1332,362 @@ var browserHasEvent = function(){
     };
 }();
 
+/**
+ * @returns {String}
+ */
+var nextUid = function(){
+    var uid = ['0', '0', '0'];
+
+    // from AngularJs
+    return function nextUid() {
+        var index = uid.length;
+        var digit;
+
+        while(index) {
+            index--;
+            digit = uid[index].charCodeAt(0);
+            if (digit == 57 /*'9'*/) {
+                uid[index] = 'A';
+                return uid.join('');
+            }
+            if (digit == 90  /*'Z'*/) {
+                uid[index] = '0';
+            } else {
+                uid[index] = String.fromCharCode(digit + 1);
+                return uid.join('');
+            }
+        }
+        uid.unshift('0');
+        return uid.join('');
+    };
+}();
+
+
+
+
+var data = function(){
+
+    var dataCache   = {},
+
+        getNodeId   = function(el) {
+            return el._mjsid || (el._mjsid = nextUid());
+        };
+
+    /**
+     * @param {Element} el
+     * @param {String} key
+     * @param {*} value optional
+     */
+    return function data(el, key, value) {
+        var id  = getNodeId(el),
+            obj = dataCache[id];
+
+        if (value !== undf) {
+            if (!obj) {
+                obj = dataCache[id] = {};
+            }
+            obj[key] = value;
+            return value;
+        }
+        else {
+            return obj ? obj[key] : undf;
+        }
+    };
+
+}();
+function removeAttr(el, name) {
+    return el.removeAttribute(name);
+};/**
+ * @param {Function} fn
+ * @param {Object} context
+ * @param {[]} args
+ * @param {number} timeout
+ */
+function async(fn, context, args, timeout) {
+    setTimeout(function(){
+        fn.apply(context, args || []);
+    }, timeout || 0);
+};
+var strUndef = "undefined";
+
+
+function error(e) {
+
+    var stack = e.stack || (new Error).stack;
+
+    if (typeof console != strUndef && console.log) {
+        async(function(){
+            console.log(e);
+            if (stack) {
+                console.log(stack);
+            }
+        });
+    }
+    else {
+        throw e;
+    }
+};
+
+function emptyFn(){};
+
+
+var functionFactory = function() {
+
+    var REG_REPLACE_EXPR    = /(^|[^a-z0-9_$])(\.)([^0-9])/ig,
+
+        f               = Function,
+        fnBodyStart     = 'try {',
+        //getterBodyEnd   = ';} catch (thrownError) { return $$interceptor(thrownError, $$itself, ____); }',
+        //setterBodyEnd   = ';} catch (thrownError) { return $$interceptor(thrownError, $$itself, ____, $$$$); }',
+        getterBodyEnd   = ';} catch (thrownError) { return undefined; }',
+        setterBodyEnd   = ';} catch (thrownError) { return undefined; }',
+
+
+        /*interceptor     = function(thrownError, func, scope, value) {
+
+            while (scope && !scope.$isRoot) {
+
+                scope = scope.$parent;
+
+                if (scope) {
+
+                    try {
+                        if (arguments.length == 4) {
+                            return func.call(null, scope, value, emptyFn, func);
+                        }
+                        else {
+                            return func.call(null, scope, emptyFn, func);
+                        }
+                    }
+                    catch (newError) {}
+                }
+            }
+
+            if (thrownError !== null) {
+                error(thrownError);
+            }
+
+            return undf;
+        },*/
+
+        isFailed        = function(val) {
+            return val === undf || (typeof val == "number" && isNaN(val));
+        },
+
+        wrapFunc        = function(func, returnsValue) {
+            return function(scope) {
+                var args = slice.call(arguments),
+                    val;
+
+                //args.push(interceptor);
+                args.push(null);
+                args.push(func);
+
+                if (returnsValue) {
+                    val = func.apply(null, args);
+                    while (isFailed(val) && !scope.$isRoot) {
+                        scope = scope.$parent;
+                        args[0] = scope;
+                        val = func.apply(null, args);
+                    }
+                    return val;
+                }
+                else {
+                    return func.apply(null, args);
+                }
+
+                /*if (returnsValue && isFailed(val)) {//) {
+                    args = slice.call(arguments);
+                    args.unshift(func);
+                    args.unshift(null);
+                    return interceptor.apply(null, args);
+                }
+                else {
+                    return val;
+                }*/
+            };
+        },
+
+        getterCache     = {},
+        getterCacheCnt  = 0,
+
+        createGetter    = function createGetter(expr) {
+            try {
+                if (!getterCache[expr]) {
+                    getterCacheCnt++;
+                    return getterCache[expr] = wrapFunc(new f(
+                        '____',
+                        '$$interceptor',
+                        '$$itself',
+                        "".concat(fnBodyStart, 'return ', expr.replace(REG_REPLACE_EXPR, '$1____.$3'), getterBodyEnd)
+                    ), true);
+                }
+                return getterCache[expr];
+            }
+            catch (thrownError){
+                error(thrownError);
+                return emptyFn;
+            }
+        },
+
+        setterCache     = {},
+        setterCacheCnt  = 0,
+
+        createSetter    = function createSetter(expr) {
+            try {
+                if (!setterCache[expr]) {
+                    setterCacheCnt++;
+                    var code = expr.replace(REG_REPLACE_EXPR, '$1____.$3');
+                    return setterCache[expr] = wrapFunc(new f(
+                        '____',
+                        '$$$$',
+                        '$$interceptor',
+                        '$$itself',
+                        "".concat(fnBodyStart, code, ' = $$$$', setterBodyEnd)
+                    ));
+                }
+                return setterCache[expr];
+            }
+            catch (thrownError) {
+                error(thrownError);
+                return emptyFn;
+            }
+        },
+
+        funcCache       = {},
+        funcCacheCnt    = 0,
+
+        createFunc      = function createFunc(expr) {
+            try {
+                if (!funcCache[expr]) {
+                    funcCacheCnt++;
+                    return funcCache[expr] = wrapFunc(new f(
+                        '____',
+                        '$$interceptor',
+                        '$$itself',
+                        "".concat(fnBodyStart, expr.replace(REG_REPLACE_EXPR, '$1____.$3'), getterBodyEnd)
+                    ));
+                }
+                return funcCache[expr];
+            }
+            catch (thrownError) {
+                error(thrownError);
+                return emptyFn;
+            }
+        },
+
+        resetCache = function() {
+            getterCacheCnt >= 1000 && (getterCache = {});
+            setterCacheCnt >= 1000 && (setterCache = {});
+            funcCacheCnt >= 1000 && (funcCache = {});
+        };
+
+    return {
+        createGetter: createGetter,
+        createSetter: createSetter,
+        createFunc: createFunc,
+        resetCache: resetCache,
+        enableResetCacheInterval: function() {
+            setTimeout(resetCache, 10000);
+        }
+    };
+}();
+
+
+var createGetter = functionFactory.createGetter;
+var rToCamelCase = /-./g;
+
+function toCamelCase(str) {
+    return str.replace(rToCamelCase, function(match){
+        return match.charAt(1).toUpperCase();
+    });
+};
+
+
+var getNodeData = function() {
+
+    var readDataSet = function(node) {
+        var attrs = node.attributes,
+            dataset = {},
+            i, l, name;
+
+        for (i = 0, l = attrs.length; i < l; i++) {
+            name = attrs[i].name;
+            if (name.indexOf("data-") === 0) {
+                dataset[toCamelCase(name.substr(5))] = attrs[i].value;
+            }
+        }
+
+        return dataset;
+    };
+
+    if (document.documentElement.dataset) {
+        return function(node) {
+            return node.dataset;
+        };
+    }
+    else {
+        return function(node) {
+
+            var dataset;
+
+            if ((dataset = data(node, "data")) !== undf) {
+                return dataset;
+            }
+
+            dataset = readDataSet(node);
+            data(node, "data", dataset);
+            return dataset;
+        };
+    }
+
+}();
+
+
+function getNodeConfig(node, scope, expr) {
+
+    var cfg = data(node, "config"),
+        config, dataset, i, val;
+
+    if (cfg) {
+        return cfg;
+    }
+
+    cfg = {};
+
+    if (expr || (expr = getAttr(node, "mjs-config")) !== null) {
+        removeAttr(node, "mjs-config");
+        config = expr ? createGetter(expr)(scope || {}) : {};
+        for (i in config){
+            cfg[i] = config[i];
+        }
+    }
+
+    dataset = getNodeData(node);
+
+    for (i in dataset){
+        val = dataset[i];
+        cfg[i] = val === "" ? true : val;
+    }
+
+    data(node, "config", cfg);
+
+    return cfg;
+};
+
 
 
 var Input = function(el, changeFn, changeFnContext, submitFn) {
 
     var self    = this,
+        cfg     = getNodeConfig(el),
         type;
 
     self.el             = el;
     self.cb             = changeFn;
     self.scb            = submitFn;
     self.cbContext      = changeFnContext;
-    self.inputType      = type = (getAttr(el, "mjs-input-type") || el.type.toLowerCase());
+    self.inputType      = type = (cfg.type || el.type.toLowerCase());
     self.listeners      = [];
     self.submittable    = isSubmittable(el);
 
@@ -1354,7 +1702,7 @@ var Input = function(el, changeFn, changeFnContext, submitFn) {
     }
 };
 
-Input.prototype = {
+extend(Input.prototype, {
 
     el: null,
     inputType: null,
@@ -1386,10 +1734,11 @@ Input.prototype = {
             }
         }
 
-        delete self.radio;
-        delete self.el;
-        delete self.cb;
-        delete self.cbContext;
+        for (i in self) {
+            if (self.hasOwnProperty(i)) {
+                self[i] = null;
+            }
+        }
     },
 
     initRadioInput: function() {
@@ -1608,45 +1957,14 @@ Input.prototype = {
             return self.processValue(getValue(self.el));
         }
     }
-};
+}, true, false);
 
 Input.getValue = getValue;
 Input.setValue = setValue;
 
 
 
-
-/**
- * @returns {String}
- */
-var nextUid = function(){
-    var uid = ['0', '0', '0'];
-
-    // from AngularJs
-    return function() {
-        var index = uid.length;
-        var digit;
-
-        while(index) {
-            index--;
-            digit = uid[index].charCodeAt(0);
-            if (digit == 57 /*'9'*/) {
-                uid[index] = 'A';
-                return uid.join('');
-            }
-            if (digit == 90  /*'Z'*/) {
-                uid[index] = '0';
-            } else {
-                uid[index] = String.fromCharCode(digit + 1);
-                return uid.join('');
-            }
-        }
-        uid.unshift('0');
-        return uid.join('');
-    };
-}();
-
-var isFunction = function(value) {
+function isFunction(value) {
     return typeof value == 'function';
 };
 
@@ -1694,7 +2012,7 @@ var Observable = function() {
 };
 
 
-Observable.prototype = {
+extend(Observable.prototype, {
 
     /**
     * <p>You don't have to call this function unless you want to pass returnResult param.
@@ -1759,7 +2077,7 @@ Observable.prototype = {
     *       Callback function
     *       @required
     * }
-    * @param {object} scope "this" object for the callback function
+    * @param {object} context "this" object for the callback function
     * @param {object} options {
     *       @type bool first {
     *           True to prepend to the list of handlers
@@ -1778,13 +2096,13 @@ Observable.prototype = {
      *      @type bool allowDupes allow the same handler twice
     * }
     */
-    on: function(name, fn, scope, options) {
+    on: function(name, fn, context, options) {
         name = name.toLowerCase();
         var events  = this.events;
         if (!events[name]) {
             events[name] = new Event(name);
         }
-        return events[name].on(fn, scope, options);
+        return events[name].on(fn, context, options);
     },
 
     /**
@@ -1793,10 +2111,10 @@ Observable.prototype = {
     * @md-apply on
     * @access public
     */
-    once: function(name, fn, scope, options) {
+    once: function(name, fn, context, options) {
         options     = options || {};
         options.limit = 1;
-        return this.on(name, fn, scope, options);
+        return this.on(name, fn, context, options);
     },
 
 
@@ -1806,15 +2124,15 @@ Observable.prototype = {
     * @access public
     * @param {string} name Event name
     * @param {function} fn Event handler
-    * @param {object} scope If you called on() with scope you must call un() with the same scope
+    * @param {object} context If you called on() with context you must call un() with the same context
     */
-    un: function(name, fn, scope) {
+    un: function(name, fn, context) {
         name = name.toLowerCase();
         var events  = this.events;
         if (!events[name]) {
             return;
         }
-        events[name].un(fn, scope);
+        events[name].un(fn, context);
     },
 
     /**
@@ -1829,16 +2147,16 @@ Observable.prototype = {
     * @access public
     * @param {string} name Event name { @required }
     * @param {function} fn Callback function { @required }
-    * @param {object} scope Function's "this" object
+    * @param {object} context Function's "this" object
     * @return bool
     */
-    hasListener: function(name, fn, scope) {
+    hasListener: function(name, fn, context) {
         name = name.toLowerCase();
         var events  = this.events;
         if (!events[name]) {
             return false;
         }
-        return events[name].hasListener(fn, scope);
+        return events[name].hasListener(fn, context);
     },
 
 
@@ -2008,7 +2326,7 @@ Observable.prototype = {
 
         return self.api;
     }
-};
+}, true, false);
 
 
 /**
@@ -2031,7 +2349,7 @@ var Event = function(name, returnResult) {
 };
 
 
-Event.prototype = {
+extend(Event.prototype, {
 
     getName: function() {
         return this.name;
@@ -2049,36 +2367,36 @@ Event.prototype = {
     /**
      * @method
      * @param {function} fn Callback function { @required }
-     * @param {object} scope Function's "this" object
+     * @param {object} context Function's "this" object
      * @param {object} options See Observable's on()
      */
-    on: function(fn, scope, options) {
+    on: function(fn, context, options) {
 
         if (!fn) {
             return null;
         }
 
-        scope       = scope || null;
+        context     = context || null;
         options     = options || {};
 
         var self        = this,
             uni         = self.uni,
-            uniScope    = scope || fn;
+            uniContext  = context || fn;
 
-        if (uniScope[uni] && !options.allowDupes) {
+        if (uniContext[uni] && !options.allowDupes) {
             return null;
         }
 
         var id      = ++self.lid,
             first   = options.first || false;
 
-        uniScope[uni]  = id;
+        uniContext[uni]  = id;
 
 
         var e = {
             fn:         fn,
-            scope:      scope,
-            uniScope:   uniScope,
+            context:    context,
+            uniContext: uniContext,
             id:         id,
             called:     0, // how many times the function was triggered
             limit:      options.limit || 0, // how many times the function is allowed to trigger
@@ -2103,23 +2421,23 @@ Event.prototype = {
     /**
      * @method
      * @param {function} fn Callback function { @required }
-     * @param {object} scope Function's "this" object
+     * @param {object} context Function's "this" object
      * @param {object} options See Observable's on()
      */
-    once: function(fn, scope, options) {
+    once: function(fn, context, options) {
 
         options = options || {};
         options.once = true;
 
-        return this.on(fn, scope, options);
+        return this.on(fn, context, options);
     },
 
     /**
      * @method
      * @param {function} fn Callback function { @required }
-     * @param {object} scope Function's "this" object
+     * @param {object} context Function's "this" object
      */
-    un: function(fn, scope) {
+    un: function(fn, context) {
 
         var self        = this,
             inx         = -1,
@@ -2131,8 +2449,8 @@ Event.prototype = {
             id      = fn;
         }
         else {
-            scope   = scope || fn;
-            id      = scope[uni];
+            context = context || fn;
+            id      = context[uni];
         }
 
         if (!id) {
@@ -2142,7 +2460,7 @@ Event.prototype = {
         for (var i = 0, len = listeners.length; i < len; i++) {
             if (listeners[i].id == id) {
                 inx = i;
-                delete listeners[i].uniScope[uni];
+                delete listeners[i].uniContext[uni];
                 break;
             }
         }
@@ -2164,10 +2482,10 @@ Event.prototype = {
     /**
      * @method
      * @param {function} fn Callback function { @required }
-     * @param {object} scope Function's "this" object
+     * @param {object} context Function's "this" object
      * @return bool
      */
-    hasListener: function(fn, scope) {
+    hasListener: function(fn, context) {
 
         var self    = this,
             listeners   = self.listeners,
@@ -2175,13 +2493,13 @@ Event.prototype = {
 
         if (fn) {
 
-            scope   = scope || fn;
+            context = context || fn;
 
             if (!isFunction(fn)) {
                 id  = fn;
             }
             else {
-                id  = scope[self.uni];
+                id  = context[self.uni];
             }
 
             if (!id) {
@@ -2212,7 +2530,7 @@ Event.prototype = {
             i, len;
 
         for (i = 0, len = listeners.length; i < len; i++) {
-            delete listeners[i].uniScope[uni];
+            delete listeners[i].uniContext[uni];
         }
         self.listeners   = [];
         self.map         = {};
@@ -2294,7 +2612,7 @@ Event.prototype = {
                 continue;
             }
 
-            res = l.fn.apply(l.scope, self._prepareArgs(l, arguments));
+            res = l.fn.apply(l.context, self._prepareArgs(l, arguments));
 
             l.called++;
 
@@ -2323,23 +2641,10 @@ Event.prototype = {
             return ret;
         }
     }
-};
+}, true, false);
 
 
-/**
- * @param {Function} fn
- * @param {Object} context
- * @param {[]} args
- * @param {number} timeout
- */
-var async = function(fn, context, args, timeout) {
-    setTimeout(function(){
-        fn.apply(context, args || []);
-    }, timeout || 0);
-};
 
-var emptyFn = function(){};
-var strUndef = "undefined";
 
 
 var parseJSON = function() {
@@ -2356,7 +2661,7 @@ var parseJSON = function() {
 
 
 
-var parseXML = function(data, type) {
+function parseXML(data, type) {
 
     var xml, tmp;
 
@@ -2385,7 +2690,7 @@ var parseXML = function(data, type) {
  * @param {*} any
  * @returns {Function|boolean}
  */
-var isThenable = function(any) {
+function isThenable(any) {
     if (!any || !any.then) {
         return false;
     }
@@ -2397,25 +2702,6 @@ var isThenable = function(any) {
     return isFunction((then = any.then)) ?
            then : false;
 };
-
-
-var error = function(e) {
-
-    var stack = e.stack || (new Error).stack;
-
-    if (typeof console != strUndef && console.log) {
-        async(function(){
-            console.log(e);
-            if (stack) {
-                console.log(stack);
-            }
-        });
-    }
-    else {
-        throw e;
-    }
-};
-
 
 
 
@@ -2546,7 +2832,7 @@ var Promise = function(){
         }
     };
 
-    Promise.prototype = {
+    extend(Promise.prototype, {
 
         _state: PENDING,
 
@@ -2577,10 +2863,10 @@ var Promise = function(){
         _cleanup: function() {
             var self    = this;
 
-            delete self._fulfills;
-            delete self._rejects;
-            delete self._dones;
-            delete self._fails;
+            self._fulfills = null;
+            self._rejects = null;
+            self._dones = null;
+            self._fails = null;
         },
 
         _processValue: function(value, cb) {
@@ -2912,7 +3198,7 @@ var Promise = function(){
 
             return self;
         }
-    };
+    }, true, false);
 
 
     Promise.fcall = function(fn, context, args) {
@@ -3136,7 +3422,7 @@ var Promise = function(){
 
 
 
-var isObject = function(value) {
+function isObject(value) {
     if (value === null || typeof value != "object") {
         return false;
     }
@@ -3145,11 +3431,11 @@ var isObject = function(value) {
 };
 
 
-var isPrimitive = function(value) {
+function isPrimitive(value) {
     var vt = varType(value);
     return vt < 3 && vt > -1;
 };
-var setAttr = function(el, name, value) {
+function setAttr(el, name, value) {
     return el.setAttribute(name, value);
 };
 
@@ -3498,7 +3784,7 @@ var ajax = function(){
         }
     };
 
-    AJAX.prototype = {
+    extend(AJAX.prototype, {
 
         _jsonpName: null,
         _transport: null,
@@ -3648,12 +3934,12 @@ var ajax = function(){
 
             self._transport.destroy();
 
-            delete self._transport;
-            delete self._opt;
-            delete self._deferred;
-            delete self._promise;
-            delete self._timeout;
-            delete self._form;
+            self._transport = null;
+            self._opt = null;
+            self._deferred = null;
+            self._promise = null;
+            self._timeout = null;
+            self._form = null;
 
             if (self._jsonpName) {
                 if (typeof window != strUndef) {
@@ -3664,7 +3950,7 @@ var ajax = function(){
                 }
             }
         }
-    };
+    }, true, false);
 
 
 
@@ -3790,7 +4076,7 @@ var ajax = function(){
         xhr.onreadystatechange = bind(self.onReadyStateChange, self);
     };
 
-    XHRTransport.prototype = {
+    extend(XHRTransport.prototype, {
 
         _xhr: null,
         _deferred: null,
@@ -3875,14 +4161,14 @@ var ajax = function(){
         destroy: function() {
             var self    = this;
 
-            delete self._xhr;
-            delete self._deferred;
-            delete self._opt;
-            delete self._ajax;
+            self._xhr = null;
+            self._deferred = null;
+            self._opt = null;
+            self._ajax = null;
 
         }
 
-    };
+    }, true, false);
 
 
 
@@ -3897,7 +4183,7 @@ var ajax = function(){
 
     };
 
-    ScriptTransport.prototype = {
+    extend(ScriptTransport.prototype, {
 
         _opt: null,
         _deferred: null,
@@ -3947,14 +4233,14 @@ var ajax = function(){
                 self._el.parentNode.removeChild(self._el);
             }
 
-            delete self._el;
-            delete self._opt;
-            delete self._ajax;
-            delete self._deferred;
+            self._el = null;
+            self._opt = null;
+            self._ajax = null;
+            self._deferred = null;
 
         }
 
-    };
+    }, true, false);
 
 
 
@@ -3966,7 +4252,7 @@ var ajax = function(){
         self._deferred  = deferred;
     };
 
-    IframeTransport.prototype = {
+    extend(IframeTransport.prototype, {
 
         _opt: null,
         _deferred: null,
@@ -4034,23 +4320,20 @@ var ajax = function(){
                 self._el.parentNode.removeChild(self._el);
             }
 
-            delete self._el;
-            delete self._opt;
-            delete self._ajax;
-            delete self._deferred;
+            self._el = null;
+            self._opt = null;
+            self._ajax = null;
+            self._deferred = null;
 
         }
 
-    };
+    }, true, false);
 
     return ajax;
 }();
 
 
 
-var removeAttr = function(el, name) {
-    return el.removeAttribute(name);
-};
 
 
 
@@ -4484,7 +4767,7 @@ var Validator = function(){
         }
     };
 
-    Field.prototype = {
+    extend(Field.prototype, {
 
         vldr:           null,
         elem:           null,
@@ -5001,16 +5284,16 @@ var Validator = function(){
             }
 
             self.input.destroy();
-            delete self.input;
+            self.input = null;
 
             self._observable.destroy();
 
-            delete self._observable;
-            delete self.vldr;
-            delete self.cfg;
-            delete self.errorBox;
-            delete self.rules;
-            delete self.elem;
+            self._observable = null;
+            self.vldr = null;
+            self.cfg = null;
+            self.errorBox = null;
+            self.rules = null;
+            self.elem = null;
         },
 
 
@@ -5211,7 +5494,7 @@ var Validator = function(){
                 self.trigger('afterAjax', self);
             }
         }
-    };
+    }, true, false);
 
 
 
@@ -5313,7 +5596,7 @@ var Validator = function(){
         self.enabled = !cfg.disabled;
     };
 
-    Group.prototype = {
+    extend(Group.prototype, {
 
         fields:         null,
         rules:          null,
@@ -5666,7 +5949,6 @@ var Validator = function(){
             for (var i in fields) {
                 if (fields[i]) {
                     self.setFieldEvents(fields[i], 'un');
-                    delete fields[i];
                 }
             }
 
@@ -5675,11 +5957,12 @@ var Validator = function(){
             }
 
             self._observable.destroy();
-            delete self._observable;
-            delete self.vldr;
-            delete self.rules;
-            delete self.fields;
-            delete self.cfg;
+
+            self._observable = null;
+            self.vldr = null;
+            self.rules = null;
+            self.fields = null;
+            self.cfg = null;
         },
 
         add:		function(field) {
@@ -5738,7 +6021,7 @@ var Validator = function(){
             self.trigger("fieldstatechange", self, f, valid);
             self.check();
         }
-    };
+    }, true, false);
 
 
 
@@ -5858,7 +6141,7 @@ var Validator = function(){
         self.enabled = true;
     };
 
-    Validator.prototype = {
+    extend(Validator.prototype, {
 
         vldId:          null,
         el:             null,
@@ -6554,7 +6837,6 @@ var Validator = function(){
                 if (groups.hasOwnProperty(i) && groups[i]) {
                     self.setGroupEvents(groups[i], 'un');
                     groups[i].destroy();
-                    delete groups[i];
                 }
             }
 
@@ -6562,22 +6844,21 @@ var Validator = function(){
                 if (fields.hasOwnProperty(i) && fields[i]) {
                     self.setFieldEvents(fields[i], 'un');
                     fields[i].destroy();
-                    delete fields[i];
                 }
             }
 
             self._observable.destroy();
-            delete self._observable;
+            self._observable = null;
 
             self.initForm('unbind');
 
-            delete self.fields;
-            delete self.groups;
-            delete self.el;
-            delete self.cfg;
+            self.fields = null;
+            self.groups = null;
+            self.el = null;
+            self.cfg = null;
         }
 
-    };
+    }, true, false);
 
 
 

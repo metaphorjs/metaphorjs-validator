@@ -36,7 +36,7 @@ var varType = function(){
         'date': 10
     */
 
-    return function(val) {
+    return function varType(val) {
 
         if (!val) {
             if (val === null) {
@@ -63,16 +63,20 @@ var varType = function(){
 }();
 
 
-var isPlainObject = function(value) {
+function isPlainObject(value) {
     // IE < 9 returns [object Object] from toString(htmlElement)
-    return typeof value == "object" && varType(value) === 3 && !value.nodeType;
+    return typeof value == "object" &&
+           varType(value) === 3 &&
+            !value.nodeType &&
+            value.constructor === Object;
+
 };
 
 
-var isBool = function(value) {
+function isBool(value) {
     return value === true || value === false;
 };
-var isNull = function(value) {
+function isNull(value) {
     return value === null;
 };
 
@@ -149,12 +153,12 @@ var extend = function(){
  * @param {*} value
  * @returns {boolean}
  */
-var isArray = function(value) {
+function isArray(value) {
     return typeof value == "object" && varType(value) === 5;
 };
 
 
-var isString = function(value) {
+function isString(value) {
     return typeof value == "string" || value === ""+value;
     //return typeof value == "string" || varType(value) === 0;
 };
@@ -190,7 +194,7 @@ var bind = Function.prototype.bind ?
               };
 
 
-var addListener = function(el, event, func) {
+function addListener(el, event, func) {
     if (el.attachEvent) {
         el.attachEvent('on' + event, func);
     } else {
@@ -198,7 +202,7 @@ var addListener = function(el, event, func) {
     }
 };
 
-var removeListener = function(el, event, func) {
+function removeListener(el, event, func) {
     if (el.detachEvent) {
         el.detachEvent('on' + event, func);
     } else {
@@ -211,7 +215,7 @@ var getRegExp = function(){
 
     var cache = {};
 
-    return function(expr) {
+    return function getRegExp(expr) {
         return cache[expr] || (cache[expr] = new RegExp(expr));
     };
 }();
@@ -221,7 +225,7 @@ var getRegExp = function(){
  * @param {String} cls
  * @returns {RegExp}
  */
-var getClsReg = function(cls) {
+function getClsReg(cls) {
     return getRegExp('(?:^|\\s)'+cls+'(?!\\S)');
 };
 
@@ -231,7 +235,7 @@ var getClsReg = function(cls) {
  * @param {String} cls
  * @returns {boolean}
  */
-var hasClass = function(el, cls) {
+function hasClass(el, cls) {
     return cls ? getClsReg(cls).test(el.className) : false;
 };
 
@@ -240,7 +244,7 @@ var hasClass = function(el, cls) {
  * @param {Element} el
  * @param {String} cls
  */
-var addClass = function(el, cls) {
+function addClass(el, cls) {
     if (cls && !hasClass(el, cls)) {
         el.className += " " + cls;
     }
@@ -251,12 +255,12 @@ var addClass = function(el, cls) {
  * @param {Element} el
  * @param {String} cls
  */
-var removeClass = function(el, cls) {
+function removeClass(el, cls) {
     if (cls) {
         el.className = el.className.replace(getClsReg(cls), '');
     }
 };
-var eachNode = function(el, fn, context) {
+function eachNode(el, fn, context) {
     var i, len,
         children = el.childNodes;
 
@@ -268,7 +272,7 @@ var eachNode = function(el, fn, context) {
 };
 
 
-var isField = function(el) {
+function isField(el) {
     var tag	= el.nodeName.toLowerCase(),
         type = el.type;
     if (tag == 'input' || tag == 'textarea' || tag == 'select') {
@@ -278,11 +282,11 @@ var isField = function(el) {
     }
     return false;
 };
-var returnFalse = function() {
+function returnFalse() {
     return false;
 };
 
-var returnTrue = function() {
+function returnTrue() {
     return true;
 };
 
@@ -361,7 +365,7 @@ var NormalizedEvent = function(src) {
 
 // Event is based on DOM3 Events as specified by the ECMAScript Language Binding
 // http://www.w3.org/TR/2003/WD-DOM-Level-3-Events-20030331/ecma-script-binding.html
-NormalizedEvent.prototype = {
+extend(NormalizedEvent.prototype, {
 
     isDefaultPrevented: returnFalse,
     isPropagationStopped: returnFalse,
@@ -397,24 +401,24 @@ NormalizedEvent.prototype = {
 
         this.stopPropagation();
     }
-};
+}, true, false);
 
 
 
-var normalizeEvent = function(originalEvent) {
+function normalizeEvent(originalEvent) {
     return new NormalizedEvent(originalEvent);
 };
 
-var isFunction = function(value) {
+function isFunction(value) {
     return typeof value == 'function';
 };
-var getAttr = function(el, name) {
+function getAttr(el, name) {
     return el.getAttribute(name);
 };
-var setAttr = function(el, name, value) {
+function setAttr(el, name, value) {
     return el.setAttribute(name, value);
 };
-var removeAttr = function(el, name) {
+function removeAttr(el, name) {
     return el.removeAttribute(name);
 };
 
@@ -850,7 +854,7 @@ var Validator = function(){
         }
     };
 
-    Field.prototype = {
+    extend(Field.prototype, {
 
         vldr:           null,
         elem:           null,
@@ -1367,16 +1371,16 @@ var Validator = function(){
             }
 
             self.input.destroy();
-            delete self.input;
+            self.input = null;
 
             self._observable.destroy();
 
-            delete self._observable;
-            delete self.vldr;
-            delete self.cfg;
-            delete self.errorBox;
-            delete self.rules;
-            delete self.elem;
+            self._observable = null;
+            self.vldr = null;
+            self.cfg = null;
+            self.errorBox = null;
+            self.rules = null;
+            self.elem = null;
         },
 
 
@@ -1577,7 +1581,7 @@ var Validator = function(){
                 self.trigger('afterAjax', self);
             }
         }
-    };
+    }, true, false);
 
 
 
@@ -1679,7 +1683,7 @@ var Validator = function(){
         self.enabled = !cfg.disabled;
     };
 
-    Group.prototype = {
+    extend(Group.prototype, {
 
         fields:         null,
         rules:          null,
@@ -2032,7 +2036,6 @@ var Validator = function(){
             for (var i in fields) {
                 if (fields[i]) {
                     self.setFieldEvents(fields[i], 'un');
-                    delete fields[i];
                 }
             }
 
@@ -2041,11 +2044,12 @@ var Validator = function(){
             }
 
             self._observable.destroy();
-            delete self._observable;
-            delete self.vldr;
-            delete self.rules;
-            delete self.fields;
-            delete self.cfg;
+
+            self._observable = null;
+            self.vldr = null;
+            self.rules = null;
+            self.fields = null;
+            self.cfg = null;
         },
 
         add:		function(field) {
@@ -2104,7 +2108,7 @@ var Validator = function(){
             self.trigger("fieldstatechange", self, f, valid);
             self.check();
         }
-    };
+    }, true, false);
 
 
 
@@ -2224,7 +2228,7 @@ var Validator = function(){
         self.enabled = true;
     };
 
-    Validator.prototype = {
+    extend(Validator.prototype, {
 
         vldId:          null,
         el:             null,
@@ -2920,7 +2924,6 @@ var Validator = function(){
                 if (groups.hasOwnProperty(i) && groups[i]) {
                     self.setGroupEvents(groups[i], 'un');
                     groups[i].destroy();
-                    delete groups[i];
                 }
             }
 
@@ -2928,22 +2931,21 @@ var Validator = function(){
                 if (fields.hasOwnProperty(i) && fields[i]) {
                     self.setFieldEvents(fields[i], 'un');
                     fields[i].destroy();
-                    delete fields[i];
                 }
             }
 
             self._observable.destroy();
-            delete self._observable;
+            self._observable = null;
 
             self.initForm('unbind');
 
-            delete self.fields;
-            delete self.groups;
-            delete self.el;
-            delete self.cfg;
+            self.fields = null;
+            self.groups = null;
+            self.el = null;
+            self.cfg = null;
         }
 
-    };
+    }, true, false);
 
 
 

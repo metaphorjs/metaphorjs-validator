@@ -454,7 +454,7 @@ module.exports = function(){
         }
     };
 
-    Field.prototype = {
+    extend(Field.prototype, {
 
         vldr:           null,
         elem:           null,
@@ -971,16 +971,16 @@ module.exports = function(){
             }
 
             self.input.destroy();
-            delete self.input;
+            self.input = null;
 
             self._observable.destroy();
 
-            delete self._observable;
-            delete self.vldr;
-            delete self.cfg;
-            delete self.errorBox;
-            delete self.rules;
-            delete self.elem;
+            self._observable = null;
+            self.vldr = null;
+            self.cfg = null;
+            self.errorBox = null;
+            self.rules = null;
+            self.elem = null;
         },
 
 
@@ -1181,7 +1181,7 @@ module.exports = function(){
                 self.trigger('afterAjax', self);
             }
         }
-    };
+    }, true, false);
 
 
 
@@ -1283,7 +1283,7 @@ module.exports = function(){
         self.enabled = !cfg.disabled;
     };
 
-    Group.prototype = {
+    extend(Group.prototype, {
 
         fields:         null,
         rules:          null,
@@ -1636,7 +1636,6 @@ module.exports = function(){
             for (var i in fields) {
                 if (fields[i]) {
                     self.setFieldEvents(fields[i], 'un');
-                    delete fields[i];
                 }
             }
 
@@ -1645,11 +1644,12 @@ module.exports = function(){
             }
 
             self._observable.destroy();
-            delete self._observable;
-            delete self.vldr;
-            delete self.rules;
-            delete self.fields;
-            delete self.cfg;
+
+            self._observable = null;
+            self.vldr = null;
+            self.rules = null;
+            self.fields = null;
+            self.cfg = null;
         },
 
         add:		function(field) {
@@ -1708,7 +1708,7 @@ module.exports = function(){
             self.trigger("fieldstatechange", self, f, valid);
             self.check();
         }
-    };
+    }, true, false);
 
 
 
@@ -1828,7 +1828,7 @@ module.exports = function(){
         self.enabled = true;
     };
 
-    Validator.prototype = {
+    extend(Validator.prototype, {
 
         vldId:          null,
         el:             null,
@@ -2524,7 +2524,6 @@ module.exports = function(){
                 if (groups.hasOwnProperty(i) && groups[i]) {
                     self.setGroupEvents(groups[i], 'un');
                     groups[i].destroy();
-                    delete groups[i];
                 }
             }
 
@@ -2532,22 +2531,21 @@ module.exports = function(){
                 if (fields.hasOwnProperty(i) && fields[i]) {
                     self.setFieldEvents(fields[i], 'un');
                     fields[i].destroy();
-                    delete fields[i];
                 }
             }
 
             self._observable.destroy();
-            delete self._observable;
+            self._observable = null;
 
             self.initForm('unbind');
 
-            delete self.fields;
-            delete self.groups;
-            delete self.el;
-            delete self.cfg;
+            self.fields = null;
+            self.groups = null;
+            self.el = null;
+            self.cfg = null;
         }
 
-    };
+    }, true, false);
 
 
 

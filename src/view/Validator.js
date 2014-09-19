@@ -10,14 +10,16 @@ var Validator = require("../metaphorjs.validator.js"),
     nsGet = require("../../../metaphorjs-namespace/src/func/nsGet.js");
 
 
-defineClass("MetaphorJs.view.Validator", {
+defineClass({
+
+    $class: "MetaphorJs.view.Validator",
 
     node: null,
     scope: null,
     validator: null,
     scopeState: null,
 
-    initialize: function(node, scope) {
+    initialize: function(node, scope, renderer) {
 
         var self        = this;
 
@@ -30,7 +32,9 @@ defineClass("MetaphorJs.view.Validator", {
         self.initScopeState();
         self.initValidatorEvents();
 
-        self.validator.check();
+        // wait for the renderer to finish
+        // before making judgements :)
+        renderer.once("rendered", self.validator.check, self.validator);
     },
 
     createValidator: function() {
@@ -119,6 +123,7 @@ defineClass("MetaphorJs.view.Validator", {
         state.$submit = bind(self.validator.onSubmit, self.validator);
         state.$reset = bind(self.validator.reset, self.validator);
 
+        window.formState = state;
     },
 
     onDisplayStateChange: function(vld, state) {
@@ -203,7 +208,8 @@ defineClass("MetaphorJs.view.Validator", {
 
 });
 
-registerAttributeHandler("mjs-validate", 250, function(scope, node, expr) {
+registerAttributeHandler("mjs-validate", 250, ['$scope', '$node', '$attrValue', '$renderer',
+                                               function(scope, node, expr, renderer) {
 
     var cls     = expr || "MetaphorJs.view.Validator",
         constr  = nsGet(cls);
@@ -212,6 +218,6 @@ registerAttributeHandler("mjs-validate", 250, function(scope, node, expr) {
         error(new Error("Class '"+cls+"' not found"));
     }
     else {
-        new constr(node, scope);
+        new constr(node, scope, renderer);
     }
-});
+}]);

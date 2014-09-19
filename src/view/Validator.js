@@ -19,7 +19,7 @@ defineClass({
     validator: null,
     scopeState: null,
 
-    initialize: function(node, scope, renderer) {
+    $init: function(node, scope, renderer) {
 
         var self        = this;
 

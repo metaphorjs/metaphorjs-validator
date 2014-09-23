@@ -6,13 +6,15 @@ var Validator = require("../metaphorjs.validator.js"),
     error = require("../../../metaphorjs/src/func/error.js"),
     eachNode = require("../../../metaphorjs/src/func/dom/eachNode.js"),
     isField = require("../../../metaphorjs/src/func/dom/isField.js"),
-    registerAttributeHandler = require("../../../metaphorjs/src/func/directive/registerAttributeHandler.js"),
-    nsGet = require("../../../metaphorjs-namespace/src/func/nsGet.js");
+    Directive = require("../../../metaphorjs/src/class/Directive.js"),
+    nsGet = require("../../../metaphorjs-namespace/src/func/nsGet.js"),
+    getAttr = require("../../../metaphorjs/src/func/dom/getAttr.js"),
+    getNodeConfig = require("../../../metaphorjs/src/func/dom/getNodeConfig.js");
 
 
 defineClass({
 
-    $class: "MetaphorJs.view.Validator",
+    $class: "MetaphorJs.ValidatorComponent",
 
     node: null,
     scope: null,
@@ -41,9 +43,10 @@ defineClass({
         var self    = this,
             node    = self.node,
             cfg     = {},
+            ncfg    = getNodeConfig(node),
             submit;
 
-        if (submit = node.getAttribute("mjs-validator-submit")) {
+        if (submit = ncfg.submit) {
             cfg.callback = cfg.callback || {};
             cfg.callback.submit = function(fn, scope){
                 return function() {
@@ -55,8 +58,6 @@ defineClass({
                     }
                 }
             }(createFunc(submit), self.scope);
-
-            node.removeAttribute("mjs-validator-submit")
         }
 
         return new Validator(node, cfg);
@@ -78,7 +79,7 @@ defineClass({
         var self    = this,
             scope   = self.scope,
             node    = self.node,
-            name    = node.getAttribute('name') || node.getAttribute('id') || '$form';
+            name    = getAttr(node, 'name') || getAttr(node, 'id') || '$form';
 
         scope[name] = self.scopeState;
     },
@@ -106,7 +107,7 @@ defineClass({
 
         for (i = -1, l = els.length; ++i < l;) {
             el = els[i];
-            name = el.getAttribute("name") || el.getAttribute('id');
+            name = getAttr(el, "name") || getAttr(el, 'id');
 
             if (name && !state[name]) {
                 state[name] = {
@@ -208,10 +209,10 @@ defineClass({
 
 });
 
-registerAttributeHandler("mjs-validate", 250, ['$scope', '$node', '$attrValue', '$renderer',
+Directive.registerAttribute("mjs-validate", 250, ['$scope', '$node', '$attrValue', '$renderer',
                                                function(scope, node, expr, renderer) {
 
-    var cls     = expr || "MetaphorJs.view.Validator",
+    var cls     = expr || "MetaphorJs.ValidatorComponent",
         constr  = nsGet(cls);
 
     if (!constr) {

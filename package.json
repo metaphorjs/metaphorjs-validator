@@ -1,7 +1,7 @@
 {
     "name": "metaphorjs-validator",
     "version": "0.9.7",
-    "description": "",
+    "description": "Form validator",
     "main": "dist/metaphorjs.validator.npm.js",
     "directories": {
         "test": "test"
@@ -11,14 +11,14 @@
     },
     "repository": {
         "type": "git",
-        "url": "https://github.com/kuindji/metaphorjs-validator.git"
+        "url": "https://github.com/metaphorjs/metaphorjs-validator.git"
     },
     "author": "kuindji",
     "license": "MIT",
     "bugs": {
-        "url": "https://github.com/kuindji/metaphorjs-validator/issues"
+        "url": "https://github.com/metaphorjs/metaphorjs-validator/issues"
     },
-    "homepage": "https://github.com/kuindji/metaphorjs-validator",
+    "homepage": "https://github.com/metaphorjs/metaphorjs-validator",
     "dependencies": {
         "metaphorjs-observable": "*",
         "metaphorjs-ajax": "*",

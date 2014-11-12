@@ -14,7 +14,7 @@
         "validate"
     ],
     "license": "MIT",
-    "homepage": "https://github.com/kuindji/metaphorjs-validator",
+    "homepage": "https://github.com/metaphorjs/metaphorjs-validator",
     "ignore": [
         "node_modules",
         "bower_components",

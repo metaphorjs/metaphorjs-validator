@@ -1,5 +1,7 @@
 {
     "version": "0.9.7",
+    "description": "Form validator",
+
     "push": [
         "github"
     ],

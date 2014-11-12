@@ -1,4 +1,5 @@
 
+
 if (window.jQuery) {
 
     jQuery.fn.metaphorjsValidator = function(options, instanceName) {

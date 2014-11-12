@@ -19,20 +19,22 @@
                 "src/jquery/plugin.js"
             ],
             "expose": [
-                [
-                    "MetaphorJs.lib",
-                    "Validator"
-                ]
+                "Validator"
             ]
         },
         "npm": {
             "target": "dist/metaphorjs.validator.npm.js",
             "compile": false,
+            "wrap": {
+                "exported": true,
+                "deferred": true,
+                "args": ["window"]
+            },
             "files": [
                 [
                     "src/metaphorjs.validator.js",
                     {
-                        "keepExports": true
+                        "as": "Validator"
                     }
                 ]
             ],
@@ -47,10 +49,20 @@
             ],
             "require": {
                 "metaphorjs-observable": "Observable",
-                "metaphorjs-ajax": "ajax",
-                "metaphorjs-select": "select",
-                "metaphorjs-input": "Input"
-            }
+                "metaphorjs-ajax": {
+                    "as": "ajax",
+                    "args": ["window"]
+                },
+                "metaphorjs-select": {
+                    "as": "select",
+                    "args": ["window"]
+                },
+                "metaphorjs-input": {
+                    "as": "Input",
+                    "args": ["window"]
+                }
+            },
+            "returns": "Validator"
         },
         "amd": {
             "auto": false,

@@ -137,8 +137,6 @@ module.exports = defineClass({
         state.$pristine = true;
         state.$submit = bind(self.validator.onSubmit, self.validator);
         state.$reset = bind(self.validator.reset, self.validator);
-
-        window.formState = state;
     },
 
     onDisplayStateChange: function(vld, state) {

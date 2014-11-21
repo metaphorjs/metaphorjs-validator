@@ -2,10 +2,7 @@
 "use strict";
 
 
-var MetaphorJs = {
 
-
-};
 
 
 function isNull(value) {
@@ -1945,9 +1942,11 @@ extend(Input.prototype, {
     cb: null,
     scb: null,
     cbContext: null,
-    listeners: [],
+    listeners: null,
     radio: null,
     submittable: false,
+    keyListeners: null,
+    keydownDelegate: null,
 
     destroy: function() {
 
@@ -2203,7 +2202,70 @@ extend(Input.prototype, {
         else {
             return self.processValue(getValue(self.el));
         }
+    },
+
+    onKey: function(key, fn, context) {
+
+        var self = this;
+
+        if (!self.keyListeners) {
+            self.keyListeners = [];
+            self.keydownDelegate = bind(self.keyHandler, self);
+            self.listeners.push(["keydown", self.keydownDelegate]);
+            addListener(self.el, "keydown", self.keydownDelegate);
+        }
+
+        self.keyListeners.push({
+            key: key,
+            fn: fn,
+            context: context
+        });
+    },
+
+    keyHandler: function(event) {
+
+        var e       = normalizeEvent(event || window.event),
+            self    = this,
+            kl      = self.keyListeners,
+            i, l,
+            key;
+
+        for (i = 0, l = kl.length; i < l; i++) {
+            key = kl[i].key;
+            if (typeof key != "object") {
+                if (key == e.keyCode) {
+                    kl[i].fn.call(kl[i].context, e);
+                }
+            }
+            else {
+                if (key.ctrlKey !== undf && key.ctrlKey != e.ctrlKey) {
+                    continue;
+                }
+                if (key.shiftKey !== undf && key.shiftKey != e.shiftKey) {
+                    continue;
+                }
+                if (key.keyCode !== undf && key.keyCode != e.keyCode) {
+                    continue;
+                }
+                kl[i].fn.call(kl[i].context, e);
+            }
+        }
+    },
+
+    unKey: function(key, fn, context) {
+
+        var self    = this,
+            kl      = self.keyListeners,
+            i, l;
+
+        for (i = 0, l = kl.length; i < l; i++) {
+            if (kl[i].key == key && kl[i].fn === fn && kl[i].context === context) {
+                kl.splice(i, 1);
+            }
+        }
     }
+
+
 }, true, false);
 
 Input.getValue = getValue;

@@ -34,6 +34,7 @@ module.exports = defineClass({
     scope: null,
     validator: null,
     scopeState: null,
+    fields: null,
 
     $init: function(node, scope, renderer) {
 
@@ -42,6 +43,7 @@ module.exports = defineClass({
         self.node       = node;
         self.scope      = scope;
         self.scopeState = {};
+        self.fields     = [];
         self.validator  = self.createValidator();
 
         self.initScope();
@@ -103,6 +105,7 @@ module.exports = defineClass({
         var self    = this,
             node    = self.node,
             state   = self.scopeState,
+            fields  = self.fields,
             els, el,
             i, l,
             name;
@@ -124,6 +127,7 @@ module.exports = defineClass({
             name = getAttr(el, "name") || getAttr(el, 'id');
 
             if (name && !state[name]) {
+                fields.push(name);
                 state[name] = {
                     $error: null,
                     $invalid: null,
@@ -149,12 +153,13 @@ module.exports = defineClass({
         }
         else {
             state   = self.scopeState;
-            var i,f;
+            var i, l, f,
+                fields = self.fields;
 
-            for (i in state) {
-                f = state[i];
+            for (i = 0, l = fields.lenght; i < l; i++) {
+                f = state[fields[i]];
                 if (f.$real) {
-                    state[i] = f.$real;
+                    state[fields[i]] = f.$real;
                 }
             }
 
@@ -170,10 +175,11 @@ module.exports = defineClass({
 
         var self    = this,
             state   = self.scopeState,
-            i,f;
+            i, l, f,
+            fields = self.fields;
 
-        for (i in state) {
-            f = state[i];
+        for (i = 0, l = fields.lenght; i < l; i++) {
+            f = state[fields[i]];
             f.$error = null;
             f.$errorMessage = null;
             f.$invalid = null;

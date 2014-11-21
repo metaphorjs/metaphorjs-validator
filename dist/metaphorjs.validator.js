@@ -304,22 +304,323 @@ var bind = Function.prototype.bind ?
 
 
 
-function addListener(el, event, func) {
-    if (el.attachEvent) {
-        el.attachEvent('on' + event, func);
-    } else {
-        el.addEventListener(event, func, false);
-    }
+function returnFalse() {
+    return false;
 };
 
 
-function removeListener(el, event, func) {
-    if (el.detachEvent) {
-        el.detachEvent('on' + event, func);
-    } else {
-        el.removeEventListener(event, func, false);
-    }
+function returnTrue() {
+    return true;
 };
+
+
+
+// from jQuery
+
+var DomEvent = function(src) {
+
+    if (src instanceof DomEvent) {
+        return src;
+    }
+
+    // Allow instantiation without the 'new' keyword
+    if (!(this instanceof DomEvent)) {
+        return new DomEvent(src);
+    }
+
+
+    var self    = this;
+
+    for (var i in src) {
+        if (!self[i]) {
+            try {
+                self[i] = src[i];
+            }
+            catch (thrownError){}
+        }
+    }
+
+
+    // Event object
+    self.originalEvent = src;
+    self.type = src.type;
+
+    if (!self.target && src.srcElement) {
+        self.target = src.srcElement;
+    }
+
+
+    var eventDoc, doc, body,
+        button = src.button;
+
+    // Calculate pageX/Y if missing and clientX/Y available
+    if (self.pageX === undf && !isNull(src.clientX)) {
+        eventDoc = self.target ? self.target.ownerDocument || window.document : window.document;
+        doc = eventDoc.documentElement;
+        body = eventDoc.body;
+
+        self.pageX = src.clientX +
+                      ( doc && doc.scrollLeft || body && body.scrollLeft || 0 ) -
+                      ( doc && doc.clientLeft || body && body.clientLeft || 0 );
+        self.pageY = src.clientY +
+                      ( doc && doc.scrollTop  || body && body.scrollTop  || 0 ) -
+                      ( doc && doc.clientTop  || body && body.clientTop  || 0 );
+    }
+
+    // Add which for click: 1 === left; 2 === middle; 3 === right
+    // Note: button is not normalized, so don't use it
+    if ( !self.which && button !== undf ) {
+        self.which = ( button & 1 ? 1 : ( button & 2 ? 3 : ( button & 4 ? 2 : 0 ) ) );
+    }
+
+    // Events bubbling up the document may have been marked as prevented
+    // by a handler lower down the tree; reflect the correct value.
+    self.isDefaultPrevented = src.defaultPrevented ||
+                              src.defaultPrevented === undf &&
+                                  // Support: Android<4.0
+                              src.returnValue === false ?
+                              returnTrue :
+                              returnFalse;
+
+
+    // Create a timestamp if incoming event doesn't have one
+    self.timeStamp = src && src.timeStamp || (new Date).getTime();
+};
+
+// Event is based on DOM3 Events as specified by the ECMAScript Language Binding
+// http://www.w3.org/TR/2003/WD-DOM-Level-3-Events-20030331/ecma-script-binding.html
+extend(DomEvent.prototype, {
+
+    isDefaultPrevented: returnFalse,
+    isPropagationStopped: returnFalse,
+    isImmediatePropagationStopped: returnFalse,
+
+    preventDefault: function() {
+        var e = this.originalEvent;
+
+        this.isDefaultPrevented = returnTrue;
+        e.returnValue = false;
+
+        if ( e && e.preventDefault ) {
+            e.preventDefault();
+        }
+    },
+    stopPropagation: function() {
+        var e = this.originalEvent;
+
+        this.isPropagationStopped = returnTrue;
+
+        if ( e && e.stopPropagation ) {
+            e.stopPropagation();
+        }
+    },
+    stopImmediatePropagation: function() {
+        var e = this.originalEvent;
+
+        this.isImmediatePropagationStopped = returnTrue;
+
+        if ( e && e.stopImmediatePropagation ) {
+            e.stopImmediatePropagation();
+        }
+
+        this.stopPropagation();
+    }
+}, true, false);
+
+
+
+
+function normalizeEvent(originalEvent) {
+    return new DomEvent(originalEvent);
+};
+
+
+// from jquery.mousewheel plugin
+
+
+
+var mousewheelHandler = function(e) {
+
+    function shouldAdjustOldDeltas(orgEvent, absDelta) {
+        // If this is an older event and the delta is divisable by 120,
+        // then we are assuming that the browser is treating this as an
+        // older mouse wheel event and that we should divide the deltas
+        // by 40 to try and get a more usable deltaFactor.
+        // Side note, this actually impacts the reported scroll distance
+        // in older browsers and can cause scrolling to be slower than native.
+        // Turn this off by setting $.event.special.mousewheel.settings.adjustOldDeltas to false.
+        return orgEvent.type === 'mousewheel' && absDelta % 120 === 0;
+    }
+
+    function nullLowestDelta() {
+        lowestDelta = null;
+    }
+
+    var toBind = ( 'onwheel' in document || document.documentMode >= 9 ) ?
+                 ['wheel'] : ['mousewheel', 'DomMouseScroll', 'MozMousePixelScroll'],
+        nullLowestDeltaTimeout, lowestDelta;
+
+    var mousewheelHandler = function(fn) {
+
+        return function(e) {
+
+            var event = normalizeEvent(e || window.event),
+                args = slice.call(arguments, 1),
+                delta = 0,
+                deltaX = 0,
+                deltaY = 0,
+                absDelta = 0,
+                offsetX = 0,
+                offsetY = 0;
+
+
+            event.type = 'mousewheel';
+
+            // Old school scrollwheel delta
+            if ('detail'      in event) { deltaY = event.detail * -1; }
+            if ('wheelDelta'  in event) { deltaY = event.wheelDelta; }
+            if ('wheelDeltaY' in event) { deltaY = event.wheelDeltaY; }
+            if ('wheelDeltaX' in event) { deltaX = event.wheelDeltaX * -1; }
+
+            // Firefox < 17 horizontal scrolling related to DOMMouseScroll event
+            if ('axis' in event && event.axis === event.HORIZONTAL_AXIS) {
+                deltaX = deltaY * -1;
+                deltaY = 0;
+            }
+
+            // Set delta to be deltaY or deltaX if deltaY is 0 for backwards compatabilitiy
+            delta = deltaY === 0 ? deltaX : deltaY;
+
+            // New school wheel delta (wheel event)
+            if ('deltaY' in event) {
+                deltaY = event.deltaY * -1;
+                delta = deltaY;
+            }
+            if ('deltaX' in event) {
+                deltaX = event.deltaX;
+                if (deltaY === 0) { delta = deltaX * -1; }
+            }
+
+            // No change actually happened, no reason to go any further
+            if (deltaY === 0 && deltaX === 0) { return; }
+
+            // Store lowest absolute delta to normalize the delta values
+            absDelta = Math.max(Math.abs(deltaY), Math.abs(deltaX));
+
+            if (!lowestDelta || absDelta < lowestDelta) {
+                lowestDelta = absDelta;
+
+                // Adjust older deltas if necessary
+                if (shouldAdjustOldDeltas(event, absDelta)) {
+                    lowestDelta /= 40;
+                }
+            }
+
+            // Adjust older deltas if necessary
+            if (shouldAdjustOldDeltas(event, absDelta)) {
+                // Divide all the things by 40!
+                delta /= 40;
+                deltaX /= 40;
+                deltaY /= 40;
+            }
+
+            // Get a whole, normalized value for the deltas
+            delta = Math[delta >= 1 ? 'floor' : 'ceil'](delta / lowestDelta);
+            deltaX = Math[deltaX >= 1 ? 'floor' : 'ceil'](deltaX / lowestDelta);
+            deltaY = Math[deltaY >= 1 ? 'floor' : 'ceil'](deltaY / lowestDelta);
+
+            // Normalise offsetX and offsetY properties
+            if (this.getBoundingClientRect) {
+                var boundingRect = this.getBoundingClientRect();
+                offsetX = event.clientX - boundingRect.left;
+                offsetY = event.clientY - boundingRect.top;
+            }
+
+            // Add information to the event object
+            event.deltaX = deltaX;
+            event.deltaY = deltaY;
+            event.deltaFactor = lowestDelta;
+            event.offsetX = offsetX;
+            event.offsetY = offsetY;
+            // Go ahead and set deltaMode to 0 since we converted to pixels
+            // Although this is a little odd since we overwrite the deltaX/Y
+            // properties with normalized deltas.
+            event.deltaMode = 0;
+
+            // Add event and delta to the front of the arguments
+            args.unshift(event, delta, deltaX, deltaY);
+
+            // Clearout lowestDelta after sometime to better
+            // handle multiple device types that give different
+            // a different lowestDelta
+            // Ex: trackpad = 3 and mouse wheel = 120
+            if (nullLowestDeltaTimeout) { clearTimeout(nullLowestDeltaTimeout); }
+            nullLowestDeltaTimeout = setTimeout(nullLowestDelta, 200);
+
+
+
+            return fn.apply(this, args);
+        }
+    };
+
+    mousewheelHandler.events = function() {
+        var doc = window.document;
+        return ( 'onwheel' in doc || doc.documentMode >= 9 ) ?
+               ['wheel'] : ['mousewheel', 'DomMouseScroll', 'MozMousePixelScroll'];
+    };
+
+    return mousewheelHandler;
+
+}();
+
+
+
+var addListener = function(){
+
+    var fn = null,
+        prefix = null;
+
+    return function addListener(el, event, func) {
+
+        if (fn === null) {
+            fn = el.attachEvent ? "attachEvent" : "addEventListener";
+            prefix = el.attachEvent ? "on" : "";
+        }
+
+
+        if (event == "mousewheel") {
+            func = mousewheelHandler(func);
+            var events = mousewheelHandler.events(),
+                i, l;
+            for (i = 0, l = events.length; i < l; i++) {
+                el[fn](prefix + events[i], func, false);
+            }
+        }
+        else {
+            el[fn](prefix + event, func, false);
+        }
+
+        return func;
+    }
+
+}();
+
+
+var removeListener = function(){
+
+    var fn = null,
+        prefix = null;
+
+    return function removeListener(el, event, func) {
+
+        if (fn === null) {
+            fn = el.detachEvent ? "detachEvent" : "removeEventListener";
+            prefix = el.detachEvent ? "on" : "";
+        }
+
+        el[fn](prefix + event, func);
+    }
+}();
 
 var getRegExp = function(){
 
@@ -1018,137 +1319,6 @@ function isField(el) {
     return false;
 };
 
-function returnFalse() {
-    return false;
-};
-
-
-function returnTrue() {
-    return true;
-};
-
-
-
-// from jQuery
-
-var DomEvent = function(src) {
-
-    if (src instanceof DomEvent) {
-        return src;
-    }
-
-    // Allow instantiation without the 'new' keyword
-    if (!(this instanceof DomEvent)) {
-        return new DomEvent(src);
-    }
-
-
-    var self    = this;
-
-    for (var i in src) {
-        if (!self[i]) {
-            try {
-                self[i] = src[i];
-            }
-            catch (thrownError){}
-        }
-    }
-
-
-    // Event object
-    self.originalEvent = src;
-    self.type = src.type;
-
-    if (!self.target && src.srcElement) {
-        self.target = src.srcElement;
-    }
-
-
-    var eventDoc, doc, body,
-        button = src.button;
-
-    // Calculate pageX/Y if missing and clientX/Y available
-    if (self.pageX === undf && !isNull(src.clientX)) {
-        eventDoc = self.target ? self.target.ownerDocument || window.document : window.document;
-        doc = eventDoc.documentElement;
-        body = eventDoc.body;
-
-        self.pageX = src.clientX +
-                      ( doc && doc.scrollLeft || body && body.scrollLeft || 0 ) -
-                      ( doc && doc.clientLeft || body && body.clientLeft || 0 );
-        self.pageY = src.clientY +
-                      ( doc && doc.scrollTop  || body && body.scrollTop  || 0 ) -
-                      ( doc && doc.clientTop  || body && body.clientTop  || 0 );
-    }
-
-    // Add which for click: 1 === left; 2 === middle; 3 === right
-    // Note: button is not normalized, so don't use it
-    if ( !self.which && button !== undf ) {
-        self.which = ( button & 1 ? 1 : ( button & 2 ? 3 : ( button & 4 ? 2 : 0 ) ) );
-    }
-
-    // Events bubbling up the document may have been marked as prevented
-    // by a handler lower down the tree; reflect the correct value.
-    self.isDefaultPrevented = src.defaultPrevented ||
-                              src.defaultPrevented === undf &&
-                                  // Support: Android<4.0
-                              src.returnValue === false ?
-                              returnTrue :
-                              returnFalse;
-
-
-    // Create a timestamp if incoming event doesn't have one
-    self.timeStamp = src && src.timeStamp || (new Date).getTime();
-};
-
-// Event is based on DOM3 Events as specified by the ECMAScript Language Binding
-// http://www.w3.org/TR/2003/WD-DOM-Level-3-Events-20030331/ecma-script-binding.html
-extend(DomEvent.prototype, {
-
-    isDefaultPrevented: returnFalse,
-    isPropagationStopped: returnFalse,
-    isImmediatePropagationStopped: returnFalse,
-
-    preventDefault: function() {
-        var e = this.originalEvent;
-
-        this.isDefaultPrevented = returnTrue;
-        e.returnValue = false;
-
-        if ( e && e.preventDefault ) {
-            e.preventDefault();
-        }
-    },
-    stopPropagation: function() {
-        var e = this.originalEvent;
-
-        this.isPropagationStopped = returnTrue;
-
-        if ( e && e.stopPropagation ) {
-            e.stopPropagation();
-        }
-    },
-    stopImmediatePropagation: function() {
-        var e = this.originalEvent;
-
-        this.isImmediatePropagationStopped = returnTrue;
-
-        if ( e && e.stopImmediatePropagation ) {
-            e.stopImmediatePropagation();
-        }
-
-        this.stopPropagation();
-    }
-}, true, false);
-
-
-
-
-function normalizeEvent(originalEvent) {
-    return new DomEvent(originalEvent);
-};
-
-
 var aIndexOf    = Array.prototype.indexOf;
 
 if (!aIndexOf) {
@@ -1461,7 +1631,7 @@ var data = function(){
  * @param {number} timeout
  */
 function async(fn, context, args, timeout) {
-    setTimeout(function(){
+    return setTimeout(function(){
         fn.apply(context, args || []);
     }, timeout || 0);
 };
@@ -1873,40 +2043,46 @@ extend(Input.prototype, {
             self.onTextInputChange();
         };
 
+        var deferListener = function(ev) {
+            if (!timeout) {
+                timeout = window.setTimeout(function() {
+                    listener(ev);
+                    timeout = null;
+                }, 0);
+            }
+        };
+
+        var keydownSubmit = function(event) {
+            event = event || window.event;
+            var key = event.keyCode;
+
+            if (key == 13) {
+                return self.scb.call(self.cbContext, event);
+            }
+        };
+
+        var keydown = function(event) {
+            event = event || window.event;
+            var key = event.keyCode;
+
+            // ignore
+            //    command            modifiers                   arrows
+            if (key === 91 || (15 < key && key < 19) || (37 <= key && key <= 40)) {
+                return;
+            }
+
+            deferListener(event);
+        };
+
         // if the browser does support "input" event, we are fine - except on
         // IE9 which doesn't fire the
         // input event on backspace, delete or cut
         if (browserHasEvent('input')) {
+
             listeners.push(["input", listener]);
             addListener(node, "input", listener);
 
         } else {
-
-            var deferListener = function(ev) {
-                if (!timeout) {
-                    timeout = window.setTimeout(function() {
-                        listener(ev);
-                        timeout = null;
-                    }, 0);
-                }
-            };
-
-            var keydown = function(event) {
-                event = event || window.event;
-                var key = event.keyCode;
-
-                if (key == 13 && self.submittable && self.scb) {
-                    return self.scb.call(self.cbContext, event);
-                }
-
-                // ignore
-                //    command            modifiers                   arrows
-                if (key === 91 || (15 < key && key < 19) || (37 <= key && key <= 40)) {
-                    return;
-                }
-
-                deferListener(event);
-            };
 
             listeners.push(["keydown", keydown]);
             addListener(node, "keydown", keydown);
@@ -1921,6 +2097,11 @@ extend(Input.prototype, {
                 addListener(node, "paste", deferListener);
                 addListener(node, "cut", deferListener);
             }
+        }
+
+        if (self.scb && self.submittable) {
+            listeners.push(["keydown", keydownSubmit]);
+            addListener(node, "keydown", keydownSubmit);
         }
 
         // if user paste into input using mouse on older browser

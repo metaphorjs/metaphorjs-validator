@@ -12,9 +12,23 @@ var Validator = require("../metaphorjs.validator.js"),
     getNodeConfig = require("../../../metaphorjs/src/func/dom/getNodeConfig.js");
 
 
-defineClass({
+Directive.registerAttribute("mjs-validate", 250, function(scope, node, expr, renderer) {
 
-    $class: "MetaphorJs.ValidatorComponent",
+    var cls     = expr || "ValidatorComponent",
+        constr  = nsGet(cls);
+
+    if (!constr) {
+        error(new Error("Class '"+cls+"' not found"));
+    }
+    else {
+        new constr(node, scope, renderer);
+    }
+});
+
+
+module.exports = defineClass({
+
+    $class: "ValidatorComponent",
 
     node: null,
     scope: null,
@@ -209,16 +223,3 @@ defineClass({
 
 });
 
-Directive.registerAttribute("mjs-validate", 250, ['$scope', '$node', '$attrValue', '$renderer',
-                                               function(scope, node, expr, renderer) {
-
-    var cls     = expr || "MetaphorJs.ValidatorComponent",
-        constr  = nsGet(cls);
-
-    if (!constr) {
-        error(new Error("Class '"+cls+"' not found"));
-    }
-    else {
-        new constr(node, scope, renderer);
-    }
-}]);

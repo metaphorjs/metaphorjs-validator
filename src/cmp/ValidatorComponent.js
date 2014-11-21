@@ -133,6 +133,7 @@ module.exports = defineClass({
             }
         }
 
+        state.$$validator = self.validator;
         state.$invalid = false;
         state.$pristine = true;
         state.$submit = bind(self.validator.onSubmit, self.validator);

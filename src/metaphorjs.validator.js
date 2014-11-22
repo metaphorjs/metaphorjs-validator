@@ -418,7 +418,9 @@ module.exports = function(){
                 true, true
         );
 
-        self.input          = new Input(elem, self.onInputChange, self, self.onInputSubmit);
+        self.input          = new Input(elem);
+        self.input.onChange(self.onInputChange, self);
+        self.input.onKey(13, self.onInputSubmit, self);
 
         self.elem           = elem;
         self.vldr           = vldr;

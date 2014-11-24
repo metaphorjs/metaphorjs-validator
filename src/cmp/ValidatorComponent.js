@@ -35,6 +35,7 @@ module.exports = defineClass({
     validator: null,
     scopeState: null,
     fields: null,
+    formName: null,
 
     $init: function(node, scope, renderer) {
 
@@ -45,6 +46,7 @@ module.exports = defineClass({
         self.scopeState = {};
         self.fields     = [];
         self.validator  = self.createValidator();
+        self.formName   = getAttr(node, 'name') || getAttr(node, 'id') || '$form';
 
         self.initScope();
         self.initScopeState();
@@ -53,6 +55,8 @@ module.exports = defineClass({
         // wait for the renderer to finish
         // before making judgements :)
         renderer.once("rendered", self.validator.check, self.validator);
+        renderer.on("destroy", self.$destroy, self);
+        scope.$on("destroy", self.$destroy, self);
     },
 
     createValidator: function() {
@@ -94,11 +98,11 @@ module.exports = defineClass({
 
         var self    = this,
             scope   = self.scope,
-            node    = self.node,
-            name    = getAttr(node, 'name') || getAttr(node, 'id') || '$form';
+            name    = self.formName;
 
         scope[name] = self.scopeState;
     },
+
 
     initScopeState: function() {
 
@@ -224,6 +228,19 @@ module.exports = defineClass({
         }
 
         self.scope.$check();
+    },
+
+
+    destroy: function() {
+        var self = this;
+
+        if (!self.destroyed) {
+            self.validator.destroy();
+        }
+
+        if (self.scope) {
+            delete self.scope[self.formName];
+        }
     }
 
 });

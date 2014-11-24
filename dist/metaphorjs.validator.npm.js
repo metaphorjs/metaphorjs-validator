@@ -365,7 +365,7 @@ var mousewheelHandler = function(e) {
         lowestDelta = null;
     }
 
-    var toBind = ( 'onwheel' in document || document.documentMode >= 9 ) ?
+    var toBind = ( 'onwheel' in window.document || window.document.documentMode >= 9 ) ?
                  ['wheel'] : ['mousewheel', 'DomMouseScroll', 'MozMousePixelScroll'],
         nullLowestDeltaTimeout, lowestDelta;
 

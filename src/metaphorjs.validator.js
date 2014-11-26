@@ -418,7 +418,7 @@ module.exports = function(){
                 true, true
         );
 
-        self.input          = new Input(elem);
+        self.input          = Input.get(elem);
         self.input.onChange(self.onInputChange, self);
         self.input.onKey(13, self.onInputSubmit, self);
 

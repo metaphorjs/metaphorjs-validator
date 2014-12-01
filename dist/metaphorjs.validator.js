@@ -2,7 +2,10 @@
 "use strict";
 
 
+var MetaphorJs = {
 
+
+};
 
 
 function isNull(value) {
@@ -7124,6 +7127,11 @@ var Validator = function(){
 
             self.enableDisplayState();
 
+            if (!self.isForm) {
+                e && e.preventDefault();
+                e && e.stopPropagation();
+            }
+
             if (self.pending) {
                 e && e.preventDefault();
                 return false;
@@ -7184,7 +7192,7 @@ var Validator = function(){
 
             var res = self.trigger('submit', self);
             self.preventFormSubmit = !res;
-            return res;
+            return !self.isForm ? false : res;
         },
 
         onFieldDestroy: function(f) {

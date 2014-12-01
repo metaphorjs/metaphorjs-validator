@@ -658,11 +658,35 @@ var Validator = function(){
                     return l;
                 case 'input':
                     if (checkable(el)) {
-                        eachNode(el.form, function(node){
-                            if (node.type == el.type && node.name == el.name && node.checked) {
-                                l++;
+                        if (el.form) {
+                            eachNode(el.form, function (node) {
+                                if (node.type == el.type && node.name == el.name && node.checked) {
+                                    l++;
+                                }
+                            });
+                        }
+                        else {
+                            var parent,
+                                inputs,
+                                i, len;
+
+                            if (isAttached(el)) {
+                                parent  = el.ownerDocument;
                             }
-                        });
+                            else {
+                                parent = el;
+                                while (parent.parentNode) {
+                                    parent = parent.parentNode;
+                                }
+                            }
+
+                            inputs  = select("input[name="+name+"]", parent);
+                            for (i = 0, len = inputs.length; i < len; i++) {
+                                if (inputs[i].checked) {
+                                    l++;
+                                }
+                            }
+                        }
                         return l;
                     }
             }

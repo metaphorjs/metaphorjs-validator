@@ -1,28 +1,28 @@
 
-var getValue        = require("../../metaphorjs-input/src/func/getValue.js"),
-    extend          = require("../../metaphorjs/src/func/extend.js"),
-    isArray         = require("../../metaphorjs/src/func/isArray.js"),
-    trim            = require("../../metaphorjs/src/func/trim.js"),
-    bind            = require("../../metaphorjs/src/func/bind.js"),
-    addListener     = require("../../metaphorjs/src/func/event/addListener.js"),
-    removeListener  = require("../../metaphorjs/src/func/event/removeListener.js"),
-    addClass        = require("../../metaphorjs/src/func/dom/addClass.js"),
-    removeClass     = require("../../metaphorjs/src/func/dom/removeClass.js"),
-    select          = require("../../metaphorjs-select/src/metaphorjs.select.js"),
-    eachNode        = require("../../metaphorjs/src/func/dom/eachNode.js"),
-    isField         = require("../../metaphorjs/src/func/dom/isField.js"),
-    normalizeEvent  = require("../../metaphorjs/src/func/event/normalizeEvent.js"),
-    Input           = require("../../metaphorjs-input/src/metaphorjs.input.js"),
-    Observable      = require("../../metaphorjs-observable/src/metaphorjs.observable.js"),
-    isFunction      = require("../../metaphorjs/src/func/isFunction.js"),
-    isString        = require("../../metaphorjs/src/func/isString.js"),
-    isBool          = require("../../metaphorjs/src/func/isBool.js"),
-    ajax            = require("../../metaphorjs-ajax/src/metaphorjs.ajax.js"),
-    undf            = require("../../metaphorjs/src/var/undf.js"),
-    getAttr         = require("../../metaphorjs/src/func/dom/getAttr.js"),
-    setAttr         = require("../../metaphorjs/src/func/dom/setAttr.js"),
-    removeAttr      = require("../../metaphorjs/src/func/dom/removeAttr.js"),
-    rUrl            = require("../../metaphorjs/src/var/rUrl.js");
+var getValue        = require("metaphorjs-input/src/func/getValue.js"),
+    extend          = require("metaphorjs/src/func/extend.js"),
+    isArray         = require("metaphorjs/src/func/isArray.js"),
+    trim            = require("metaphorjs/src/func/trim.js"),
+    bind            = require("metaphorjs/src/func/bind.js"),
+    addListener     = require("metaphorjs/src/func/event/addListener.js"),
+    removeListener  = require("metaphorjs/src/func/event/removeListener.js"),
+    addClass        = require("metaphorjs/src/func/dom/addClass.js"),
+    removeClass     = require("metaphorjs/src/func/dom/removeClass.js"),
+    select          = require("metaphorjs-select/src/metaphorjs.select.js"),
+    eachNode        = require("metaphorjs/src/func/dom/eachNode.js"),
+    isField         = require("metaphorjs/src/func/dom/isField.js"),
+    normalizeEvent  = require("metaphorjs/src/func/event/normalizeEvent.js"),
+    Input           = require("metaphorjs-input/src/metaphorjs.input.js"),
+    Observable      = require("metaphorjs-observable/src/metaphorjs.observable.js"),
+    isFunction      = require("metaphorjs/src/func/isFunction.js"),
+    isString        = require("metaphorjs/src/func/isString.js"),
+    isBool          = require("metaphorjs/src/func/isBool.js"),
+    ajax            = require("metaphorjs-ajax/src/metaphorjs.ajax.js"),
+    undf            = require("metaphorjs/src/var/undf.js"),
+    getAttr         = require("metaphorjs/src/func/dom/getAttr.js"),
+    setAttr         = require("metaphorjs/src/func/dom/setAttr.js"),
+    removeAttr      = require("metaphorjs/src/func/dom/removeAttr.js"),
+    rUrl            = require("metaphorjs/src/var/rUrl.js");
 
 
 
@@ -51,11 +51,35 @@ module.exports = function(){
                     return l;
                 case 'input':
                     if (checkable(el)) {
-                        eachNode(el.form, function(node){
-                            if (node.type == el.type && node.name == el.name && node.checked) {
-                                l++;
+                        if (el.form) {
+                            eachNode(el.form, function (node) {
+                                if (node.type == el.type && node.name == el.name && node.checked) {
+                                    l++;
+                                }
+                            });
+                        }
+                        else {
+                            var parent,
+                                inputs,
+                                i, len;
+
+                            if (isAttached(el)) {
+                                parent  = el.ownerDocument;
                             }
-                        });
+                            else {
+                                parent = el;
+                                while (parent.parentNode) {
+                                    parent = parent.parentNode;
+                                }
+                            }
+
+                            inputs  = select("input[name="+name+"]", parent);
+                            for (i = 0, len = inputs.length; i < len; i++) {
+                                if (inputs[i].checked) {
+                                    l++;
+                                }
+                            }
+                        }
                         return l;
                     }
             }

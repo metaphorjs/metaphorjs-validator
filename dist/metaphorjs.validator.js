@@ -2,10 +2,7 @@
 "use strict";
 
 
-var MetaphorJs = {
 
-
-};
 
 
 function isNull(value) {
@@ -1488,6 +1485,28 @@ var setValue = function() {
     };
 }();
 
+var isAttached = function(){
+    var isAttached = function isAttached(node) {
+
+        if (node === window) {
+            return true;
+        }
+        if (node.nodeType == 3) {
+            if (node.parentElement) {
+                return isAttached(node.parentElement);
+            }
+            else {
+                return true;
+            }
+        }
+
+        var html = window.document.documentElement;
+
+        return node === html ? true : html.contains(node);
+    };
+    return isAttached;
+}();
+
 var isAndroid = function(){
 
     var android = null;
@@ -1975,13 +1994,14 @@ extend(Observable.prototype, {
      *  @param {bool} autoTrigger
      *  @param {function} triggerFilter
      * }
+     * @param {object} filterContext
      * @returns {ObservableEvent}
      */
-    createEvent: function(name, returnResult, autoTrigger, triggerFilter) {
+    createEvent: function(name, returnResult, autoTrigger, triggerFilter, filterContext) {
         name = name.toLowerCase();
         var events  = this.events;
         if (!events[name]) {
-            events[name] = new Event(name, returnResult, autoTrigger, triggerFilter);
+            events[name] = new Event(name, returnResult, autoTrigger, triggerFilter, filterContext);
         }
         return events[name];
     },
@@ -2264,15 +2284,9 @@ extend(Observable.prototype, {
  * @class ObservableEvent
  * @private
  */
-var Event = function(name, returnResult, autoTrigger, triggerFilter) {
+var Event = function(name, returnResult, autoTrigger, triggerFilter, filterContext) {
 
     var self    = this;
-
-    if (typeof returnResult == "object" && returnResult !== null) {
-        triggerFilter = returnResult.triggerFilter;
-        autoTrigger = returnResult.autoTrigger;
-        returnResult = returnResult.returnResult;
-    }
 
     self.name           = name;
     self.listeners      = [];
@@ -2281,9 +2295,16 @@ var Event = function(name, returnResult, autoTrigger, triggerFilter) {
     self.uni            = '$$' + name + '_' + self.hash;
     self.suspended      = false;
     self.lid            = 0;
-    self.returnResult   = returnResult === undf ? null : returnResult; // first|last|all
-    self.autoTrigger    = autoTrigger;
-    self.triggerFilter  = triggerFilter;
+
+    if (typeof returnResult == "object" && returnResult !== null) {
+        extend(self, returnResult, true, false);
+    }
+    else {
+        self.returnResult = returnResult === undf ? null : returnResult; // first|last|all
+        self.autoTrigger = autoTrigger;
+        self.triggerFilter = triggerFilter;
+        self.filterContext = filterContext;
+    }
 };
 
 
@@ -2300,6 +2321,7 @@ extend(Event.prototype, {
     autoTrigger: null,
     lastTrigger: null,
     triggerFilter: null,
+    filterContext: null,
 
     /**
      * Get event name
@@ -2314,9 +2336,12 @@ extend(Event.prototype, {
      * @method
      */
     destroy: function() {
-        var self        = this;
-        self.listeners  = null;
-        self.map        = null;
+        var self        = this,
+            k;
+
+        for (k in self) {
+            self[k] = null;
+        }
     },
 
     /**
@@ -2549,6 +2574,7 @@ extend(Event.prototype, {
             listeners       = self.listeners,
             returnResult    = self.returnResult,
             filter          = self.triggerFilter,
+            filterContext   = self.filterContext,
             args;
 
         if (self.suspended) {
@@ -2588,7 +2614,7 @@ extend(Event.prototype, {
 
             args = self._prepareArgs(l, arguments);
 
-            if (filter && filter(l, args) === false) {
+            if (filter && filter.call(filterContext, l, args, self) === false) {
                 continue;
             }
 
@@ -2645,29 +2671,16 @@ var Input = function(el, changeFn, changeFnContext) {
     }
 
     var self    = this,
-        cfg     = getNodeConfig(el),
-        type;
+        cfg     = getNodeConfig(el);
 
     self.observable     = new Observable;
     self.el             = el;
-    self.inputType      = type = (cfg.type || el.type.toLowerCase());
+    self.inputType      = cfg.type || el.type.toLowerCase();
     self.listeners      = [];
 
     if (changeFn) {
-        self.observable.on("change", changeFn, changeFnContext);
+        self.onChange(changeFn, changeFnContext);
     }
-
-    if (type == "radio") {
-        self.initRadioInput();
-    }
-    else if (type == "checkbox") {
-        self.initCheckboxInput();
-    }
-    else {
-        self.initTextInput();
-    }
-
-    self._addOrRemoveListeners(addListener);
 };
 
 extend(Input.prototype, {
@@ -2677,6 +2690,7 @@ extend(Input.prototype, {
     listeners: null,
     radio: null,
     keydownDelegate: null,
+    changeInitialized: false,
 
     destroy: function() {
 
@@ -2684,7 +2698,7 @@ extend(Input.prototype, {
             i;
 
         self.observable.destroy();
-        self._addOrRemoveListeners(removeListener);
+        self._addOrRemoveListeners(removeListener, true);
 
         self.el.$$input = null;
 
@@ -2695,39 +2709,76 @@ extend(Input.prototype, {
         }
     },
 
-    _addOrRemoveListeners: function(fn) {
+    _addOrRemoveListeners: function(fn, onlyUsed) {
 
         var self        = this,
             type        = self.inputType,
             listeners   = self.listeners,
             radio       = self.radio,
             el          = self.el,
+            used,
             i, ilen,
             j, jlen;
 
         for (i = 0, ilen = listeners.length; i < ilen; i++) {
-            if (type == "radio") {
-                for (j = 0, jlen = radio.length; j < jlen; j++) {
-                    fn(radio[j], listeners[i][0], listeners[i][1]);
+
+            used = !!listeners[i][2];
+
+            if (used == onlyUsed) {
+                if (type == "radio") {
+                    for (j = 0, jlen = radio.length; j < jlen; j++) {
+                        fn(radio[j], listeners[i][0], listeners[i][1]);
+                    }
                 }
-            }
-            else {
-                fn(el, listeners[i][0], listeners[i][1]);
+                else {
+                    fn(el, listeners[i][0], listeners[i][1]);
+                }
+                listeners[i][2] = !onlyUsed;
             }
         }
+    },
+
+    initInputChange: function() {
+
+        var self = this,
+            type = self.inputType;
+
+        if (type == "radio") {
+            self.initRadioInput();
+        }
+        else if (type == "checkbox") {
+            self.initCheckboxInput();
+        }
+        else {
+            self.initTextInput();
+        }
+
+        self._addOrRemoveListeners(addListener, false);
+
+        self.changeInitialized = true;
     },
 
     initRadioInput: function() {
 
         var self    = this,
             el      = self.el,
-            name    = el.name;
+            name    = el.name,
+            parent;
 
+        if (isAttached(el)) {
+            parent  = el.ownerDocument;
+        }
+        else {
+            parent = el;
+            while (parent.parentNode) {
+                parent = parent.parentNode;
+            }
+        }
 
-        self.radio  = select("input[name="+name+"]", el.ownerDocument);
+        self.radio  = select("input[name="+name+"]", parent);
 
         self.onRadioInputChangeDelegate = bind(self.onRadioInputChange, self);
-        self.listeners.push(["click", self.onRadioInputChangeDelegate]);
+        self.listeners.push(["click", self.onRadioInputChangeDelegate, false]);
     },
 
     initCheckboxInput: function() {
@@ -2735,7 +2786,7 @@ extend(Input.prototype, {
         var self    = this;
 
         self.onCheckboxInputChangeDelegate = bind(self.onCheckboxInputChange, self);
-        self.listeners.push(["click", self.onCheckboxInputChangeDelegate]);
+        self.listeners.push(["click", self.onCheckboxInputChangeDelegate, false]);
     },
 
     initTextInput: function() {
@@ -2760,8 +2811,8 @@ extend(Input.prototype, {
                 listener();
             };
 
-            listeners.push(["compositionstart", compositionStart]);
-            listeners.push(["compositionend", compositionEnd]);
+            listeners.push(["compositionstart", compositionStart, false]);
+            listeners.push(["compositionend", compositionEnd, false]);
         }
 
         var listener = self.onTextInputChangeDelegate = function() {
@@ -2798,17 +2849,17 @@ extend(Input.prototype, {
         // input event on backspace, delete or cut
         if (browserHasEvent('input')) {
 
-            listeners.push(["input", listener]);
+            listeners.push(["input", listener, false]);
 
         } else {
 
-            listeners.push(["keydown", keydown]);
+            listeners.push(["keydown", keydown, false]);
 
             // if user modifies input value using context menu in IE,
             // we need "paste" and "cut" events to catch it
             if (browserHasEvent('paste')) {
-                listeners.push(["paste", deferListener]);
-                listeners.push(["cut", deferListener]);
+                listeners.push(["paste", deferListener, false]);
+                listeners.push(["cut", deferListener, false]);
             }
         }
 
@@ -2816,7 +2867,7 @@ extend(Input.prototype, {
         // if user paste into input using mouse on older browser
         // or form autocomplete on newer browser, we need "change" event to catch it
 
-        listeners.push(["change", listener]);
+        listeners.push(["change", listener, false]);
     },
 
     processValue: function(val) {
@@ -2909,6 +2960,10 @@ extend(Input.prototype, {
 
 
     onChange: function(fn, context) {
+        var self = this;
+        if (!self.changeInitialized) {
+            self.initInputChange();
+        }
         this.observable.on("change", fn, context);
     },
 
@@ -2923,7 +2978,7 @@ extend(Input.prototype, {
 
         if (!self.keydownDelegate) {
             self.keydownDelegate = bind(self.keyHandler, self);
-            self.listeners.push(["keydown", self.keydownDelegate]);
+            self.listeners.push(["keydown", self.keydownDelegate, false]);
             addListener(self.el, "keydown", self.keydownDelegate);
             self.observable.createEvent("key", false, false, self.keyEventFilter);
         }
@@ -4764,11 +4819,35 @@ var Validator = function(){
                     return l;
                 case 'input':
                     if (checkable(el)) {
-                        eachNode(el.form, function(node){
-                            if (node.type == el.type && node.name == el.name && node.checked) {
-                                l++;
+                        if (el.form) {
+                            eachNode(el.form, function (node) {
+                                if (node.type == el.type && node.name == el.name && node.checked) {
+                                    l++;
+                                }
+                            });
+                        }
+                        else {
+                            var parent,
+                                inputs,
+                                i, len;
+
+                            if (isAttached(el)) {
+                                parent  = el.ownerDocument;
                             }
-                        });
+                            else {
+                                parent = el;
+                                while (parent.parentNode) {
+                                    parent = parent.parentNode;
+                                }
+                            }
+
+                            inputs  = select("input[name="+name+"]", parent);
+                            for (i = 0, len = inputs.length; i < len; i++) {
+                                if (inputs[i].checked) {
+                                    l++;
+                                }
+                            }
+                        }
                         return l;
                     }
             }

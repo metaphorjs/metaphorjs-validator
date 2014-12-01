@@ -2864,6 +2864,7 @@ var Validator = function(){
             v[mode]('afterAjax', self.onAfterAjax, self);
             v[mode]('submit', self.onFieldSubmit, self);
             v[mode]('destroy', self.onFieldDestroy, self);
+            v[mode]('errorchange', self.onFieldErrorChange, self);
         },
 
         setGroupEvents:	function(g, mode) {
@@ -3034,6 +3035,10 @@ var Validator = function(){
                 id		= getAttr(elem, 'name') || getAttr(elem, 'id');
 
             delete this.fields[id];
+        },
+
+        onFieldErrorChange: function(f, error) {
+            this.trigger("fielderrorchange", this, f, error);
         },
 
         onFieldStateChange: function(f, valid) {

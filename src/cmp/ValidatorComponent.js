@@ -91,6 +91,7 @@ module.exports = defineClass({
         v.on('fieldstatechange', self.onFieldStateChange, self);
         v.on('statechange', self.onFormStateChange, self);
         v.on('displaystatechange', self.onDisplayStateChange, self);
+        v.on('fielderrorchange', self.onFieldErrorChange, self);
         v.on('reset', self.onFormReset, self);
     },
 
@@ -173,6 +174,10 @@ module.exports = defineClass({
             self.scope.$check();
         }
 
+    },
+
+    onFieldErrorChange: function(vld, field, error) {
+        this.onFieldStateChange(vld, field, field.isValid());
     },
 
     onFormReset: function(vld) {

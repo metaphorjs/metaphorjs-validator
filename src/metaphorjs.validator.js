@@ -73,7 +73,7 @@ module.exports = function(){
                                 }
                             }
 
-                            inputs  = select("input[name="+name+"]", parent);
+                            inputs  = select("input[name="+ el.name +"]", parent);
                             for (i = 0, len = inputs.length; i < len; i++) {
                                 if (inputs[i].checked) {
                                     l++;

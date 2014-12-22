@@ -4259,7 +4259,7 @@ var ajax = function(){
             self.createJsonp();
         }
 
-        if (globalEvents.trigger("beforeSend", opt, transport) === false) {
+        if (globalEvents.trigger("before-send", opt, transport) === false) {
             self._promise = Promise.reject();
         }
         if (opt.beforeSend && opt.beforeSend.call(opt.callbackScope, opt, transport) === false) {
@@ -4366,8 +4366,8 @@ var ajax = function(){
 
             data    = processData(data, opt, contentType);
 
-            if (globalEvents.hasListener("processResponse")) {
-                data    = globalEvents.trigger("processResponse", data, self._deferred);
+            if (globalEvents.hasListener("process-response")) {
+                data    = globalEvents.trigger("process-response", data, self._deferred);
             }
 
             if (opt.processResponse) {
@@ -5771,7 +5771,7 @@ var Validator = function(){
                 box.style.display = valid !== false || !error || !cfg.errorBox.enabled ? 'none' : 'block';
             }
 
-            self.trigger('displaystate', self, valid, self.error);
+            self.trigger('display-state', self, valid, self.error);
         },
 
         /**
@@ -5831,7 +5831,7 @@ var Validator = function(){
 
             if (self.valid !== valid) {
                 self.valid = valid;
-                self.trigger('statechange', self, valid);
+                self.trigger('state-change', self, valid);
             }
         },
 
@@ -5843,7 +5843,7 @@ var Validator = function(){
             if (self.error != error || self.errorRule != rule) {
                 self.error = error;
                 self.errorRule = rule;
-                self.trigger('errorchange', self, error, rule);
+                self.trigger('error-change', self, error, rule);
             }
         },
 
@@ -5956,7 +5956,7 @@ var Validator = function(){
                 addClass(elem, cfg.cls.ajax);
             }
 
-            self.trigger('beforeAjax', self, acfg);
+            self.trigger('before-ajax', self, acfg);
 
             self.pending = ajax(acfg);
 
@@ -5998,7 +5998,7 @@ var Validator = function(){
 
             self.setValidState(valid);
             self.doDisplayState();
-            self.trigger('afterAjax', self);
+            self.trigger('after-ajax', self);
         },
 
         onAjaxError: function(xhr, status) {
@@ -6015,7 +6015,7 @@ var Validator = function(){
             if (status != 'abort' && xhr != "abort") {
                 self.setValidState(false);
                 self.doDisplayState();
-                self.trigger('afterAjax', self);
+                self.trigger('after-ajax', self);
             }
         }
     }, true, false);
@@ -6297,7 +6297,7 @@ var Validator = function(){
                 }
                 else {
                     self.error = error;
-                    self.trigger('errorchange', self, error);
+                    self.trigger('error-change', self, error);
                 }
             }
         },
@@ -6432,7 +6432,7 @@ var Validator = function(){
                 valid === true ? addClass(self.el, validCls) : removeClass(self.el, validCls);
             }
 
-            self.trigger('displaystate', self, self.valid);
+            self.trigger('display-state', self, self.valid);
         },
 
         /**
@@ -6504,7 +6504,7 @@ var Validator = function(){
 
         setFieldEvents:		function(f, mode) {
             var self = this;
-            f[mode]('statechange', self.onFieldStateChange, self);
+            f[mode]('state-change', self.onFieldStateChange, self);
         },
 
         remove:		function(field) {
@@ -6525,7 +6525,7 @@ var Validator = function(){
             var self = this;
             if (self.valid !== valid) {
                 self.valid = valid;
-                self.trigger('statechange', self, valid);
+                self.trigger('state-change', self, valid);
             }
         },
 
@@ -6542,7 +6542,7 @@ var Validator = function(){
 
         onFieldStateChange:		function(f, valid) {
             var self = this;
-            self.trigger("fieldstatechange", self, f, valid);
+            self.trigger("field-state-change", self, f, valid);
             self.check();
         }
     }, true, false);
@@ -6756,7 +6756,7 @@ var Validator = function(){
                     groups[i].enableDisplayState();
                 }
 
-                self.trigger('displaystatechange', self, true);
+                self.trigger('display-state-change', self, true);
             }
 
             return self;
@@ -6780,7 +6780,7 @@ var Validator = function(){
                     groups[i].disableDisplayState();
                 }
 
-                self.trigger('displaystatechange', self, false);
+                self.trigger('display-state-change', self, false);
             }
 
             return self;
@@ -6886,7 +6886,7 @@ var Validator = function(){
 
             if (prevValid != nowValid) {
                 self.doDisplayState();
-                self.trigger('statechange', self, false);
+                self.trigger('state-change', self, false);
             }
 
             return nowValid;
@@ -7047,7 +7047,7 @@ var Validator = function(){
 
             if (isFunction(el.submit)) {
 
-                if (self.trigger('beforesubmit', self) !== false &&
+                if (self.trigger('before-submit', self) !== false &&
                     self.trigger('submit', self) !== false) {
                     el.submit();
                 }
@@ -7059,16 +7059,16 @@ var Validator = function(){
 
         setFieldEvents: function(v, mode) {
             var self    = this;
-            v[mode]('statechange', self.onFieldStateChange, self);
-            v[mode]('beforeAjax', self.onBeforeAjax, self);
-            v[mode]('afterAjax', self.onAfterAjax, self);
+            v[mode]('state-change', self.onFieldStateChange, self);
+            v[mode]('before-ajax', self.onBeforeAjax, self);
+            v[mode]('after-ajax', self.onAfterAjax, self);
             v[mode]('submit', self.onFieldSubmit, self);
             v[mode]('destroy', self.onFieldDestroy, self);
-            v[mode]('errorchange', self.onFieldErrorChange, self);
+            v[mode]('error-change', self.onFieldErrorChange, self);
         },
 
         setGroupEvents:	function(g, mode) {
-            g[mode]('statechange', this.onGroupStateChange, this);
+            g[mode]('state-change', this.onGroupStateChange, this);
         },
 
 
@@ -7209,7 +7209,7 @@ var Validator = function(){
                 }
             }
 
-            if (self.trigger('beforesubmit', self) === false || !self.isValid()) {
+            if (self.trigger('before-submit', self) === false || !self.isValid()) {
 
                 if (e) {
                     e.preventDefault();
@@ -7221,7 +7221,7 @@ var Validator = function(){
                     self.submitted = false;
                 }
 
-                self.trigger('failedsubmit', self, buttonClicked);
+                self.trigger('failed-submit', self, buttonClicked);
                 return false;
             }
 
@@ -7243,7 +7243,7 @@ var Validator = function(){
         },
 
         onFieldErrorChange: function(f, error) {
-            this.trigger("fielderrorchange", this, f, error);
+            this.trigger("field-error-change", this, f, error);
         },
 
         onFieldStateChange: function(f, valid) {
@@ -7259,12 +7259,12 @@ var Validator = function(){
             }
 
             if (f) {
-                self.trigger('fieldstatechange', self, f, valid);
+                self.trigger('field-state-change', self, f, valid);
             }
 
             if (num === null || (num !== null && self.invalid !== num)) {
                 self.doDisplayState();
-                self.trigger('statechange', self, self.isValid());
+                self.trigger('state-change', self, self.isValid());
             }
         },
 
@@ -7282,7 +7282,7 @@ var Validator = function(){
 
             if (num === null || (num !== null && self.grps !== num)) {
                 self.doDisplayState();
-                self.trigger('statechange', self, self.isValid());
+                self.trigger('state-change', self, self.isValid());
             }
         },
 
@@ -7310,7 +7310,7 @@ var Validator = function(){
                 valid === true ? addClass(el, validCls) : removeClass(el, validCls);
             }
 
-            self.trigger('displaystate', self, valid);
+            self.trigger('display-state', self, valid);
         },
 
         onBeforeAjax: function() {

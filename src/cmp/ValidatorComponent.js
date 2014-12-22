@@ -88,10 +88,10 @@ module.exports = defineClass({
         var self    = this,
             v       = self.validator;
 
-        v.on('fieldstatechange', self.onFieldStateChange, self);
-        v.on('statechange', self.onFormStateChange, self);
-        v.on('displaystatechange', self.onDisplayStateChange, self);
-        v.on('fielderrorchange', self.onFieldErrorChange, self);
+        v.on('field-state-change', self.onFieldStateChange, self);
+        v.on('state-change', self.onFormStateChange, self);
+        v.on('display-state-change', self.onDisplayStateChange, self);
+        v.on('field-error-change', self.onFieldErrorChange, self);
         v.on('reset', self.onFormReset, self);
     },
 

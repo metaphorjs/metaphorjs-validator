@@ -8,8 +8,8 @@ var MetaphorJs = {
 };
 
 
-function isNull(value) {
-    return value === null;
+function isFunction(value) {
+    return typeof value == 'function';
 };
 
 var toString = Object.prototype.toString;
@@ -85,110 +85,444 @@ function isString(value) {
 
 
 /**
- * @function trim
- * @param {String} value
- * @returns {string}
+ * @param {*} value
+ * @returns {boolean}
  */
-var trim = function() {
-    // native trim is way faster: http://jsperf.com/angular-trim-test
-    // but IE doesn't have it... :-(
-    if (!String.prototype.trim) {
-        return function(value) {
-            return isString(value) ? value.replace(/^\s\s*/, '').replace(/\s\s*$/, '') : value;
-        };
+function isArray(value) {
+    return typeof value == "object" && varType(value) === 5;
+};
+
+var strUndef = "undefined";
+
+
+
+function isObject(value) {
+    if (value === null || typeof value != "object") {
+        return false;
     }
-    return function(value) {
-        return isString(value) ? value.trim() : value;
+    var vt = varType(value);
+    return vt > 2 || vt == -1;
+};
+
+
+
+var Cache = function(){
+
+    var globalCache;
+
+    /**
+     * @class Cache
+     * @param {bool} cacheRewritable
+     * @constructor
+     */
+    var Cache = function(cacheRewritable) {
+
+        var storage = {},
+
+            finders = [];
+
+        if (arguments.length == 0) {
+            cacheRewritable = true;
+        }
+
+        return {
+
+            /**
+             * @param {function} fn
+             * @param {object} context
+             * @param {bool} prepend
+             */
+            addFinder: function(fn, context, prepend) {
+                finders[prepend? "unshift" : "push"]({fn: fn, context: context});
+            },
+
+            /**
+             * @method
+             * @param {string} name
+             * @param {*} value
+             * @param {bool} rewritable
+             * @returns {*} value
+             */
+            add: function(name, value, rewritable) {
+
+                if (storage[name] && storage[name].rewritable === false) {
+                    return storage[name];
+                }
+
+                storage[name] = {
+                    rewritable: typeof rewritable != strUndef ? rewritable : cacheRewritable,
+                    value: value
+                };
+
+                return value;
+            },
+
+            /**
+             * @method
+             * @param {string} name
+             * @returns {*}
+             */
+            get: function(name) {
+
+                if (!storage[name]) {
+                    if (finders.length) {
+
+                        var i, l, res,
+                            self = this;
+
+                        for (i = 0, l = finders.length; i < l; i++) {
+
+                            res = finders[i].fn.call(finders[i].context, name, self);
+
+                            if (res !== undf) {
+                                return self.add(name, res, true);
+                            }
+                        }
+                    }
+
+                    return undf;
+                }
+
+                return storage[name].value;
+            },
+
+            /**
+             * @method
+             * @param {string} name
+             * @returns {*}
+             */
+            remove: function(name) {
+                var rec = storage[name];
+                if (rec && rec.rewritable === true) {
+                    delete storage[name];
+                }
+                return rec ? rec.value : undf;
+            },
+
+            /**
+             * @method
+             * @param {string} name
+             * @returns {boolean}
+             */
+            exists: function(name) {
+                return !!storage[name];
+            },
+
+            /**
+             * @param {function} fn
+             * @param {object} context
+             */
+            eachEntry: function(fn, context) {
+                var k;
+                for (k in storage) {
+                    fn.call(context, storage[k].value, k);
+                }
+            },
+
+            /**
+             * @method
+             */
+            destroy: function() {
+
+                var self = this;
+
+                if (self === globalCache) {
+                    globalCache = null;
+                }
+
+                storage = null;
+                cacheRewritable = null;
+
+                self.add = null;
+                self.get = null;
+                self.destroy = null;
+                self.exists = null;
+                self.remove = null;
+            }
+        };
     };
+
+    /**
+     * @method
+     * @static
+     * @returns {Cache}
+     */
+    Cache.global = function() {
+
+        if (!globalCache) {
+            globalCache = new Cache(true);
+        }
+
+        return globalCache;
+    };
+
+    return Cache;
+
 }();
+
+
 
 
 
 /**
- * @param {Element} elem
+ * @class Namespace
+ * @code ../examples/main.js
  */
-var getValue = function(){
+var Namespace = function(){
 
 
-    var rreturn = /\r/,
+    /**
+     * @param {Object} root optional; usually window or global
+     * @param {String} rootName optional. If you want custom object to be root and
+     * this object itself is the first level of namespace
+     * @param {Cache} cache optional
+     * @constructor
+     */
+    var Namespace   = function(root, rootName, cache) {
 
-        hooks = {
+        cache       = cache || new Cache(false);
+        var self    = this,
+            rootL   = rootName ? rootName.length : null;
 
-        option: function(elem) {
-            var val = elem.getAttribute("value") || elem.value;
+        if (!root) {
+            if (typeof global != strUndef) {
+                root    = global;
+            }
+            else {
+                root    = window;
+            }
+        }
 
-            return val != undf ?
-                   val :
-                   trim( elem.innerText || elem.textContent );
-        },
+        var normalize   = function(ns) {
+            if (ns && rootName && ns.substr(0, rootL) != rootName) {
+                return rootName + "." + ns;
+            }
+            return ns;
+        };
 
-        select: function(elem) {
+        var parseNs     = function(ns) {
 
-            var value, option,
-                options = elem.options,
-                index = elem.selectedIndex,
-                one = elem.type === "select-one" || index < 0,
-                values = one ? null : [],
-                max = one ? index + 1 : options.length,
-                disabled,
-                i = index < 0 ?
-                    max :
-                    one ? index : 0;
+            ns = normalize(ns);
 
-            // Loop through all the selected options
-            for ( ; i < max; i++ ) {
-                option = options[ i ];
+            var tmp     = ns.split("."),
+                i,
+                last    = tmp.pop(),
+                parent  = tmp.join("."),
+                len     = tmp.length,
+                name,
+                current = root;
 
-                disabled = option.disabled ||
-                           option.parentNode.disabled;
 
-                // IE6-9 doesn't update selected after form reset (#2551)
-                if ((option.selected || i === index) && !disabled ) {
-                    // Get the specific value for the option
-                    value = getValue(option);
+            if (cache[parent]) {
+                return [cache[parent], last, ns];
+            }
 
-                    // We don't need an array for one selects
-                    if ( one ) {
-                        return value;
+            if (len > 0) {
+                for (i = 0; i < len; i++) {
+
+                    name    = tmp[i];
+
+                    if (rootName && i == 0 && name == rootName) {
+                        current = root;
+                        continue;
                     }
 
-                    // Multi-Selects return an array
-                    values.push( value );
+                    if (current[name] === undf) {
+                        current[name]   = {};
+                    }
+
+                    current = current[name];
                 }
             }
 
-            return values;
-        },
+            return [current, last, ns];
+        };
 
-        radio: function( elem ) {
-            return isNull(elem.getAttribute("value")) ? "on" : elem.value;
-        },
+        /**
+         * Get namespace/cache object
+         * @method
+         * @param {string} ns
+         * @param {bool} cacheOnly
+         * @returns {*}
+         */
+        var get       = function(ns, cacheOnly) {
 
-        checkbox: function( elem ) {
-            return isNull(elem.getAttribute("value")) ? "on" : elem.value;
-        }
+            ns = normalize(ns);
+
+            if (cache.exists(ns)) {
+                return cache.get(ns);
+            }
+
+            if (cacheOnly) {
+                return undf;
+            }
+
+            var tmp     = ns.split("."),
+                i,
+                len     = tmp.length,
+                name,
+                current = root;
+
+            for (i = 0; i < len; i++) {
+
+                name    = tmp[i];
+
+                if (rootName && i == 0 && name == rootName) {
+                    current = root;
+                    continue;
+                }
+
+                if (current[name] === undf) {
+                    return undf;
+                }
+
+                current = current[name];
+            }
+
+            if (current) {
+                cache.add(ns, current);
+            }
+
+            return current;
+        };
+
+        /**
+         * Register item
+         * @method
+         * @param {string} ns
+         * @param {*} value
+         */
+        var register    = function(ns, value) {
+
+            var parse   = parseNs(ns),
+                parent  = parse[0],
+                name    = parse[1];
+
+            if (isObject(parent) && parent[name] === undf) {
+
+                parent[name]        = value;
+                cache.add(parse[2], value);
+            }
+
+            return value;
+        };
+
+        /**
+         * Item exists
+         * @method
+         * @param {string} ns
+         * @returns boolean
+         */
+        var exists      = function(ns) {
+            return get(ns, true) !== undf;
+        };
+
+        /**
+         * Add item only to the cache
+         * @function add
+         * @param {string} ns
+         * @param {*} value
+         */
+        var add = function(ns, value) {
+
+            ns = normalize(ns);
+            cache.add(ns, value);
+            return value;
+        };
+
+        /**
+         * Remove item from cache
+         * @method
+         * @param {string} ns
+         */
+        var remove = function(ns) {
+            ns = normalize(ns);
+            cache.remove(ns);
+        };
+
+        /**
+         * Make alias in the cache
+         * @method
+         * @param {string} from
+         * @param {string} to
+         */
+        var makeAlias = function(from, to) {
+
+            from = normalize(from);
+            to = normalize(to);
+
+            var value = cache.get(from);
+
+            if (value !== undf) {
+                cache.add(to, value);
+            }
+        };
+
+        /**
+         * Destroy namespace and all classes in it
+         * @method
+         */
+        var destroy     = function() {
+
+            var self = this,
+                k;
+
+            if (self === globalNs) {
+                globalNs = null;
+            }
+
+            cache.eachEntry(function(entry){
+                if (entry && entry.$destroy) {
+                    entry.$destroy();
+                }
+            });
+
+            cache.destroy();
+            cache = null;
+
+            for (k in self) {
+                self[k] = null;
+            }
+        };
+
+        self.register   = register;
+        self.exists     = exists;
+        self.get        = get;
+        self.add        = add;
+        self.remove     = remove;
+        self.normalize  = normalize;
+        self.makeAlias  = makeAlias;
+        self.destroy    = destroy;
     };
 
-    return function(elem) {
+    Namespace.prototype.register = null;
+    Namespace.prototype.exists = null;
+    Namespace.prototype.get = null;
+    Namespace.prototype.add = null;
+    Namespace.prototype.remove = null;
+    Namespace.prototype.normalize = null;
+    Namespace.prototype.makeAlias = null;
+    Namespace.prototype.destroy = null;
 
-        var hook, ret;
+    var globalNs;
 
-        hook = hooks[elem.type] || hooks[elem.nodeName.toLowerCase()];
-
-        if (hook && (ret = hook(elem, "value")) !== undf) {
-            return ret;
+    /**
+     * Get global namespace
+     * @method
+     * @static
+     * @returns {Namespace}
+     */
+    Namespace.global = function() {
+        if (!globalNs) {
+            globalNs = new Namespace;
         }
-
-        ret = elem.value;
-
-        return isString(ret) ?
-            // Handle most common string cases
-               ret.replace(rreturn, "") :
-            // Handle cases where value is null/undef or number
-               ret == null ? "" : ret;
-
+        return globalNs;
     };
+
+    return Namespace;
+
 }();
+
 
 
 var slice = Array.prototype.slice;
@@ -279,14 +613,721 @@ var extend = function(){
 }();
 
 
+function emptyFn(){};
 
-/**
- * @param {*} value
- * @returns {boolean}
- */
-function isArray(value) {
-    return typeof value == "object" && varType(value) === 5;
+
+
+var instantiate = function(fn, args) {
+
+    var Temp = function(){},
+        inst, ret;
+
+    Temp.prototype  = fn.prototype;
+    inst            = new Temp;
+    ret             = fn.apply(inst, args);
+
+    // If an object has been returned then return it otherwise
+    // return the original instance.
+    // (consistent with behaviour of the new operator)
+    return isObject(ret) || ret === false ? ret : inst;
+
 };
+/**
+ * Function interceptor
+ * @param {function} origFn
+ * @param {function} interceptor
+ * @param {object|null} context
+ * @param {object|null} origContext
+ * @param {string} when
+ * @param {bool} replaceValue
+ * @returns {Function}
+ */
+function intercept(origFn, interceptor, context, origContext, when, replaceValue) {
+
+    when = when || "before";
+
+    return function() {
+
+        var intrRes,
+            origRes;
+
+        if (when == "instead") {
+            return interceptor.apply(context || origContext, arguments);
+        }
+        else if (when == "before") {
+            intrRes = interceptor.apply(context || origContext, arguments);
+            origRes = intrRes !== false ? origFn.apply(origContext || context, arguments) : null;
+        }
+        else {
+            origRes = origFn.apply(origContext || context, arguments);
+            intrRes = interceptor.apply(context || origContext, arguments);
+        }
+
+        return replaceValue ? intrRes : origRes;
+    };
+};
+
+
+
+var Class = function(){
+
+
+    var proto   = "prototype",
+
+        constr  = "$constructor",
+
+        $constr = function $constr() {
+            var self = this;
+            if (self.$super && self.$super !== emptyFn) {
+                self.$super.apply(self, arguments);
+            }
+        },
+
+        wrapPrototypeMethod = function wrapPrototypeMethod(parent, k, fn) {
+
+            var $super = parent[proto][k] || (k == constr ? parent : emptyFn) || emptyFn;
+
+            return function() {
+                var ret,
+                    self    = this,
+                    prev    = self.$super;
+
+                self.$super     = $super;
+                ret             = fn.apply(self, arguments);
+                self.$super     = prev;
+
+                return ret;
+            };
+        },
+
+        preparePrototype = function preparePrototype(prototype, cls, parent, onlyWrap) {
+            var k, ck, pk, pp = parent[proto];
+
+            for (k in cls) {
+                if (cls.hasOwnProperty(k)) {
+                    
+                    pk = pp[k];
+                    ck = cls[k];
+
+                    prototype[k] = isFunction(ck) && (!pk || isFunction(pk)) ?
+                                    wrapPrototypeMethod(parent, k, ck) :
+                                    ck;
+                }
+            }
+
+            if (onlyWrap) {
+                return;
+            }
+
+            prototype.$plugins = null;
+            prototype.$pluginMap = null;
+
+            if (pp.$beforeInit) {
+                prototype.$beforeInit = pp.$beforeInit.slice();
+                prototype.$afterInit = pp.$afterInit.slice();
+                prototype.$beforeDestroy = pp.$beforeDestroy.slice();
+                prototype.$afterDestroy = pp.$afterDestroy.slice();
+            }
+            else {
+                prototype.$beforeInit = [];
+                prototype.$afterInit = [];
+                prototype.$beforeDestroy = [];
+                prototype.$afterDestroy = [];
+            }
+        },
+        
+        mixinToPrototype = function(prototype, mixin) {
+            
+            var k;
+            for (k in mixin) {
+                if (mixin.hasOwnProperty(k)) {
+                    if (k == "$beforeInit") {
+                        prototype.$beforeInit.push(mixin[k]);
+                    }
+                    else if (k == "$afterInit") {
+                        prototype.$afterInit.push(mixin[k]);
+                    }
+                    else if (k == "$beforeDestroy") {
+                        prototype.$beforeDestroy.push(mixin[k]);
+                    }
+                    else if (k == "$afterDestroy") {
+                        prototype.$afterDestroy.push(mixin[k]);
+                    }
+                    else if (!prototype[k]) {
+                        prototype[k] = mixin[k];
+                    }
+                }
+            }
+        };
+
+
+    var Class = function(ns){
+
+        if (!ns) {
+            ns = new Namespace;
+        }
+
+        var createConstructor = function(className) {
+
+            return function() {
+
+                var self    = this,
+                    before  = [],
+                    after   = [],
+                    args    = arguments,
+                    newArgs,
+                    i, l,
+                    plugins, plugin,
+                    pmap,
+                    plCls;
+
+                if (!self) {
+                    throw "Must instantiate via new: " + className;
+                }
+
+                self.$plugins   = [];
+
+                newArgs = self[constr].apply(self, arguments);
+
+                if (newArgs && isArray(newArgs)) {
+                    args = newArgs;
+                }
+
+                plugins = self.$plugins;
+                pmap    = self.$pluginMap = {};
+
+                for (i = -1, l = self.$beforeInit.length; ++i < l;
+                     before.push([self.$beforeInit[i], self])) {}
+
+                for (i = -1, l = self.$afterInit.length; ++i < l;
+                     after.push([self.$afterInit[i], self])) {}
+
+                if (plugins && plugins.length) {
+
+                    for (i = 0, l = plugins.length; i < l; i++) {
+
+                        plugin = plugins[i];
+
+                        if (isString(plugin)) {
+                            plCls = plugin;
+                            plugin = ns.get(plugin, true);
+                            if (!plugin) {
+                                throw plCls + " not found";
+                            }
+                        }
+
+                        plugin = new plugin(self, args);
+
+                        pmap[plugin.$class] = plugin;
+
+                        if (plugin.$beforeHostInit) {
+                            before.push([plugin.$beforeHostInit, plugin]);
+                        }
+                        if (plugin.$afterHostInit) {
+                            after.push([plugin.$afterHostInit, plugin]);
+                        }
+
+                        plugins[i] = plugin;
+                    }
+                }
+
+                for (i = -1, l = before.length; ++i < l;
+                     before[i][0].apply(before[i][1], args)){}
+
+                if (self.$init) {
+                    self.$init.apply(self, args);
+                }
+
+                for (i = -1, l = after.length; ++i < l;
+                     after[i][0].apply(after[i][1], args)){}
+
+            };
+        };
+
+
+        /**
+         * @class BaseClass
+         * @description All classes defined with MetaphorJs.Class extend this class.
+         * You can access it via <code>cs.BaseClass</code>. Basically,
+         * <code>cs.define({});</code> is the same as <code>cs.BaseClass.$extend({})</code>.
+         * @constructor
+         */
+        var BaseClass = function() {
+
+        };
+
+        extend(BaseClass.prototype, {
+
+            $class: null,
+            $extends: null,
+            $plugins: null,
+            $pluginMap: null,
+            $mixins: null,
+
+            $destroyed: false,
+
+            $constructor: emptyFn,
+            $init: emptyFn,
+            $beforeInit: [],
+            $afterInit: [],
+            $beforeDestroy: [],
+            $afterDestroy: [],
+
+            /**
+             * Get class name
+             * @method
+             * @returns {string}
+             */
+            $getClass: function() {
+                return this.$class;
+            },
+
+            /**
+             * Get parent class name
+             * @method
+             * @returns {string | null}
+             */
+            $getParentClass: function() {
+                return this.$extends;
+            },
+
+            /**
+             * Intercept method
+             * @method
+             * @param {string} method Intercepted method name
+             * @param {function} fn function to call before or after intercepted method
+             * @param {object} newContext optional interceptor's "this" object
+             * @param {string} when optional, when to call interceptor before | after | instead; default "before"
+             * @param {bool} replaceValue optional, return interceptor's return value or original method's; default false
+             * @returns {function} original method
+             */
+            $intercept: function(method, fn, newContext, when, replaceValue) {
+                var self = this,
+                    orig = self[method];
+                self[method] = intercept(orig, fn, newContext || self, self, when, replaceValue);
+                return orig;
+            },
+
+            /**
+             * Implement new methods or properties on instance
+             * @param {object} methods
+             */
+            $implement: function(methods) {
+                var $self = this.constructor;
+                if ($self && $self.$parent) {
+                    preparePrototype(this, methods, $self.$parent);
+                }
+            },
+
+            /**
+             * Does this instance have a plugin
+             * @param cls
+             * @returns {bool}
+             */
+            $hasPlugin: function(cls) {
+                return !!this.$pluginMap[ns.normalize(cls)];
+            },
+
+            /**
+             * @param {string} cls
+             * @returns {object|null}
+             */
+            $getPlugin: function(cls) {
+                return this.$pluginMap[ns.normalize(cls)] || null;
+            },
+
+            /**
+             * Destroy instance
+             * @method
+             */
+            $destroy: function() {
+
+                var self    = this,
+                    before  = self.$beforeDestroy,
+                    after   = self.$afterDestroy,
+                    plugins = self.$plugins,
+                    i, l, res;
+
+                if (self.$destroyed) {
+                    return;
+                }
+
+                self.$destroyed = true;
+
+                for (i = -1, l = before.length; ++i < l;
+                     before[i].apply(self, arguments)){}
+
+                for (i = 0, l = plugins.length; i < l; i++) {
+                    if (plugins[i].$beforeHostDestroy) {
+                        plugins[i].$beforeHostDestroy.call(plugins[i], arguments);
+                    }
+                }
+
+                res = self.destroy.apply(self, arguments);
+
+                for (i = -1, l = before.length; ++i < l;
+                     after[i].apply(self, arguments)){}
+
+                for (i = 0, l = plugins.length; i < l; i++) {
+                    plugins[i].$destroy.apply(plugins[i], arguments);
+                }
+
+                if (res !== false) {
+                    for (i in self) {
+                        if (self.hasOwnProperty(i)) {
+                            self[i] = null;
+                        }
+                    }
+                }
+
+                self.$destroyed = true;
+            },
+
+            destroy: function(){}
+        });
+
+        BaseClass.$self = BaseClass;
+
+        /**
+         * Create an instance of current class. Same as cs.factory(name)
+         * @method
+         * @static
+         * @code var myObj = My.Class.$instantiate(arg1, arg2, ...);
+         * @returns {object} class instance
+         */
+        BaseClass.$instantiate = function() {
+
+            var cls = this,
+                args = arguments,
+                cnt = args.length;
+
+            // lets make it ugly, but without creating temprorary classes and leaks.
+            // and fallback to normal instantiation.
+
+            switch (cnt) {
+                case 0:
+                    return new cls;
+                case 1:
+                    return new cls(args[0]);
+                case 2:
+                    return new cls(args[0], args[1]);
+                case 3:
+                    return new cls(args[0], args[1], args[2]);
+                case 4:
+                    return new cls(args[0], args[1], args[2], args[3]);
+                default:
+                    return instantiate(cls, args);
+            }
+        };
+
+        /**
+         * Override class methods (on prototype level, not on instance level)
+         * @method
+         * @static
+         * @param {object} methods
+         */
+        BaseClass.$override = function(methods) {
+            var $self = this.$self,
+                $parent = this.$parent;
+
+            if ($self && $parent) {
+                preparePrototype($self.prototype, methods, $parent);
+            }
+        };
+
+        /**
+         * Create new class based on current one
+         * @param {object} definition
+         * @param {object} statics
+         * @returns {function}
+         */
+        BaseClass.$extend = function(definition, statics) {
+            return define(definition, statics, this);
+        };
+
+        /**
+         * Destroy class
+         * @method
+         */
+        BaseClass.$destroy = function() {
+            var self = this,
+                k;
+
+            for (k in self) {
+                self[k] = null;
+            }
+        };
+
+        /**
+         * @class Class
+         */
+
+        /**
+         * @method Class
+         * @constructor
+         * @param {Namespace} ns optional namespace. See metaphorjs-namespace repository
+         */
+
+        /**
+         * @method
+         * @param {object} definition {
+         *  @type {string} $class optional
+         *  @type {string} $extends optional
+         *  @type {array} $mixins optional
+         *  @type {function} $constructor optional
+         *  @type {function} $init optional
+         *  @type {function} $beforeInit if this is a mixin
+         *  @type {function} $afterInit if this is a mixin
+         *  @type {function} $beforeHostInit if this is a plugin
+         *  @type {function} $afterHostInit if this is a plugin
+         *  @type {function} $beforeDestroy if this is a mixin
+         *  @type {function} $afterDestroy if this is a mixin
+         *  @type {function} $beforeHostDestroy if this is a plugin
+         *  @type {function} destroy your own destroy function
+         * }
+         * @param {object} statics any statis properties or methods
+         * @param {string|function} $extends this is a private parameter; use definition.$extends
+         * @code var cls = cs.define({$class: "Name"});
+         */
+        var define = function(definition, statics, $extends) {
+
+            definition          = definition || {};
+            
+            var name            = definition.$class,
+                parentClass     = $extends || definition.$extends,
+                mixins          = definition.$mixins,
+                pConstructor,
+                i, l, k, noop, prototype, c, mixin;
+
+            if (parentClass) {
+                if (isString(parentClass)) {
+                    pConstructor = ns.get(parentClass);
+                }
+                else {
+                    pConstructor = parentClass;
+                    parentClass = pConstructor.$class || "";
+                }
+            }
+            else {
+                pConstructor = BaseClass;
+                parentClass = "";
+            }
+
+            if (parentClass && !pConstructor) {
+                throw parentClass + " not found";
+            }
+
+            if (name) {
+                name = ns.normalize(name);
+            }
+
+            definition.$class   = name;
+            definition.$extends = parentClass;
+            definition.$mixins  = null;
+
+
+            noop                = function(){};
+            noop[proto]         = pConstructor[proto];
+            prototype           = new noop;
+            noop                = null;
+            definition[constr]  = definition[constr] || $constr;
+
+            preparePrototype(prototype, definition, pConstructor);
+
+            if (mixins) {
+                for (i = 0, l = mixins.length; i < l; i++) {
+                    mixin = mixins[i];
+                    if (isString(mixin)) {
+                        mixin = ns.get("mixin." + mixin, true);
+                    }
+                    mixinToPrototype(prototype, mixin);
+                }
+            }
+
+            c = createConstructor(name);
+            prototype.constructor = c;
+            c[proto] = prototype;
+
+            for (k in BaseClass) {
+                if (k != proto && BaseClass.hasOwnProperty(k)) {
+                    c[k] = BaseClass[k];
+                }
+            }
+
+            for (k in pConstructor) {
+                if (k != proto && pConstructor.hasOwnProperty(k)) {
+                    c[k] = pConstructor[k];
+                }
+            }
+
+            if (statics) {
+                for (k in statics) {
+                    if (k != proto && statics.hasOwnProperty(k)) {
+                        c[k] = statics[k];
+                    }
+                }
+            }
+
+            c.$parent   = pConstructor;
+            c.$self     = c;
+
+            if (name) {
+                ns.register(name, c);
+            }
+
+            return c;
+        };
+
+
+
+
+        /**
+         * Instantiate class. Pass constructor parameters after "name"
+         * @method
+         * @code cs.factory("My.Class.Name", arg1, arg2, ...);
+         * @param {string} name Full name of the class
+         * @returns {object} class instance
+         */
+        var factory = function(name) {
+
+            var cls     = ns.get(name),
+                args    = slice.call(arguments, 1);
+
+            if (!cls) {
+                throw name + " not found";
+            }
+
+            return cls.$instantiate.apply(cls, args);
+        };
+
+
+
+        /**
+         * Is cmp instance of cls
+         * @method
+         * @code cs.instanceOf(myObj, "My.Class");
+         * @code cs.instanceOf(myObj, My.Class);
+         * @param {object} cmp
+         * @param {string|object} cls
+         * @returns {boolean}
+         */
+        var isInstanceOf = function(cmp, cls) {
+            var _cls    = isString(cls) ? ns.get(cls) : cls;
+            return _cls ? cmp instanceof _cls : false;
+        };
+
+
+
+        /**
+         * Is one class subclass of another class
+         * @method
+         * @code cs.isSubclassOf("My.Subclass", "My.Class");
+         * @code cs.isSubclassOf(myObj, "My.Class");
+         * @code cs.isSubclassOf("My.Subclass", My.Class);
+         * @code cs.isSubclassOf(myObj, My.Class);
+         * @param {string|object} childClass
+         * @param {string|object} parentClass
+         * @return {bool}
+         */
+        var isSubclassOf = function(childClass, parentClass) {
+
+            var p   = childClass,
+                g   = ns.get;
+
+            if (!isString(parentClass)) {
+                parentClass  = parentClass.prototype.$class;
+            }
+            else {
+                parentClass = ns.normalize(parentClass);
+            }
+            if (isString(childClass)) {
+                p   = g(ns.normalize(childClass));
+            }
+
+            while (p && p.prototype) {
+
+                if (p.prototype.$class == parentClass) {
+                    return true;
+                }
+
+                p = p.$parent;
+            }
+
+            return false;
+        };
+
+        var self    = this;
+
+        self.factory = factory;
+        self.isSubclassOf = isSubclassOf;
+        self.isInstanceOf = isInstanceOf;
+        self.define = define;
+
+        self.destroy = function(){
+
+            if (self === globalCs) {
+                globalCs = null;
+            }
+
+            BaseClass.$destroy();
+            BaseClass = null;
+
+            ns.destroy();
+            ns = null;
+
+            Class = null;
+
+        };
+
+        /**
+         * @type {BaseClass} BaseClass reference to the BaseClass class
+         */
+        self.BaseClass = BaseClass;
+
+    };
+
+    Class.prototype = {
+
+        factory: null,
+        isSubclassOf: null,
+        isInstanceOf: null,
+        define: null,
+        destroy: null
+    };
+
+    var globalCs;
+
+    /**
+     * Get default global class manager
+     * @method
+     * @static
+     * @returns {Class}
+     */
+    Class.global = function() {
+        if (!globalCs) {
+            globalCs = new Class(Namespace.global());
+        }
+        return globalCs;
+    };
+
+    return Class;
+
+}();
+
+
+
+
+var ns  = new Namespace(MetaphorJs, "MetaphorJs");
+
+
+
+var cs = new Class(ns);
+
+
+
+
+
+var defineClass = cs.define;
 
 /**
  * @param {Function} fn
@@ -304,6 +1345,876 @@ var bind = Function.prototype.bind ?
 
 
 
+
+var nextUid = function(){
+    var uid = ['0', '0', '0'];
+
+    // from AngularJs
+    /**
+     * @returns {String}
+     */
+    return function nextUid() {
+        var index = uid.length;
+        var digit;
+
+        while(index) {
+            index--;
+            digit = uid[index].charCodeAt(0);
+            if (digit == 57 /*'9'*/) {
+                uid[index] = 'A';
+                return uid.join('');
+            }
+            if (digit == 90  /*'Z'*/) {
+                uid[index] = '0';
+            } else {
+                uid[index] = String.fromCharCode(digit + 1);
+                return uid.join('');
+            }
+        }
+        uid.unshift('0');
+        return uid.join('');
+    };
+}();
+
+
+
+
+
+var ObservableEvent = (function(){
+
+    /**
+     * This class is private - you can't create an event other than via Observable.
+     * See Observable reference.
+     * @class ObservableEvent
+     * @private
+     */
+    var ObservableEvent = function(name, returnResult, autoTrigger, triggerFilter, filterContext) {
+
+        var self    = this;
+
+        self.name           = name;
+        self.listeners      = [];
+        self.map            = {};
+        self.hash           = nextUid();
+        self.uni            = '$$' + name + '_' + self.hash;
+        self.suspended      = false;
+        self.lid            = 0;
+
+        if (typeof returnResult == "object" && returnResult !== null) {
+            extend(self, returnResult, true, false);
+        }
+        else {
+            self.returnResult = returnResult === undf ? null : returnResult; // first|last|all
+            self.autoTrigger = autoTrigger;
+            self.triggerFilter = triggerFilter;
+            self.filterContext = filterContext;
+        }
+    };
+
+
+    extend(ObservableEvent.prototype, {
+
+        name: null,
+        listeners: null,
+        map: null,
+        hash: null,
+        uni: null,
+        suspended: false,
+        lid: null,
+        returnResult: null,
+        autoTrigger: null,
+        lastTrigger: null,
+        triggerFilter: null,
+        filterContext: null,
+
+        /**
+         * Get event name
+         * @method
+         * @returns {string}
+         */
+        getName: function() {
+            return this.name;
+        },
+
+        /**
+         * @method
+         */
+        destroy: function() {
+            var self        = this,
+                k;
+
+            for (k in self) {
+                self[k] = null;
+            }
+        },
+
+        /**
+         * @method
+         * @param {function} fn Callback function { @required }
+         * @param {object} context Function's "this" object
+         * @param {object} options See Observable's on()
+         */
+        on: function(fn, context, options) {
+
+            if (!fn) {
+                return null;
+            }
+
+            context     = context || null;
+            options     = options || {};
+
+            var self        = this,
+                uni         = self.uni,
+                uniContext  = context || fn;
+
+            if (uniContext[uni] && !options.allowDupes) {
+                return null;
+            }
+
+            var id      = ++self.lid,
+                first   = options.first || false;
+
+            uniContext[uni]  = id;
+
+
+            var e = {
+                fn:         fn,
+                context:    context,
+                uniContext: uniContext,
+                id:         id,
+                called:     0, // how many times the function was triggered
+                limit:      0, // how many times the function is allowed to trigger
+                start:      1, // from which attempt it is allowed to trigger the function
+                count:      0, // how many attempts to trigger the function was made
+                append:     null, // append parameters
+                prepend:    null // prepend parameters
+            };
+
+            extend(e, options, true, false);
+
+            if (first) {
+                self.listeners.unshift(e);
+            }
+            else {
+                self.listeners.push(e);
+            }
+
+            self.map[id] = e;
+
+            if (self.autoTrigger && self.lastTrigger && !self.suspended) {
+                var prevFilter = self.triggerFilter;
+                self.triggerFilter = function(l){
+                    if (l.id == id) {
+                        return prevFilter ? prevFilter(l) !== false : true;
+                    }
+                    return false;
+                };
+                self.trigger.apply(self, self.lastTrigger);
+                self.triggerFilter = prevFilter;
+            }
+
+            return id;
+        },
+
+        /**
+         * @method
+         * @param {function} fn Callback function { @required }
+         * @param {object} context Function's "this" object
+         * @param {object} options See Observable's on()
+         */
+        once: function(fn, context, options) {
+
+            options = options || {};
+            options.limit = 1;
+
+            return this.on(fn, context, options);
+        },
+
+        /**
+         * @method
+         * @param {function} fn Callback function { @required }
+         * @param {object} context Function's "this" object
+         */
+        un: function(fn, context) {
+
+            var self        = this,
+                inx         = -1,
+                uni         = self.uni,
+                listeners   = self.listeners,
+                id;
+
+            if (fn == parseInt(fn)) {
+                id      = fn;
+            }
+            else {
+                context = context || fn;
+                id      = context[uni];
+            }
+
+            if (!id) {
+                return false;
+            }
+
+            for (var i = 0, len = listeners.length; i < len; i++) {
+                if (listeners[i].id == id) {
+                    inx = i;
+                    delete listeners[i].uniContext[uni];
+                    break;
+                }
+            }
+
+            if (inx == -1) {
+                return false;
+            }
+
+            listeners.splice(inx, 1);
+            delete self.map[id];
+            return true;
+        },
+
+        /**
+         * @method hasListener
+         * @return bool
+         */
+
+        /**
+         * @method
+         * @param {function} fn Callback function { @required }
+         * @param {object} context Function's "this" object
+         * @return bool
+         */
+        hasListener: function(fn, context) {
+
+            var self    = this,
+                listeners   = self.listeners,
+                id;
+
+            if (fn) {
+
+                context = context || fn;
+
+                if (!isFunction(fn)) {
+                    id  = fn;
+                }
+                else {
+                    id  = context[self.uni];
+                }
+
+                if (!id) {
+                    return false;
+                }
+
+                for (var i = 0, len = listeners.length; i < len; i++) {
+                    if (listeners[i].id == id) {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+            else {
+                return listeners.length > 0;
+            }
+        },
+
+
+        /**
+         * @method
+         */
+        removeAllListeners: function() {
+            var self    = this,
+                listeners = self.listeners,
+                uni     = self.uni,
+                i, len;
+
+            for (i = 0, len = listeners.length; i < len; i++) {
+                delete listeners[i].uniContext[uni];
+            }
+            self.listeners   = [];
+            self.map         = {};
+        },
+
+        /**
+         * @method
+         */
+        suspend: function() {
+            this.suspended = true;
+        },
+
+        /**
+         * @method
+         */
+        resume: function() {
+            this.suspended = false;
+        },
+
+
+        _prepareArgs: function(l, triggerArgs) {
+            var args;
+
+            if (l.append || l.prepend) {
+                args    = slice.call(triggerArgs);
+                if (l.prepend) {
+                    args    = l.prepend.concat(args);
+                }
+                if (l.append) {
+                    args    = args.concat(l.append);
+                }
+            }
+            else {
+                args = triggerArgs;
+            }
+
+            return args;
+        },
+
+        /**
+         * @method
+         * @return {*}
+         */
+        trigger: function() {
+
+            var self            = this,
+                listeners       = self.listeners,
+                returnResult    = self.returnResult,
+                filter          = self.triggerFilter,
+                filterContext   = self.filterContext,
+                args;
+
+            if (self.suspended) {
+                return null;
+            }
+
+            if (self.autoTrigger) {
+                self.lastTrigger = slice.call(arguments);
+            }
+
+            if (listeners.length == 0) {
+                return null;
+            }
+
+            var ret     = returnResult == "all" || returnResult == "merge" ?
+                          [] : null,
+                q, l,
+                res;
+
+            if (returnResult == "first") {
+                q = [listeners[0]];
+            }
+            else {
+                // create a snapshot of listeners list
+                q = slice.call(listeners);
+            }
+
+            // now if during triggering someone unsubscribes
+            // we won't skip any listener due to shifted
+            // index
+            while (l = q.shift()) {
+
+                // listener may already have unsubscribed
+                if (!l || !self.map[l.id]) {
+                    continue;
+                }
+
+                args = self._prepareArgs(l, arguments);
+
+                if (filter && filter.call(filterContext, l, args, self) === false) {
+                    continue;
+                }
+
+                l.count++;
+
+                if (l.count < l.start) {
+                    continue;
+                }
+
+                res = l.fn.apply(l.context, args);
+
+                l.called++;
+
+                if (l.called == l.limit) {
+                    self.un(l.id);
+                }
+
+                if (returnResult == "all") {
+                    ret.push(res);
+                }
+                else if (returnResult == "merge" && res) {
+                    ret = ret.concat(res);
+                }
+                else if (returnResult == "first") {
+                    return res;
+                }
+                else if (returnResult == "nonempty" && res) {
+                    return res;
+                }
+                else if (returnResult == "last") {
+                    ret = res;
+                }
+                else if (returnResult == false && res === false) {
+                    return false;
+                }
+            }
+
+            if (returnResult) {
+                return ret;
+            }
+        }
+    }, true, false);
+
+
+    return ObservableEvent;
+}());
+
+
+
+
+var Observable = (function(){
+
+
+    /**
+     * @description A javascript event system implementing two patterns - observable and collector.
+     * @description Observable:
+     * @code examples/observable.js
+     *
+     * @description Collector:
+     * @code examples/collector.js
+     *
+     * @class Observable
+     * @version 1.1
+     * @author johann kuindji
+     * @link https://github.com/kuindji/metaphorjs-observable
+     */
+    var Observable = function() {
+
+        this.events = {};
+
+    };
+
+
+    extend(Observable.prototype, {
+
+
+
+        /**
+        * You don't have to call this function unless you want to pass params other than event name.
+        * Normally, events are created automatically.
+        *
+        * @method createEvent
+        * @access public
+        * @param {string} name {
+        *       Event name
+        *       @required
+        * }
+        * @param {bool|string} returnResult {
+        *   false -- return first 'false' result and stop calling listeners after that<br>
+        *   "all" -- return all results as array<br>
+        *   "merge" -- merge all results into one array (each result must be array)<br>
+        *   "first" -- return result of the first handler (next listener will not be called)<br>
+        *   "last" -- return result of the last handler (all listeners will be called)<br>
+        * }
+        * @param {bool} autoTrigger {
+        *   once triggered, all future subscribers will be automatically called
+        *   with last trigger params
+        *   @code examples/autoTrigger.js
+        * }
+        * @param {function} triggerFilter {
+        *   This function will be called each time event is triggered. Return false to skip listener.
+        *   @code examples/triggerFilter.js
+        *   @param {object} listener This object contains all information about the listener, including
+        *       all data you provided in options while subscribing to the event.
+        *   @param {[]} arguments
+        *   @return {bool}
+        * }
+        * @return {ObservableEvent}
+        */
+
+        /**
+         * @method createEvent
+         * @param {string} name
+         * @param {object} options {
+         *  @type {string} returnResult
+         *  @param {bool} autoTrigger
+         *  @param {function} triggerFilter
+         * }
+         * @param {object} filterContext
+         * @returns {ObservableEvent}
+         */
+        createEvent: function(name, returnResult, autoTrigger, triggerFilter, filterContext) {
+            name = name.toLowerCase();
+            var events  = this.events;
+            if (!events[name]) {
+                events[name] = new ObservableEvent(name, returnResult, autoTrigger, triggerFilter, filterContext);
+            }
+            return events[name];
+        },
+
+        /**
+        * @method
+        * @access public
+        * @param {string} name Event name
+        * @return {ObservableEvent|undefined}
+        */
+        getEvent: function(name) {
+            name = name.toLowerCase();
+            return this.events[name];
+        },
+
+        /**
+        * Subscribe to an event or register collector function.
+        * @method
+        * @access public
+        * @param {string} name {
+        *       Event name
+        *       @required
+        * }
+        * @param {function} fn {
+        *       Callback function
+        *       @required
+        * }
+        * @param {object} context "this" object for the callback function
+        * @param {object} options {
+        *       You can pass any key-value pairs in this object. All of them will be passed to triggerFilter (if
+        *       you're using one).
+        *       @type {bool} first {
+        *           True to prepend to the list of handlers
+        *           @default false
+        *       }
+        *       @type {number} limit {
+        *           Call handler this number of times; 0 for unlimited
+        *           @default 0
+        *       }
+        *       @type {number} start {
+        *           Start calling handler after this number of calls. Starts from 1
+        *           @default 1
+        *       }
+         *      @type {[]} append Append parameters
+         *      @type {[]} prepend Prepend parameters
+         *      @type {bool} allowDupes allow the same handler twice
+        * }
+        */
+        on: function(name, fn, context, options) {
+            name = name.toLowerCase();
+            var events  = this.events;
+            if (!events[name]) {
+                events[name] = new ObservableEvent(name);
+            }
+            return events[name].on(fn, context, options);
+        },
+
+        /**
+        * Same as {@link Observable.on}, but options.limit is forcefully set to 1.
+        * @method
+        * @access public
+        */
+        once: function(name, fn, context, options) {
+            options     = options || {};
+            options.limit = 1;
+            return this.on(name, fn, context, options);
+        },
+
+
+        /**
+        * Unsubscribe from an event
+        * @method
+        * @access public
+        * @param {string} name Event name
+        * @param {function} fn Event handler
+        * @param {object} context If you called on() with context you must call un() with the same context
+        */
+        un: function(name, fn, context) {
+            name = name.toLowerCase();
+            var events  = this.events;
+            if (!events[name]) {
+                return;
+            }
+            events[name].un(fn, context);
+        },
+
+        /**
+         * @method hasListener
+         * @access public
+         * @return bool
+         */
+
+        /**
+        * @method hasListener
+        * @access public
+        * @param {string} name Event name { @required }
+        * @return bool
+        */
+
+        /**
+        * @method
+        * @access public
+        * @param {string} name Event name { @required }
+        * @param {function} fn Callback function { @required }
+        * @param {object} context Function's "this" object
+        * @return bool
+        */
+        hasListener: function(name, fn, context) {
+            var events = this.events;
+
+            if (name) {
+                name = name.toLowerCase();
+                if (!events[name]) {
+                    return false;
+                }
+                return events[name].hasListener(fn, context);
+            }
+            else {
+                for (name in events) {
+                    if (events[name].hasListener()) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+        },
+
+
+        /**
+        * Remove all listeners from all events
+        * @method removeAllListeners
+        * @access public
+        */
+
+        /**
+        * Remove all listeners from specific event
+        * @method
+        * @access public
+        * @param {string} name Event name { @required }
+        */
+        removeAllListeners: function(name) {
+            var events  = this.events;
+            if (!events[name]) {
+                return;
+            }
+            events[name].removeAllListeners();
+        },
+
+        /**
+        * Trigger an event -- call all listeners.
+        * @method
+        * @access public
+        * @param {string} name Event name { @required }
+        * @param {*} ... As many other params as needed
+        * @return mixed
+        */
+        trigger: function() {
+
+            var name = arguments[0],
+                events  = this.events;
+
+            name = name.toLowerCase();
+
+            if (!events[name]) {
+                return null;
+            }
+
+            var e = events[name];
+            return e.trigger.apply(e, slice.call(arguments, 1));
+        },
+
+        /**
+        * Suspend an event. Suspended event will not call any listeners on trigger().
+        * @method
+        * @access public
+        * @param {string} name Event name
+        */
+        suspendEvent: function(name) {
+            name = name.toLowerCase();
+            var events  = this.events;
+            if (!events[name]) {
+                return;
+            }
+            events[name].suspend();
+        },
+
+        /**
+        * @method
+        * @access public
+        */
+        suspendAllEvents: function() {
+            var events  = this.events;
+            for (var name in events) {
+                events[name].suspend();
+            }
+        },
+
+        /**
+        * Resume suspended event.
+        * @method
+        * @access public
+        * @param {string} name Event name
+        */
+        resumeEvent: function(name) {
+            name = name.toLowerCase();
+            var events  = this.events;
+            if (!events[name]) {
+                return;
+            }
+            events[name].resume();
+        },
+
+        /**
+        * @method
+        * @access public
+        */
+        resumeAllEvents: function() {
+            var events  = this.events;
+            for (var name in events) {
+                events[name].resume();
+            }
+        },
+
+        /**
+         * @method
+         * @access public
+         * @param {string} name Event name
+         */
+        destroyEvent: function(name) {
+            var events  = this.events;
+            if (events[name]) {
+                events[name].removeAllListeners();
+                events[name].destroy();
+                delete events[name];
+            }
+        },
+
+
+        /**
+        * Destroy observable
+        * @method
+        * @md-not-inheritable
+        * @access public
+        */
+        destroy: function() {
+            var self    = this,
+                events  = self.events;
+
+            for (var i in events) {
+                self.destroyEvent(i);
+            }
+
+            for (i in self) {
+                self[i] = null;
+            }
+        },
+
+        /**
+        * Although all methods are public there is getApi() method that allows you
+        * extending your own objects without overriding "destroy" (which you probably have)
+        * @code examples/api.js
+        * @method
+        * @md-not-inheritable
+        * @returns object
+        */
+        getApi: function() {
+
+            var self    = this;
+
+            if (!self.api) {
+
+                var methods = [
+                        "createEvent", "getEvent", "on", "un", "once", "hasListener", "removeAllListeners",
+                        "trigger", "suspendEvent", "suspendAllEvents", "resumeEvent",
+                        "resumeAllEvents", "destroyEvent"
+                    ],
+                    api = {},
+                    name;
+
+                for(var i =- 1, l = methods.length;
+                        ++i < l;
+                        name = methods[i],
+                        api[name] = bind(self[name], self)){}
+
+                self.api = api;
+            }
+
+            return self.api;
+
+        }
+    }, true, false);
+
+
+    return Observable;
+}());
+
+
+
+/**
+ * @mixin ObservableMixin
+ */
+var ObservableMixin = ns.add("mixin.Observable", {
+
+    /**
+     * @type {Observable}
+     */
+    $$observable: null,
+    $$callbackContext: null,
+
+    $beforeInit: function(cfg) {
+
+        var self = this;
+
+        self.$$observable = new Observable;
+
+        if (cfg && cfg.callback) {
+            var ls = cfg.callback,
+                context = ls.context || ls.scope,
+                i;
+
+            ls.context = null;
+            ls.scope = null;
+
+            for (i in ls) {
+                if (ls[i]) {
+                    self.$$observable.on(i, ls[i], context || self);
+                }
+            }
+
+            cfg.callback = null;
+
+            if (context) {
+                self.$$callbackContext = context;
+            }
+        }
+    },
+
+    on: function() {
+        var o = this.$$observable;
+        return o.on.apply(o, arguments);
+    },
+
+    un: function() {
+        var o = this.$$observable;
+        return o.un.apply(o, arguments);
+    },
+
+    once: function() {
+        var o = this.$$observable;
+        return o.once.apply(o, arguments);
+    },
+
+    trigger: function() {
+        var o = this.$$observable;
+        return o.trigger.apply(o, arguments);
+    },
+
+    $beforeDestroy: function() {
+        this.$$observable.trigger("before-destroy", this);
+    },
+
+    $afterDestroy: function() {
+        var self = this;
+        self.$$observable.trigger("destroy", self);
+        self.$$observable.destroy();
+        self.$$observable = null;
+    }
+});
+
+
 function returnFalse() {
     return false;
 };
@@ -311,6 +2222,10 @@ function returnFalse() {
 
 function returnTrue() {
     return true;
+};
+
+function isNull(value) {
+    return value === null;
 };
 
 
@@ -1295,19 +3210,6 @@ var select = function() {
     return select;
 }();
 
-function eachNode(el, fn, context) {
-    var i, len,
-        children = el.childNodes;
-
-    if (fn.call(context, el) !== false) {
-        for(i =- 1, len = children.length>>>0;
-            ++i !== len;
-            eachNode(children[i], fn, context)){}
-    }
-};
-
-
-
 function isField(el) {
     var tag	= el.nodeName.toLowerCase(),
         type = el.type;
@@ -1319,327 +3221,24 @@ function isField(el) {
     return false;
 };
 
-var aIndexOf    = Array.prototype.indexOf;
-
-if (!aIndexOf) {
-    aIndexOf = Array.prototype.indexOf = function (searchElement, fromIndex) {
-
-        var k;
-
-        // 1. Let O be the result of calling ToObject passing
-        //    the this value as the argument.
-        if (this == null) {
-            throw new TypeError('"this" is null or not defined');
-        }
-
-        var O = Object(this);
-
-        // 2. Let lenValue be the result of calling the Get
-        //    internal method of O with the argument "length".
-        // 3. Let len be ToUint32(lenValue).
-        var len = O.length >>> 0;
-
-        // 4. If len is 0, return -1.
-        if (len === 0) {
-            return -1;
-        }
-
-        // 5. If argument fromIndex was passed let n be
-        //    ToInteger(fromIndex); else let n be 0.
-        var n = +fromIndex || 0;
-
-        if (Math.abs(n) === Infinity) {
-            n = 0;
-        }
-
-        // 6. If n >= len, return -1.
-        if (n >= len) {
-            return -1;
-        }
-
-        // 7. If n >= 0, then Let k be n.
-        // 8. Else, n<0, Let k be len - abs(n).
-        //    If k is less than 0, then let k be 0.
-        k = Math.max(n >= 0 ? n : len - Math.abs(n), 0);
-
-        // 9. Repeat, while k < len
-        while (k < len) {
-            var kValue;
-            // a. Let Pk be ToString(k).
-            //   This is implicit for LHS operands of the in operator
-            // b. Let kPresent be the result of calling the
-            //    HasProperty internal method of O with argument Pk.
-            //   This step can be combined with c
-            // c. If kPresent is true, then
-            //    i.  Let elementK be the result of calling the Get
-            //        internal method of O with the argument ToString(k).
-            //   ii.  Let same be the result of applying the
-            //        Strict Equality Comparison Algorithm to
-            //        searchElement and elementK.
-            //  iii.  If same is true, return k.
-            if (k in O && O[k] === searchElement) {
-                return k;
-            }
-            k++;
-        }
-        return -1;
-    };
-}
-
-
-
 
 
 /**
- * @param {*} val
- * @param {[]} arr
- * @returns {boolean}
+ * @function trim
+ * @param {String} value
+ * @returns {string}
  */
-function inArray(val, arr) {
-    return arr ? (aIndexOf.call(arr, val) != -1) : false;
-};
-
-
-
-function isNumber(value) {
-    return varType(value) === 1;
-};
-
-function setAttr(el, name, value) {
-    return el.setAttribute(name, value);
-};
-
-function removeAttr(el, name) {
-    return el.removeAttribute(name);
-};
-
-
-
-/**
- * @param {Element} el
- * @param {*} val
- */
-var setValue = function() {
-
-    var hooks = {
-        select:  function(elem, value) {
-
-            var optionSet, option,
-                options     = elem.options,
-                values      = toArray(value),
-                i           = options.length,
-                selected,
-                setIndex    = -1;
-
-            while ( i-- ) {
-                option      = options[i];
-                selected    = inArray(option.value, values);
-
-                if (selected) {
-                    setAttr(option, "selected", "selected");
-                    option.selected = true;
-                    optionSet = true;
-                }
-                else {
-                    removeAttr(option, "selected");
-                }
-
-                if (!selected && !isNull(getAttr(option, "mjs-default-option"))) {
-                    setIndex = i;
-                }
-            }
-
-            // Force browsers to behave consistently when non-matching value is set
-            if (!optionSet) {
-                elem.selectedIndex = setIndex;
-            }
-
-            return values;
-        }
-    };
-
-    hooks["radio"] = hooks["checkbox"] = function(elem, value) {
-        if (isArray(value) ) {
-            return (elem.checked = inArray(getValue(elem), value));
-        }
-    };
-
-
-    return function(el, val) {
-
-        if (el.nodeType !== 1) {
-            return;
-        }
-
-        // Treat null/undefined as ""; convert numbers to string
-        if (isNull(val)) {
-            val = "";
-        }
-        else if (isNumber(val)) {
-            val += "";
-        }
-
-        var hook = hooks[el.type] || hooks[el.nodeName.toLowerCase()];
-
-        // If set returns undefined, fall back to normal setting
-        if (!hook || hook(el, val, "value") === undf) {
-            el.value = val;
-        }
-    };
-}();
-
-var isAttached = function(){
-    var isAttached = function isAttached(node) {
-
-        if (node === window) {
-            return true;
-        }
-        if (node.nodeType == 3) {
-            if (node.parentElement) {
-                return isAttached(node.parentElement);
-            }
-            else {
-                return true;
-            }
-        }
-
-        var html = window.document.documentElement;
-
-        return node === html ? true : html.contains(node);
-    };
-    return isAttached;
-}();
-
-var isAndroid = function(){
-
-    var android = null;
-
-    return function isAndroid() {
-
-        if (android === null) {
-            android = parseInt((/android (\d+)/i.exec(navigator.userAgent) || [])[1], 10) || false;
-        }
-
-        return android;
-    };
-
-}();
-
-
-var isIE = function(){
-
-    var msie;
-
-    return function isIE() {
-
-        if (msie === null) {
-            var ua = navigator.userAgent;
-            msie = parseInt((/msie (\d+)/i.exec(ua) || [])[1], 10);
-            if (isNaN(msie)) {
-                msie = parseInt((/trident\/.*; rv:(\d+)/i.exec(ua) || [])[1], 10) || false;
-            }
-        }
-
-        return msie;
-    };
-}();
-
-
-
-/**
- * @param {String} event
- * @return {boolean}
- */
-var browserHasEvent = function(){
-
-    var eventSupport = {},
-        divElm;
-
-    return function browserHasEvent(event) {
-        // IE9 implements 'input' event it's so fubared that we rather pretend that it doesn't have
-        // it. In particular the event is not fired when backspace or delete key are pressed or
-        // when cut operation is performed.
-
-        if (eventSupport[event] === undf) {
-
-            if (event == 'input' && isIE() == 9) {
-                return eventSupport[event] = false;
-            }
-            if (!divElm) {
-                divElm = window.document.createElement('div');
-            }
-
-            eventSupport[event] = !!('on' + event in divElm);
-        }
-
-        return eventSupport[event];
-    };
-}();
-
-
-var nextUid = function(){
-    var uid = ['0', '0', '0'];
-
-    // from AngularJs
-    /**
-     * @returns {String}
-     */
-    return function nextUid() {
-        var index = uid.length;
-        var digit;
-
-        while(index) {
-            index--;
-            digit = uid[index].charCodeAt(0);
-            if (digit == 57 /*'9'*/) {
-                uid[index] = 'A';
-                return uid.join('');
-            }
-            if (digit == 90  /*'Z'*/) {
-                uid[index] = '0';
-            } else {
-                uid[index] = String.fromCharCode(digit + 1);
-                return uid.join('');
-            }
-        }
-        uid.unshift('0');
-        return uid.join('');
-    };
-}();
-
-
-
-
-
-var data = function(){
-
-    var dataCache   = {},
-
-        getNodeId   = function(el) {
-            return el._mjsid || (el._mjsid = nextUid());
+var trim = function() {
+    // native trim is way faster: http://jsperf.com/angular-trim-test
+    // but IE doesn't have it... :-(
+    if (!String.prototype.trim) {
+        return function(value) {
+            return isString(value) ? value.replace(/^\s\s*/, '').replace(/\s\s*$/, '') : value;
         };
-
-    /**
-     * @param {Element} el
-     * @param {String} key
-     * @param {*} value optional
-     */
-    return function data(el, key, value) {
-        var id  = getNodeId(el),
-            obj = dataCache[id];
-
-        if (value !== undf) {
-            if (!obj) {
-                obj = dataCache[id] = {};
-            }
-            obj[key] = value;
-            return value;
-        }
-        else {
-            return obj ? obj[key] : undf;
-        }
+    }
+    return function(value) {
+        return isString(value) ? value.trim() : value;
     };
-
 }();
 /**
  * @param {Function} fn
@@ -1652,1431 +3251,6 @@ function async(fn, context, args, timeout) {
         fn.apply(context, args || []);
     }, timeout || 0);
 };
-
-var strUndef = "undefined";
-
-
-
-function error(e) {
-
-    var stack = e.stack || (new Error).stack;
-
-    if (typeof console != strUndef && console.log) {
-        async(function(){
-            console.log(e);
-            if (stack) {
-                console.log(stack);
-            }
-        });
-    }
-    else {
-        throw e;
-    }
-};
-
-
-function emptyFn(){};
-
-
-
-var functionFactory = function() {
-
-    var REG_REPLACE_EXPR    = /(^|[^a-z0-9_$\]\)'"])(\.)([^0-9])/ig,
-
-        f               = Function,
-        fnBodyStart     = 'try {',
-        //getterBodyEnd   = ';} catch (thrownError) { return $$interceptor(thrownError, $$itself, ____); }',
-        //setterBodyEnd   = ';} catch (thrownError) { return $$interceptor(thrownError, $$itself, ____, $$$$); }',
-        getterBodyEnd   = ';} catch (thrownError) { return undefined; }',
-        setterBodyEnd   = ';} catch (thrownError) { return undefined; }',
-
-
-        /*interceptor     = function(thrownError, func, scope, value) {
-
-            while (scope && !scope.$isRoot) {
-
-                scope = scope.$parent;
-
-                if (scope) {
-
-                    try {
-                        if (arguments.length == 4) {
-                            return func.call(null, scope, value, emptyFn, func);
-                        }
-                        else {
-                            return func.call(null, scope, emptyFn, func);
-                        }
-                    }
-                    catch (newError) {}
-                }
-            }
-
-            if (thrownError !== null) {
-                error(thrownError);
-            }
-
-            return undf;
-        },*/
-
-        isFailed        = function(val) {
-            return val === undf || (typeof val == "number" && isNaN(val));
-        },
-
-        wrapFunc        = function(func, returnsValue) {
-            return function(scope) {
-                var args = slice.call(arguments),
-                    val;
-
-                //args.push(interceptor);
-                args.push(null);
-                args.push(func);
-
-                val = func.apply(null, args);
-                return isFailed(val) ? undf : val;
-
-                /*if (returnsValue) {
-                    val = func.apply(null, args);
-                    while (isFailed(val) && !scope.$isRoot) {
-                        scope = scope.$parent;
-                        args[0] = scope;
-                        val = func.apply(null, args);
-                    }
-                    return val;
-                }
-                else {
-                    return func.apply(null, args);
-                }*/
-
-                /*if (returnsValue && isFailed(val)) {//) {
-                    args = slice.call(arguments);
-                    args.unshift(func);
-                    args.unshift(null);
-                    return interceptor.apply(null, args);
-                }
-                else {
-                    return val;
-                }*/
-            };
-        },
-
-        getterCache     = {},
-        getterCacheCnt  = 0,
-
-        createGetter    = function createGetter(expr) {
-
-            try {
-                if (!getterCache[expr]) {
-                    getterCacheCnt++;
-                    return getterCache[expr] = wrapFunc(new f(
-                        '____',
-                        '$$interceptor',
-                        '$$itself',
-                        "".concat(fnBodyStart, 'return ', expr.replace(REG_REPLACE_EXPR, '$1____.$3'), getterBodyEnd)
-                    ), true);
-                }
-                return getterCache[expr];
-            }
-            catch (thrownError){
-                error(thrownError);
-                return emptyFn;
-            }
-        },
-
-        setterCache     = {},
-        setterCacheCnt  = 0,
-
-        createSetter    = function createSetter(expr) {
-            try {
-                if (!setterCache[expr]) {
-                    setterCacheCnt++;
-                    var code = expr.replace(REG_REPLACE_EXPR, '$1____.$3');
-                    return setterCache[expr] = wrapFunc(new f(
-                        '____',
-                        '$$$$',
-                        '$$interceptor',
-                        '$$itself',
-                        "".concat(fnBodyStart, code, ' = $$$$', setterBodyEnd)
-                    ));
-                }
-                return setterCache[expr];
-            }
-            catch (thrownError) {
-                error(thrownError);
-                return emptyFn;
-            }
-        },
-
-        funcCache       = {},
-        funcCacheCnt    = 0,
-
-        createFunc      = function createFunc(expr) {
-            try {
-                if (!funcCache[expr]) {
-                    funcCacheCnt++;
-                    return funcCache[expr] = wrapFunc(new f(
-                        '____',
-                        '$$interceptor',
-                        '$$itself',
-                        "".concat(fnBodyStart, expr.replace(REG_REPLACE_EXPR, '$1____.$3'), getterBodyEnd)
-                    ));
-                }
-                return funcCache[expr];
-            }
-            catch (thrownError) {
-                error(thrownError);
-                return emptyFn;
-            }
-        },
-
-        resetCache = function() {
-            getterCacheCnt >= 1000 && (getterCache = {});
-            setterCacheCnt >= 1000 && (setterCache = {});
-            funcCacheCnt >= 1000 && (funcCache = {});
-        };
-
-    return {
-        createGetter: createGetter,
-        createSetter: createSetter,
-        createFunc: createFunc,
-        resetCache: resetCache,
-        enableResetCacheInterval: function() {
-            setTimeout(resetCache, 10000);
-        }
-    };
-}();
-
-
-
-var createGetter = functionFactory.createGetter;
-
-var rToCamelCase = /-./g;
-
-function toCamelCase(str) {
-    return str.replace(rToCamelCase, function(match){
-        return match.charAt(1).toUpperCase();
-    });
-};
-
-
-
-var getNodeData = function() {
-
-    var readDataSet = function(node) {
-        var attrs = node.attributes,
-            dataset = {},
-            i, l, name;
-
-        for (i = 0, l = attrs.length; i < l; i++) {
-            name = attrs[i].name;
-            if (name.indexOf("data-") === 0) {
-                dataset[toCamelCase(name.substr(5))] = attrs[i].value;
-            }
-        }
-
-        return dataset;
-    };
-
-
-    return function(node) {
-
-        if (node.dataset) {
-            return node.dataset;
-        }
-
-        var dataset;
-
-        if ((dataset = data(node, "data")) !== undf) {
-            return dataset;
-        }
-
-        dataset = readDataSet(node);
-        data(node, "data", dataset);
-        return dataset;
-    };
-
-
-}();
-
-
-
-function getNodeConfig(node, scope, expr) {
-
-    var cfg = data(node, "config"),
-        config, dataset, i, val;
-
-    if (cfg) {
-        return cfg;
-    }
-
-    cfg = {};
-
-    if (expr || (expr = getAttr(node, "mjs-config")) !== null) {
-        removeAttr(node, "mjs-config");
-        config = expr ? createGetter(expr)(scope || {}) : {};
-        for (i in config){
-            cfg[i] = config[i];
-        }
-    }
-
-    dataset = getNodeData(node);
-
-    for (i in dataset){
-        val = dataset[i];
-        cfg[i] = val === "" ? true : val;
-    }
-
-    data(node, "config", cfg);
-
-    return cfg;
-};
-
-function isFunction(value) {
-    return typeof value == 'function';
-};
-
-
-
-
-
-/**
- * @description A javascript event system implementing two patterns - observable and collector.
- * @description Observable:
- * @code examples/observable.js
- *
- * @description Collector:
- * @code examples/collector.js
- *
- * @class Observable
- * @version 1.1
- * @author johann kuindji
- * @link https://github.com/kuindji/metaphorjs-observable
- */
-var Observable = function() {
-
-    this.events = {};
-
-};
-
-
-extend(Observable.prototype, {
-
-
-
-    /**
-    * You don't have to call this function unless you want to pass params other than event name.
-    * Normally, events are created automatically.
-    *
-    * @method createEvent
-    * @access public
-    * @param {string} name {
-    *       Event name
-    *       @required
-    * }
-    * @param {bool|string} returnResult {
-    *   false -- return first 'false' result and stop calling listeners after that<br>
-    *   "all" -- return all results as array<br>
-    *   "merge" -- merge all results into one array (each result must be array)<br>
-    *   "first" -- return result of the first handler (next listener will not be called)<br>
-    *   "last" -- return result of the last handler (all listeners will be called)<br>
-    * }
-    * @param {bool} autoTrigger {
-    *   once triggered, all future subscribers will be automatically called
-    *   with last trigger params
-    *   @code examples/autoTrigger.js
-    * }
-    * @param {function} triggerFilter {
-    *   This function will be called each time event is triggered. Return false to skip listener.
-    *   @code examples/triggerFilter.js
-    *   @param {object} listener This object contains all information about the listener, including
-    *       all data you provided in options while subscribing to the event.
-    *   @param {[]} arguments
-    *   @return {bool}
-    * }
-    * @return {ObservableEvent}
-    */
-
-    /**
-     * @method createEvent
-     * @param {string} name
-     * @param {object} options {
-     *  @type {string} returnResult
-     *  @param {bool} autoTrigger
-     *  @param {function} triggerFilter
-     * }
-     * @param {object} filterContext
-     * @returns {ObservableEvent}
-     */
-    createEvent: function(name, returnResult, autoTrigger, triggerFilter, filterContext) {
-        name = name.toLowerCase();
-        var events  = this.events;
-        if (!events[name]) {
-            events[name] = new Event(name, returnResult, autoTrigger, triggerFilter, filterContext);
-        }
-        return events[name];
-    },
-
-    /**
-    * @method
-    * @access public
-    * @param {string} name Event name
-    * @return {ObservableEvent|undefined}
-    */
-    getEvent: function(name) {
-        name = name.toLowerCase();
-        return this.events[name];
-    },
-
-    /**
-    * Subscribe to an event or register collector function.
-    * @method
-    * @access public
-    * @param {string} name {
-    *       Event name
-    *       @required
-    * }
-    * @param {function} fn {
-    *       Callback function
-    *       @required
-    * }
-    * @param {object} context "this" object for the callback function
-    * @param {object} options {
-    *       You can pass any key-value pairs in this object. All of them will be passed to triggerFilter (if
-    *       you're using one).
-    *       @type {bool} first {
-    *           True to prepend to the list of handlers
-    *           @default false
-    *       }
-    *       @type {number} limit {
-    *           Call handler this number of times; 0 for unlimited
-    *           @default 0
-    *       }
-    *       @type {number} start {
-    *           Start calling handler after this number of calls. Starts from 1
-    *           @default 1
-    *       }
-     *      @type {[]} append Append parameters
-     *      @type {[]} prepend Prepend parameters
-     *      @type {bool} allowDupes allow the same handler twice
-    * }
-    */
-    on: function(name, fn, context, options) {
-        name = name.toLowerCase();
-        var events  = this.events;
-        if (!events[name]) {
-            events[name] = new Event(name);
-        }
-        return events[name].on(fn, context, options);
-    },
-
-    /**
-    * Same as {@link Observable.on}, but options.limit is forcefully set to 1.
-    * @method
-    * @access public
-    */
-    once: function(name, fn, context, options) {
-        options     = options || {};
-        options.limit = 1;
-        return this.on(name, fn, context, options);
-    },
-
-
-    /**
-    * Unsubscribe from an event
-    * @method
-    * @access public
-    * @param {string} name Event name
-    * @param {function} fn Event handler
-    * @param {object} context If you called on() with context you must call un() with the same context
-    */
-    un: function(name, fn, context) {
-        name = name.toLowerCase();
-        var events  = this.events;
-        if (!events[name]) {
-            return;
-        }
-        events[name].un(fn, context);
-    },
-
-    /**
-     * @method hasListener
-     * @access public
-     * @return bool
-     */
-
-    /**
-    * @method hasListener
-    * @access public
-    * @param {string} name Event name { @required }
-    * @return bool
-    */
-
-    /**
-    * @method
-    * @access public
-    * @param {string} name Event name { @required }
-    * @param {function} fn Callback function { @required }
-    * @param {object} context Function's "this" object
-    * @return bool
-    */
-    hasListener: function(name, fn, context) {
-        var events = this.events;
-
-        if (name) {
-            name = name.toLowerCase();
-            if (!events[name]) {
-                return false;
-            }
-            return events[name].hasListener(fn, context);
-        }
-        else {
-            for (name in events) {
-                if (events[name].hasListener()) {
-                    return true;
-                }
-            }
-            return false;
-        }
-    },
-
-
-    /**
-    * Remove all listeners from all events
-    * @method removeAllListeners
-    * @access public
-    */
-
-    /**
-    * Remove all listeners from specific event
-    * @method
-    * @access public
-    * @param {string} name Event name { @required }
-    */
-    removeAllListeners: function(name) {
-        var events  = this.events;
-        if (!events[name]) {
-            return;
-        }
-        events[name].removeAllListeners();
-    },
-
-    /**
-    * Trigger an event -- call all listeners.
-    * @method
-    * @access public
-    * @param {string} name Event name { @required }
-    * @param {*} ... As many other params as needed
-    * @return mixed
-    */
-    trigger: function() {
-
-        var name = arguments[0],
-            events  = this.events;
-
-        name = name.toLowerCase();
-
-        if (!events[name]) {
-            return null;
-        }
-
-        var e = events[name];
-        return e.trigger.apply(e, slice.call(arguments, 1));
-    },
-
-    /**
-    * Suspend an event. Suspended event will not call any listeners on trigger().
-    * @method
-    * @access public
-    * @param {string} name Event name
-    */
-    suspendEvent: function(name) {
-        name = name.toLowerCase();
-        var events  = this.events;
-        if (!events[name]) {
-            return;
-        }
-        events[name].suspend();
-    },
-
-    /**
-    * @method
-    * @access public
-    */
-    suspendAllEvents: function() {
-        var events  = this.events;
-        for (var name in events) {
-            events[name].suspend();
-        }
-    },
-
-    /**
-    * Resume suspended event.
-    * @method
-    * @access public
-    * @param {string} name Event name
-    */
-    resumeEvent: function(name) {
-        name = name.toLowerCase();
-        var events  = this.events;
-        if (!events[name]) {
-            return;
-        }
-        events[name].resume();
-    },
-
-    /**
-    * @method
-    * @access public
-    */
-    resumeAllEvents: function() {
-        var events  = this.events;
-        for (var name in events) {
-            events[name].resume();
-        }
-    },
-
-    /**
-     * @method
-     * @access public
-     * @param {string} name Event name
-     */
-    destroyEvent: function(name) {
-        var events  = this.events;
-        if (events[name]) {
-            events[name].removeAllListeners();
-            events[name].destroy();
-            delete events[name];
-        }
-    },
-
-
-    /**
-    * Destroy observable
-    * @method
-    * @md-not-inheritable
-    * @access public
-    */
-    destroy: function() {
-        var self    = this,
-            events  = self.events;
-
-        for (var i in events) {
-            self.destroyEvent(i);
-        }
-
-        for (i in self) {
-            self[i] = null;
-        }
-    },
-
-    /**
-    * Although all methods are public there is getApi() method that allows you
-    * extending your own objects without overriding "destroy" (which you probably have)
-    * @code examples/api.js
-    * @method
-    * @md-not-inheritable
-    * @returns object
-    */
-    getApi: function() {
-
-        var self    = this;
-
-        if (!self.api) {
-
-            var methods = [
-                    "createEvent", "getEvent", "on", "un", "once", "hasListener", "removeAllListeners",
-                    "trigger", "suspendEvent", "suspendAllEvents", "resumeEvent",
-                    "resumeAllEvents", "destroyEvent"
-                ],
-                api = {},
-                name;
-
-            for(var i =- 1, l = methods.length;
-                    ++i < l;
-                    name = methods[i],
-                    api[name] = bind(self[name], self)){}
-
-            self.api = api;
-        }
-
-        return self.api;
-
-    }
-}, true, false);
-
-
-/**
- * This class is private - you can't create an event other than via Observable.
- * See Observable reference.
- * @class ObservableEvent
- * @private
- */
-var Event = function(name, returnResult, autoTrigger, triggerFilter, filterContext) {
-
-    var self    = this;
-
-    self.name           = name;
-    self.listeners      = [];
-    self.map            = {};
-    self.hash           = nextUid();
-    self.uni            = '$$' + name + '_' + self.hash;
-    self.suspended      = false;
-    self.lid            = 0;
-
-    if (typeof returnResult == "object" && returnResult !== null) {
-        extend(self, returnResult, true, false);
-    }
-    else {
-        self.returnResult = returnResult === undf ? null : returnResult; // first|last|all
-        self.autoTrigger = autoTrigger;
-        self.triggerFilter = triggerFilter;
-        self.filterContext = filterContext;
-    }
-};
-
-
-extend(Event.prototype, {
-
-    name: null,
-    listeners: null,
-    map: null,
-    hash: null,
-    uni: null,
-    suspended: false,
-    lid: null,
-    returnResult: null,
-    autoTrigger: null,
-    lastTrigger: null,
-    triggerFilter: null,
-    filterContext: null,
-
-    /**
-     * Get event name
-     * @method
-     * @returns {string}
-     */
-    getName: function() {
-        return this.name;
-    },
-
-    /**
-     * @method
-     */
-    destroy: function() {
-        var self        = this,
-            k;
-
-        for (k in self) {
-            self[k] = null;
-        }
-    },
-
-    /**
-     * @method
-     * @param {function} fn Callback function { @required }
-     * @param {object} context Function's "this" object
-     * @param {object} options See Observable's on()
-     */
-    on: function(fn, context, options) {
-
-        if (!fn) {
-            return null;
-        }
-
-        context     = context || null;
-        options     = options || {};
-
-        var self        = this,
-            uni         = self.uni,
-            uniContext  = context || fn;
-
-        if (uniContext[uni] && !options.allowDupes) {
-            return null;
-        }
-
-        var id      = ++self.lid,
-            first   = options.first || false;
-
-        uniContext[uni]  = id;
-
-
-        var e = {
-            fn:         fn,
-            context:    context,
-            uniContext: uniContext,
-            id:         id,
-            called:     0, // how many times the function was triggered
-            limit:      0, // how many times the function is allowed to trigger
-            start:      1, // from which attempt it is allowed to trigger the function
-            count:      0, // how many attempts to trigger the function was made
-            append:     null, // append parameters
-            prepend:    null // prepend parameters
-        };
-
-        extend(e, options, true, false);
-
-        if (first) {
-            self.listeners.unshift(e);
-        }
-        else {
-            self.listeners.push(e);
-        }
-
-        self.map[id] = e;
-
-        if (self.autoTrigger && self.lastTrigger && !self.suspended) {
-            var prevFilter = self.triggerFilter;
-            self.triggerFilter = function(l){
-                if (l.id == id) {
-                    return prevFilter ? prevFilter(l) !== false : true;
-                }
-                return false;
-            };
-            self.trigger.apply(self, self.lastTrigger);
-            self.triggerFilter = prevFilter;
-        }
-
-        return id;
-    },
-
-    /**
-     * @method
-     * @param {function} fn Callback function { @required }
-     * @param {object} context Function's "this" object
-     * @param {object} options See Observable's on()
-     */
-    once: function(fn, context, options) {
-
-        options = options || {};
-        options.once = true;
-
-        return this.on(fn, context, options);
-    },
-
-    /**
-     * @method
-     * @param {function} fn Callback function { @required }
-     * @param {object} context Function's "this" object
-     */
-    un: function(fn, context) {
-
-        var self        = this,
-            inx         = -1,
-            uni         = self.uni,
-            listeners   = self.listeners,
-            id;
-
-        if (fn == parseInt(fn)) {
-            id      = fn;
-        }
-        else {
-            context = context || fn;
-            id      = context[uni];
-        }
-
-        if (!id) {
-            return false;
-        }
-
-        for (var i = 0, len = listeners.length; i < len; i++) {
-            if (listeners[i].id == id) {
-                inx = i;
-                delete listeners[i].uniContext[uni];
-                break;
-            }
-        }
-
-        if (inx == -1) {
-            return false;
-        }
-
-        listeners.splice(inx, 1);
-        delete self.map[id];
-        return true;
-    },
-
-    /**
-     * @method hasListener
-     * @return bool
-     */
-
-    /**
-     * @method
-     * @param {function} fn Callback function { @required }
-     * @param {object} context Function's "this" object
-     * @return bool
-     */
-    hasListener: function(fn, context) {
-
-        var self    = this,
-            listeners   = self.listeners,
-            id;
-
-        if (fn) {
-
-            context = context || fn;
-
-            if (!isFunction(fn)) {
-                id  = fn;
-            }
-            else {
-                id  = context[self.uni];
-            }
-
-            if (!id) {
-                return false;
-            }
-
-            for (var i = 0, len = listeners.length; i < len; i++) {
-                if (listeners[i].id == id) {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-        else {
-            return listeners.length > 0;
-        }
-    },
-
-
-    /**
-     * @method
-     */
-    removeAllListeners: function() {
-        var self    = this,
-            listeners = self.listeners,
-            uni     = self.uni,
-            i, len;
-
-        for (i = 0, len = listeners.length; i < len; i++) {
-            delete listeners[i].uniContext[uni];
-        }
-        self.listeners   = [];
-        self.map         = {};
-    },
-
-    /**
-     * @method
-     */
-    suspend: function() {
-        this.suspended = true;
-    },
-
-    /**
-     * @method
-     */
-    resume: function() {
-        this.suspended = false;
-    },
-
-
-    _prepareArgs: function(l, triggerArgs) {
-        var args;
-
-        if (l.append || l.prepend) {
-            args    = slice.call(triggerArgs);
-            if (l.prepend) {
-                args    = l.prepend.concat(args);
-            }
-            if (l.append) {
-                args    = args.concat(l.append);
-            }
-        }
-        else {
-            args = triggerArgs;
-        }
-
-        return args;
-    },
-
-    /**
-     * @method
-     * @return {*}
-     */
-    trigger: function() {
-
-        var self            = this,
-            listeners       = self.listeners,
-            returnResult    = self.returnResult,
-            filter          = self.triggerFilter,
-            filterContext   = self.filterContext,
-            args;
-
-        if (self.suspended) {
-            return null;
-        }
-
-        if (self.autoTrigger) {
-            self.lastTrigger = slice.call(arguments);
-        }
-
-        if (listeners.length == 0) {
-            return null;
-        }
-
-        var ret     = returnResult == "all" || returnResult == "merge" ?
-                        [] : null,
-            q, l,
-            res;
-
-        if (returnResult == "first") {
-            q = [listeners[0]];
-        }
-        else {
-            // create a snapshot of listeners list
-            q = slice.call(listeners);
-        }
-
-        // now if during triggering someone unsubscribes
-        // we won't skip any listener due to shifted
-        // index
-        while (l = q.shift()) {
-
-            // listener may already have unsubscribed
-            if (!l || !self.map[l.id]) {
-                continue;
-            }
-
-            args = self._prepareArgs(l, arguments);
-
-            if (filter && filter.call(filterContext, l, args, self) === false) {
-                continue;
-            }
-
-            l.count++;
-
-            if (l.count < l.start) {
-                continue;
-            }
-
-            res = l.fn.apply(l.context, args);
-
-            l.called++;
-
-            if (l.called == l.limit) {
-                self.un(l.id);
-            }
-
-            if (returnResult == "all") {
-                ret.push(res);
-            }
-            else if (returnResult == "merge" && res) {
-                ret = ret.concat(res);
-            }
-            else if (returnResult == "first") {
-                return res;
-            }
-            else if (returnResult == "nonempty" && res) {
-                return res;
-            }
-            else if (returnResult == "last") {
-                ret = res;
-            }
-            else if (returnResult == false && res === false) {
-                return false;
-            }
-        }
-
-        if (returnResult) {
-            return ret;
-        }
-    }
-}, true, false);
-
-
-
-
-
-
-
-var Input = function(el, changeFn, changeFnContext) {
-
-    if (el.$$input) {
-        if (changeFn) {
-            el.$$input.on("change", changeFn, changeFnContext);
-        }
-        return el.$$input;
-    }
-
-    var self    = this,
-        cfg     = getNodeConfig(el);
-
-    self.observable     = new Observable;
-    self.el             = el;
-    self.inputType      = el.type.toLowerCase();
-    self.dataType       = cfg.type || self.inputType;
-    self.listeners      = [];
-
-    if (changeFn) {
-        self.onChange(changeFn, changeFnContext);
-    }
-};
-
-extend(Input.prototype, {
-
-    el: null,
-    inputType: null,
-    dataType: null,
-    listeners: null,
-    radio: null,
-    keydownDelegate: null,
-    changeInitialized: false,
-
-    destroy: function() {
-
-        var self        = this,
-            i;
-
-        self.observable.destroy();
-        self._addOrRemoveListeners(removeListener, true);
-
-        self.el.$$input = null;
-
-        for (i in self) {
-            if (self.hasOwnProperty(i)) {
-                self[i] = null;
-            }
-        }
-    },
-
-    _addOrRemoveListeners: function(fn, onlyUsed) {
-
-        var self        = this,
-            type        = self.inputType,
-            listeners   = self.listeners,
-            radio       = self.radio,
-            el          = self.el,
-            used,
-            i, ilen,
-            j, jlen;
-
-        for (i = 0, ilen = listeners.length; i < ilen; i++) {
-
-            used = !!listeners[i][2];
-
-            if (used == onlyUsed) {
-                if (type == "radio") {
-                    for (j = 0, jlen = radio.length; j < jlen; j++) {
-                        fn(radio[j], listeners[i][0], listeners[i][1]);
-                    }
-                }
-                else {
-                    fn(el, listeners[i][0], listeners[i][1]);
-                }
-                listeners[i][2] = !onlyUsed;
-            }
-        }
-    },
-
-    initInputChange: function() {
-
-        var self = this,
-            type = self.inputType;
-
-        if (type == "radio") {
-            self.initRadioInput();
-        }
-        else if (type == "checkbox") {
-            self.initCheckboxInput();
-        }
-        else {
-            self.initTextInput();
-        }
-
-        self._addOrRemoveListeners(addListener, false);
-
-        self.changeInitialized = true;
-    },
-
-    initRadioInput: function() {
-
-        var self    = this,
-            el      = self.el,
-            name    = el.name,
-            parent;
-
-        if (isAttached(el)) {
-            parent  = el.ownerDocument;
-        }
-        else {
-            parent = el;
-            while (parent.parentNode) {
-                parent = parent.parentNode;
-            }
-        }
-
-        self.radio  = select("input[name="+name+"]", parent);
-
-        self.onRadioInputChangeDelegate = bind(self.onRadioInputChange, self);
-        self.listeners.push(["click", self.onRadioInputChangeDelegate, false]);
-    },
-
-    initCheckboxInput: function() {
-
-        var self    = this;
-
-        self.onCheckboxInputChangeDelegate = bind(self.onCheckboxInputChange, self);
-        self.listeners.push(["click", self.onCheckboxInputChangeDelegate, false]);
-    },
-
-    initTextInput: function() {
-
-        var composing   = false,
-            self        = this,
-            listeners   = self.listeners,
-            timeout;
-
-        // In composition mode, users are still inputing intermediate text buffer,
-        // hold the listener until composition is done.
-        // More about composition events:
-        // https://developer.mozilla.org/en-US/docs/Web/API/CompositionEvent
-        if (!isAndroid()) {
-
-            var compositionStart    = function() {
-                composing = true;
-            };
-
-            var compositionEnd  = function() {
-                composing = false;
-                listener();
-            };
-
-            listeners.push(["compositionstart", compositionStart, false]);
-            listeners.push(["compositionend", compositionEnd, false]);
-        }
-
-        var listener = self.onTextInputChangeDelegate = function() {
-            if (composing) {
-                return;
-            }
-            self.onTextInputChange();
-        };
-
-        var deferListener = function(ev) {
-            if (!timeout) {
-                timeout = setTimeout(function() {
-                    listener(ev);
-                    timeout = null;
-                }, 0);
-            }
-        };
-
-        var keydown = function(event) {
-            event = event || window.event;
-            var key = event.keyCode;
-
-            // ignore
-            //    command            modifiers                   arrows
-            if (key === 91 || (15 < key && key < 19) || (37 <= key && key <= 40)) {
-                return;
-            }
-
-            deferListener(event);
-        };
-
-        // if the browser does support "input" event, we are fine - except on
-        // IE9 which doesn't fire the
-        // input event on backspace, delete or cut
-        if (browserHasEvent('input')) {
-
-            listeners.push(["input", listener, false]);
-
-        } else {
-
-            listeners.push(["keydown", keydown, false]);
-
-            // if user modifies input value using context menu in IE,
-            // we need "paste" and "cut" events to catch it
-            if (browserHasEvent('paste')) {
-                listeners.push(["paste", deferListener, false]);
-                listeners.push(["cut", deferListener, false]);
-            }
-        }
-
-
-        // if user paste into input using mouse on older browser
-        // or form autocomplete on newer browser, we need "change" event to catch it
-
-        listeners.push(["change", listener, false]);
-    },
-
-    processValue: function(val) {
-
-        switch (this.dataType) {
-            case "number":
-                val     = parseInt(val, 10);
-                if (isNaN(val)) {
-                    val = 0;
-                }
-                break;
-            case "bool":
-            case "boolean":
-                return !(val === "false" || val === "0" || val === 0 ||
-                        val === "off" || val === false || val === "");
-
-        }
-
-        return val;
-    },
-
-    onTextInputChange: function() {
-
-        var self    = this,
-            val     = self.getValue();
-
-        self.observable.trigger("change", self.processValue(val));
-    },
-
-    onCheckboxInputChange: function() {
-
-        var self    = this,
-            node    = self.el;
-
-        self.observable.trigger("change", self.processValue(
-            node.checked ? (getAttr(node, "value") || true) : false)
-        );
-    },
-
-    onRadioInputChange: function(e) {
-
-        e = e || window.event;
-
-        var self    = this,
-            trg     = e.target || e.srcElement;
-
-        self.observable.trigger("change", self.processValue(trg.value));
-    },
-
-    setValue: function(val) {
-
-        var self    = this,
-            type    = self.inputType,
-            radio,
-            i, len;
-
-        val = self.processValue(val);
-
-        if (type == "radio") {
-
-            radio = self.radio;
-
-            for (i = 0, len = radio.length; i < len; i++) {
-                radio[i].checked = self.processValue(radio[i].value) == val;
-            }
-        }
-        else if (type == "checkbox") {
-            var node        = self.el;
-            node.checked    = val === true || val == self.processValue(node.value);
-        }
-        else {
-            setValue(self.el, val);
-        }
-    },
-
-    getValue: function() {
-
-        var self    = this,
-            type    = self.inputType,
-            radio,
-            i, l;
-
-        if (type == "radio") {
-            radio = self.radio;
-            for (i = 0, l = radio.length; i < l; i++) {
-                if (radio[i].checked) {
-                    return self.processValue(radio[i].value);
-                }
-            }
-            return null;
-        }
-        else if (type == "checkbox") {
-            return self.processValue(self.el.checked ? (getAttr(self.el, "value") || true) : false);
-        }
-        else {
-            return self.processValue(getValue(self.el));
-        }
-    },
-
-
-    onChange: function(fn, context) {
-        var self = this;
-        if (!self.changeInitialized) {
-            self.initInputChange();
-        }
-        this.observable.on("change", fn, context);
-    },
-
-    unChange: function(fn, context) {
-        this.observable.un("change", fn, context);
-    },
-
-
-    onKey: function(key, fn, context) {
-
-        var self = this;
-
-        if (!self.keydownDelegate) {
-            self.keydownDelegate = bind(self.keyHandler, self);
-            self.listeners.push(["keydown", self.keydownDelegate, false]);
-            addListener(self.el, "keydown", self.keydownDelegate);
-            self.observable.createEvent("key", false, false, self.keyEventFilter);
-        }
-
-        self.observable.on("key", fn, context, {
-            key: key
-        });
-    },
-
-    unKey: function(key, fn, context) {
-
-        var self    = this;
-        self.observable.un("key", fn, context);
-    },
-
-    keyEventFilter: function(l, args) {
-
-        var key = l.key,
-            e = args[0];
-
-        if (typeof key != "object") {
-            return key == e.keyCode;
-        }
-        else {
-            if (key.ctrlKey !== undf && key.ctrlKey != e.ctrlKey) {
-                return false;
-            }
-            if (key.shiftKey !== undf && key.shiftKey != e.shiftKey) {
-                return false;
-            }
-            return !(key.keyCode !== undf && key.keyCode != e.keyCode);
-        }
-    },
-
-    keyHandler: function(event) {
-
-        var e       = normalizeEvent(event || window.event),
-            self    = this;
-
-        self.observable.trigger("key", e);
-    }
-
-
-}, true, false);
-
-
-Input.get = function(node) {
-    if (node.$$input) {
-        return node.$$input;
-    }
-    return new Input(node);
-};
-
-Input.getValue = getValue;
-Input.setValue = setValue;
-
-
-
 
 
 
@@ -3141,6 +3315,25 @@ function isThenable(any) {
     }
     return isFunction((then = any.then)) ?
            then : false;
+};
+
+
+
+function error(e) {
+
+    var stack = e.stack || (new Error).stack;
+
+    if (typeof console != strUndef && console.log) {
+        async(function(){
+            console.log(e);
+            if (stack) {
+                console.log(stack);
+            }
+        });
+    }
+    else {
+        throw e;
+    }
 };
 
 
@@ -3915,19 +4108,13 @@ var Promise = function(){
 
 
 
-function isObject(value) {
-    if (value === null || typeof value != "object") {
-        return false;
-    }
-    var vt = varType(value);
-    return vt > 2 || vt == -1;
-};
-
-
-
 function isPrimitive(value) {
     var vt = varType(value);
     return vt < 3 && vt > -1;
+};
+
+function setAttr(el, name, value) {
+    return el.setAttribute(name, value);
 };
 
 
@@ -4830,117 +5017,1175 @@ var ajax = function(){
 
 
 
-var rUrl = /^((https?|ftp):\/\/|)(((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+;=]|:)*@)?(((\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5]))|((([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])*([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])))\.)+(([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])*([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])))\.?)(:\d*)?)(\/((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+;=]|:|@)+(\/(([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+;=]|:|@)*)*)?)?(\?((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+;=]|:|@)|[\uE000-\uF8FF]|\/|\?)*)?(#((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+;=]|:|@)|\/|\?)*)?$/i;
+
+/**
+ * @param {Element} elem
+ */
+var getValue = function(){
 
 
+    var rreturn = /\r/,
 
+        hooks = {
 
+        option: function(elem) {
+            var val = elem.getAttribute("value") || elem.value;
 
-
-var Validator = function(){
-
-    var vldId   = 0,
-
-        validators      = {},
-
-        // from http://bassistance.de/jquery-plugins/jquery-plugin-validation/
-        checkable = function(elem) {
-            return /radio|checkbox/i.test(elem.type);
+            return val != undf ?
+                   val :
+                   trim( elem.innerText || elem.textContent );
         },
 
-        // from http://bassistance.de/jquery-plugins/jquery-plugin-validation/
-        getLength = function(value, el) {
-            var l = 0;
-            switch( el.nodeName.toLowerCase() ) {
-                case 'select':
-                    eachNode(el, function(node){
-                        if (node.selected) {
-                            l++;
-                        }
-                    });
-                    return l;
-                case 'input':
-                    if (checkable(el)) {
-                        if (el.form) {
-                            eachNode(el.form, function (node) {
-                                if (node.type == el.type && node.name == el.name && node.checked) {
-                                    l++;
-                                }
-                            });
+        select: function(elem) {
+
+            var value, option,
+                options = elem.options,
+                index = elem.selectedIndex,
+                one = elem.type === "select-one" || index < 0,
+                values = one ? null : [],
+                max = one ? index + 1 : options.length,
+                disabled,
+                i = index < 0 ?
+                    max :
+                    one ? index : 0;
+
+            // Loop through all the selected options
+            for ( ; i < max; i++ ) {
+                option = options[ i ];
+
+                disabled = option.disabled ||
+                           option.parentNode.disabled;
+
+                // IE6-9 doesn't update selected after form reset (#2551)
+                if ((option.selected || i === index) && !disabled ) {
+                    // Get the specific value for the option
+                    value = getValue(option);
+
+                    // We don't need an array for one selects
+                    if ( one ) {
+                        return value;
+                    }
+
+                    // Multi-Selects return an array
+                    values.push( value );
+                }
+            }
+
+            return values;
+        },
+
+        radio: function( elem ) {
+            return isNull(elem.getAttribute("value")) ? "on" : elem.value;
+        },
+
+        checkbox: function( elem ) {
+            return isNull(elem.getAttribute("value")) ? "on" : elem.value;
+        }
+    };
+
+    return function(elem) {
+
+        var hook, ret;
+
+        hook = hooks[elem.type] || hooks[elem.nodeName.toLowerCase()];
+
+        if (hook && (ret = hook(elem, "value")) !== undf) {
+            return ret;
+        }
+
+        ret = elem.value;
+
+        return isString(ret) ?
+            // Handle most common string cases
+               ret.replace(rreturn, "") :
+            // Handle cases where value is null/undef or number
+               ret == null ? "" : ret;
+
+    };
+}();
+
+var aIndexOf    = Array.prototype.indexOf;
+
+if (!aIndexOf) {
+    aIndexOf = Array.prototype.indexOf = function (searchElement, fromIndex) {
+
+        var k;
+
+        // 1. Let O be the result of calling ToObject passing
+        //    the this value as the argument.
+        if (this == null) {
+            throw new TypeError('"this" is null or not defined');
+        }
+
+        var O = Object(this);
+
+        // 2. Let lenValue be the result of calling the Get
+        //    internal method of O with the argument "length".
+        // 3. Let len be ToUint32(lenValue).
+        var len = O.length >>> 0;
+
+        // 4. If len is 0, return -1.
+        if (len === 0) {
+            return -1;
+        }
+
+        // 5. If argument fromIndex was passed let n be
+        //    ToInteger(fromIndex); else let n be 0.
+        var n = +fromIndex || 0;
+
+        if (Math.abs(n) === Infinity) {
+            n = 0;
+        }
+
+        // 6. If n >= len, return -1.
+        if (n >= len) {
+            return -1;
+        }
+
+        // 7. If n >= 0, then Let k be n.
+        // 8. Else, n<0, Let k be len - abs(n).
+        //    If k is less than 0, then let k be 0.
+        k = Math.max(n >= 0 ? n : len - Math.abs(n), 0);
+
+        // 9. Repeat, while k < len
+        while (k < len) {
+            var kValue;
+            // a. Let Pk be ToString(k).
+            //   This is implicit for LHS operands of the in operator
+            // b. Let kPresent be the result of calling the
+            //    HasProperty internal method of O with argument Pk.
+            //   This step can be combined with c
+            // c. If kPresent is true, then
+            //    i.  Let elementK be the result of calling the Get
+            //        internal method of O with the argument ToString(k).
+            //   ii.  Let same be the result of applying the
+            //        Strict Equality Comparison Algorithm to
+            //        searchElement and elementK.
+            //  iii.  If same is true, return k.
+            if (k in O && O[k] === searchElement) {
+                return k;
+            }
+            k++;
+        }
+        return -1;
+    };
+}
+
+
+
+
+
+/**
+ * @param {*} val
+ * @param {[]} arr
+ * @returns {boolean}
+ */
+function inArray(val, arr) {
+    return arr ? (aIndexOf.call(arr, val) != -1) : false;
+};
+
+
+
+function isNumber(value) {
+    return varType(value) === 1;
+};
+
+function removeAttr(el, name) {
+    return el.removeAttribute(name);
+};
+
+
+
+/**
+ * @param {Element} el
+ * @param {*} val
+ */
+var setValue = function() {
+
+    var hooks = {
+        select:  function(elem, value) {
+
+            var optionSet, option,
+                options     = elem.options,
+                values      = toArray(value),
+                i           = options.length,
+                selected,
+                setIndex    = -1;
+
+            while ( i-- ) {
+                option      = options[i];
+                selected    = inArray(option.value, values);
+
+                if (selected) {
+                    setAttr(option, "selected", "selected");
+                    option.selected = true;
+                    optionSet = true;
+                }
+                else {
+                    removeAttr(option, "selected");
+                }
+
+                if (!selected && !isNull(getAttr(option, "mjs-default-option"))) {
+                    setIndex = i;
+                }
+            }
+
+            // Force browsers to behave consistently when non-matching value is set
+            if (!optionSet) {
+                elem.selectedIndex = setIndex;
+            }
+
+            return values;
+        }
+    };
+
+    hooks["radio"] = hooks["checkbox"] = function(elem, value) {
+        if (isArray(value) ) {
+            return (elem.checked = inArray(getValue(elem), value));
+        }
+    };
+
+
+    return function(el, val) {
+
+        if (el.nodeType !== 1) {
+            return;
+        }
+
+        // Treat null/undefined as ""; convert numbers to string
+        if (isNull(val)) {
+            val = "";
+        }
+        else if (isNumber(val)) {
+            val += "";
+        }
+
+        var hook = hooks[el.type] || hooks[el.nodeName.toLowerCase()];
+
+        // If set returns undefined, fall back to normal setting
+        if (!hook || hook(el, val, "value") === undf) {
+            el.value = val;
+        }
+    };
+}();
+
+var isAttached = function(){
+    var isAttached = function isAttached(node) {
+
+        if (node === window) {
+            return true;
+        }
+        if (node.nodeType == 3) {
+            if (node.parentElement) {
+                return isAttached(node.parentElement);
+            }
+            else {
+                return true;
+            }
+        }
+
+        var html = window.document.documentElement;
+
+        return node === html ? true : html.contains(node);
+    };
+    return isAttached;
+}();
+
+var isAndroid = function(){
+
+    var android = null;
+
+    return function isAndroid() {
+
+        if (android === null) {
+            android = parseInt((/android (\d+)/i.exec(navigator.userAgent) || [])[1], 10) || false;
+        }
+
+        return android;
+    };
+
+}();
+
+
+var isIE = function(){
+
+    var msie;
+
+    return function isIE() {
+
+        if (msie === null) {
+            var ua = navigator.userAgent;
+            msie = parseInt((/msie (\d+)/i.exec(ua) || [])[1], 10);
+            if (isNaN(msie)) {
+                msie = parseInt((/trident\/.*; rv:(\d+)/i.exec(ua) || [])[1], 10) || false;
+            }
+        }
+
+        return msie;
+    };
+}();
+
+
+
+/**
+ * @param {String} event
+ * @return {boolean}
+ */
+var browserHasEvent = function(){
+
+    var eventSupport = {},
+        divElm;
+
+    return function browserHasEvent(event) {
+        // IE9 implements 'input' event it's so fubared that we rather pretend that it doesn't have
+        // it. In particular the event is not fired when backspace or delete key are pressed or
+        // when cut operation is performed.
+
+        if (eventSupport[event] === undf) {
+
+            if (event == 'input' && isIE() == 9) {
+                return eventSupport[event] = false;
+            }
+            if (!divElm) {
+                divElm = window.document.createElement('div');
+            }
+
+            eventSupport[event] = !!('on' + event in divElm);
+        }
+
+        return eventSupport[event];
+    };
+}();
+
+
+
+
+var data = function(){
+
+    var dataCache   = {},
+
+        getNodeId   = function(el) {
+            return el._mjsid || (el._mjsid = nextUid());
+        };
+
+    /**
+     * @param {Element} el
+     * @param {String} key
+     * @param {*} value optional
+     */
+    return function data(el, key, value) {
+        var id  = getNodeId(el),
+            obj = dataCache[id];
+
+        if (value !== undf) {
+            if (!obj) {
+                obj = dataCache[id] = {};
+            }
+            obj[key] = value;
+            return value;
+        }
+        else {
+            return obj ? obj[key] : undf;
+        }
+    };
+
+}();
+
+
+
+var functionFactory = function() {
+
+    var REG_REPLACE_EXPR    = /(^|[^a-z0-9_$\]\)'"])(\.)([^0-9])/ig,
+
+        f               = Function,
+        fnBodyStart     = 'try {',
+        //getterBodyEnd   = ';} catch (thrownError) { return $$interceptor(thrownError, $$itself, ____); }',
+        //setterBodyEnd   = ';} catch (thrownError) { return $$interceptor(thrownError, $$itself, ____, $$$$); }',
+        getterBodyEnd   = ';} catch (thrownError) { return undefined; }',
+        setterBodyEnd   = ';} catch (thrownError) { return undefined; }',
+
+
+        /*interceptor     = function(thrownError, func, scope, value) {
+
+            while (scope && !scope.$isRoot) {
+
+                scope = scope.$parent;
+
+                if (scope) {
+
+                    try {
+                        if (arguments.length == 4) {
+                            return func.call(null, scope, value, emptyFn, func);
                         }
                         else {
-                            var parent,
-                                inputs,
-                                i, len;
+                            return func.call(null, scope, emptyFn, func);
+                        }
+                    }
+                    catch (newError) {}
+                }
+            }
 
-                            if (isAttached(el)) {
-                                parent  = el.ownerDocument;
-                            }
-                            else {
-                                parent = el;
-                                while (parent.parentNode) {
-                                    parent = parent.parentNode;
-                                }
-                            }
+            if (thrownError !== null) {
+                error(thrownError);
+            }
 
-                            inputs  = select("input[name="+ el.name +"]", parent);
-                            for (i = 0, len = inputs.length; i < len; i++) {
-                                if (inputs[i].checked) {
-                                    l++;
-                                }
+            return undf;
+        },*/
+
+        isFailed        = function(val) {
+            return val === undf || (typeof val == "number" && isNaN(val));
+        },
+
+        wrapFunc        = function(func, returnsValue) {
+            return function(scope) {
+                var args = slice.call(arguments),
+                    val;
+
+                //args.push(interceptor);
+                args.push(null);
+                args.push(func);
+
+                val = func.apply(null, args);
+                return isFailed(val) ? undf : val;
+
+                /*if (returnsValue) {
+                    val = func.apply(null, args);
+                    while (isFailed(val) && !scope.$isRoot) {
+                        scope = scope.$parent;
+                        args[0] = scope;
+                        val = func.apply(null, args);
+                    }
+                    return val;
+                }
+                else {
+                    return func.apply(null, args);
+                }*/
+
+                /*if (returnsValue && isFailed(val)) {//) {
+                    args = slice.call(arguments);
+                    args.unshift(func);
+                    args.unshift(null);
+                    return interceptor.apply(null, args);
+                }
+                else {
+                    return val;
+                }*/
+            };
+        },
+
+        getterCache     = {},
+        getterCacheCnt  = 0,
+
+        createGetter    = function createGetter(expr) {
+
+            try {
+                if (!getterCache[expr]) {
+                    getterCacheCnt++;
+                    return getterCache[expr] = wrapFunc(new f(
+                        '____',
+                        '$$interceptor',
+                        '$$itself',
+                        "".concat(fnBodyStart, 'return ', expr.replace(REG_REPLACE_EXPR, '$1____.$3'), getterBodyEnd)
+                    ), true);
+                }
+                return getterCache[expr];
+            }
+            catch (thrownError){
+                error(thrownError);
+                return emptyFn;
+            }
+        },
+
+        setterCache     = {},
+        setterCacheCnt  = 0,
+
+        createSetter    = function createSetter(expr) {
+            try {
+                if (!setterCache[expr]) {
+                    setterCacheCnt++;
+                    var code = expr.replace(REG_REPLACE_EXPR, '$1____.$3');
+                    return setterCache[expr] = wrapFunc(new f(
+                        '____',
+                        '$$$$',
+                        '$$interceptor',
+                        '$$itself',
+                        "".concat(fnBodyStart, code, ' = $$$$', setterBodyEnd)
+                    ));
+                }
+                return setterCache[expr];
+            }
+            catch (thrownError) {
+                error(thrownError);
+                return emptyFn;
+            }
+        },
+
+        funcCache       = {},
+        funcCacheCnt    = 0,
+
+        createFunc      = function createFunc(expr) {
+            try {
+                if (!funcCache[expr]) {
+                    funcCacheCnt++;
+                    return funcCache[expr] = wrapFunc(new f(
+                        '____',
+                        '$$interceptor',
+                        '$$itself',
+                        "".concat(fnBodyStart, expr.replace(REG_REPLACE_EXPR, '$1____.$3'), getterBodyEnd)
+                    ));
+                }
+                return funcCache[expr];
+            }
+            catch (thrownError) {
+                error(thrownError);
+                return emptyFn;
+            }
+        },
+
+        resetCache = function() {
+            getterCacheCnt >= 1000 && (getterCache = {});
+            setterCacheCnt >= 1000 && (setterCache = {});
+            funcCacheCnt >= 1000 && (funcCache = {});
+        };
+
+    return {
+        createGetter: createGetter,
+        createSetter: createSetter,
+        createFunc: createFunc,
+        resetCache: resetCache,
+        enableResetCacheInterval: function() {
+            setTimeout(resetCache, 10000);
+        }
+    };
+}();
+
+
+
+var createGetter = functionFactory.createGetter;
+
+var rToCamelCase = /-./g;
+
+function toCamelCase(str) {
+    return str.replace(rToCamelCase, function(match){
+        return match.charAt(1).toUpperCase();
+    });
+};
+
+
+
+var getNodeData = function() {
+
+    var readDataSet = function(node) {
+        var attrs = node.attributes,
+            dataset = {},
+            i, l, name;
+
+        for (i = 0, l = attrs.length; i < l; i++) {
+            name = attrs[i].name;
+            if (name.indexOf("data-") === 0) {
+                dataset[toCamelCase(name.substr(5))] = attrs[i].value;
+            }
+        }
+
+        return dataset;
+    };
+
+
+    return function(node) {
+
+        if (node.dataset) {
+            return node.dataset;
+        }
+
+        var dataset;
+
+        if ((dataset = data(node, "data")) !== undf) {
+            return dataset;
+        }
+
+        dataset = readDataSet(node);
+        data(node, "data", dataset);
+        return dataset;
+    };
+
+
+}();
+
+
+
+function getNodeConfig(node, scope, expr) {
+
+    var cfg = data(node, "config"),
+        config, dataset, i, val;
+
+    if (cfg) {
+        return cfg;
+    }
+
+    cfg = {};
+
+    if (expr || (expr = getAttr(node, "mjs-config")) !== null) {
+        removeAttr(node, "mjs-config");
+        config = expr ? createGetter(expr)(scope || {}) : {};
+        for (i in config){
+            cfg[i] = config[i];
+        }
+    }
+
+    dataset = getNodeData(node);
+
+    for (i in dataset){
+        val = dataset[i];
+        cfg[i] = val === "" ? true : val;
+    }
+
+    data(node, "config", cfg);
+
+    return cfg;
+};
+
+
+
+
+var Input = function(el, changeFn, changeFnContext) {
+
+    if (el.$$input) {
+        if (changeFn) {
+            el.$$input.on("change", changeFn, changeFnContext);
+        }
+        return el.$$input;
+    }
+
+    var self    = this,
+        cfg     = getNodeConfig(el);
+
+    self.observable     = new Observable;
+    self.el             = el;
+    self.inputType      = el.type.toLowerCase();
+    self.dataType       = cfg.type || self.inputType;
+    self.listeners      = [];
+
+    if (changeFn) {
+        self.onChange(changeFn, changeFnContext);
+    }
+};
+
+extend(Input.prototype, {
+
+    el: null,
+    inputType: null,
+    dataType: null,
+    listeners: null,
+    radio: null,
+    keydownDelegate: null,
+    changeInitialized: false,
+
+    destroy: function() {
+
+        var self        = this,
+            i;
+
+        self.observable.destroy();
+        self._addOrRemoveListeners(removeListener, true);
+
+        self.el.$$input = null;
+
+        for (i in self) {
+            if (self.hasOwnProperty(i)) {
+                self[i] = null;
+            }
+        }
+    },
+
+    _addOrRemoveListeners: function(fn, onlyUsed) {
+
+        var self        = this,
+            type        = self.inputType,
+            listeners   = self.listeners,
+            radio       = self.radio,
+            el          = self.el,
+            used,
+            i, ilen,
+            j, jlen;
+
+        for (i = 0, ilen = listeners.length; i < ilen; i++) {
+
+            used = !!listeners[i][2];
+
+            if (used == onlyUsed) {
+                if (type == "radio") {
+                    for (j = 0, jlen = radio.length; j < jlen; j++) {
+                        fn(radio[j], listeners[i][0], listeners[i][1]);
+                    }
+                }
+                else {
+                    fn(el, listeners[i][0], listeners[i][1]);
+                }
+                listeners[i][2] = !onlyUsed;
+            }
+        }
+    },
+
+    initInputChange: function() {
+
+        var self = this,
+            type = self.inputType;
+
+        if (type == "radio") {
+            self.initRadioInput();
+        }
+        else if (type == "checkbox") {
+            self.initCheckboxInput();
+        }
+        else {
+            self.initTextInput();
+        }
+
+        self._addOrRemoveListeners(addListener, false);
+
+        self.changeInitialized = true;
+    },
+
+    initRadioInput: function() {
+
+        var self    = this,
+            el      = self.el,
+            name    = el.name,
+            parent;
+
+        if (isAttached(el)) {
+            parent  = el.ownerDocument;
+        }
+        else {
+            parent = el;
+            while (parent.parentNode) {
+                parent = parent.parentNode;
+            }
+        }
+
+        self.radio  = select("input[name="+name+"]", parent);
+
+        self.onRadioInputChangeDelegate = bind(self.onRadioInputChange, self);
+        self.listeners.push(["click", self.onRadioInputChangeDelegate, false]);
+    },
+
+    initCheckboxInput: function() {
+
+        var self    = this;
+
+        self.onCheckboxInputChangeDelegate = bind(self.onCheckboxInputChange, self);
+        self.listeners.push(["click", self.onCheckboxInputChangeDelegate, false]);
+    },
+
+    initTextInput: function() {
+
+        var composing   = false,
+            self        = this,
+            listeners   = self.listeners,
+            timeout;
+
+        // In composition mode, users are still inputing intermediate text buffer,
+        // hold the listener until composition is done.
+        // More about composition events:
+        // https://developer.mozilla.org/en-US/docs/Web/API/CompositionEvent
+        if (!isAndroid()) {
+
+            var compositionStart    = function() {
+                composing = true;
+            };
+
+            var compositionEnd  = function() {
+                composing = false;
+                listener();
+            };
+
+            listeners.push(["compositionstart", compositionStart, false]);
+            listeners.push(["compositionend", compositionEnd, false]);
+        }
+
+        var listener = self.onTextInputChangeDelegate = function() {
+            if (composing) {
+                return;
+            }
+            self.onTextInputChange();
+        };
+
+        var deferListener = function(ev) {
+            if (!timeout) {
+                timeout = setTimeout(function() {
+                    listener(ev);
+                    timeout = null;
+                }, 0);
+            }
+        };
+
+        var keydown = function(event) {
+            event = event || window.event;
+            var key = event.keyCode;
+
+            // ignore
+            //    command            modifiers                   arrows
+            if (key === 91 || (15 < key && key < 19) || (37 <= key && key <= 40)) {
+                return;
+            }
+
+            deferListener(event);
+        };
+
+        // if the browser does support "input" event, we are fine - except on
+        // IE9 which doesn't fire the
+        // input event on backspace, delete or cut
+        if (browserHasEvent('input')) {
+
+            listeners.push(["input", listener, false]);
+
+        } else {
+
+            listeners.push(["keydown", keydown, false]);
+
+            // if user modifies input value using context menu in IE,
+            // we need "paste" and "cut" events to catch it
+            if (browserHasEvent('paste')) {
+                listeners.push(["paste", deferListener, false]);
+                listeners.push(["cut", deferListener, false]);
+            }
+        }
+
+
+        // if user paste into input using mouse on older browser
+        // or form autocomplete on newer browser, we need "change" event to catch it
+
+        listeners.push(["change", listener, false]);
+    },
+
+    processValue: function(val) {
+
+        switch (this.dataType) {
+            case "number":
+                val     = parseInt(val, 10);
+                if (isNaN(val)) {
+                    val = 0;
+                }
+                break;
+            case "bool":
+            case "boolean":
+                return !(val === "false" || val === "0" || val === 0 ||
+                        val === "off" || val === false || val === "");
+
+        }
+
+        return val;
+    },
+
+    onTextInputChange: function() {
+
+        var self    = this,
+            val     = self.getValue();
+
+        self.observable.trigger("change", self.processValue(val));
+    },
+
+    onCheckboxInputChange: function() {
+
+        var self    = this,
+            node    = self.el;
+
+        self.observable.trigger("change", self.processValue(
+            node.checked ? (getAttr(node, "value") || true) : false)
+        );
+    },
+
+    onRadioInputChange: function(e) {
+
+        e = e || window.event;
+
+        var self    = this,
+            trg     = e.target || e.srcElement;
+
+        self.observable.trigger("change", self.processValue(trg.value));
+    },
+
+    setValue: function(val) {
+
+        var self    = this,
+            type    = self.inputType,
+            radio,
+            i, len;
+
+        val = self.processValue(val);
+
+        if (type == "radio") {
+
+            radio = self.radio;
+
+            for (i = 0, len = radio.length; i < len; i++) {
+                radio[i].checked = self.processValue(radio[i].value) == val;
+            }
+        }
+        else if (type == "checkbox") {
+            var node        = self.el;
+            node.checked    = val === true || val == self.processValue(node.value);
+        }
+        else {
+            setValue(self.el, val);
+        }
+    },
+
+    getValue: function() {
+
+        var self    = this,
+            type    = self.inputType,
+            radio,
+            i, l;
+
+        if (type == "radio") {
+            radio = self.radio;
+            for (i = 0, l = radio.length; i < l; i++) {
+                if (radio[i].checked) {
+                    return self.processValue(radio[i].value);
+                }
+            }
+            return null;
+        }
+        else if (type == "checkbox") {
+            return self.processValue(self.el.checked ? (getAttr(self.el, "value") || true) : false);
+        }
+        else {
+            return self.processValue(getValue(self.el));
+        }
+    },
+
+
+    onChange: function(fn, context) {
+        var self = this;
+        if (!self.changeInitialized) {
+            self.initInputChange();
+        }
+        this.observable.on("change", fn, context);
+    },
+
+    unChange: function(fn, context) {
+        this.observable.un("change", fn, context);
+    },
+
+
+    onKey: function(key, fn, context) {
+
+        var self = this;
+
+        if (!self.keydownDelegate) {
+            self.keydownDelegate = bind(self.keyHandler, self);
+            self.listeners.push(["keydown", self.keydownDelegate, false]);
+            addListener(self.el, "keydown", self.keydownDelegate);
+            self.observable.createEvent("key", false, false, self.keyEventFilter);
+        }
+
+        self.observable.on("key", fn, context, {
+            key: key
+        });
+    },
+
+    unKey: function(key, fn, context) {
+
+        var self    = this;
+        self.observable.un("key", fn, context);
+    },
+
+    keyEventFilter: function(l, args) {
+
+        var key = l.key,
+            e = args[0];
+
+        if (typeof key != "object") {
+            return key == e.keyCode;
+        }
+        else {
+            if (key.ctrlKey !== undf && key.ctrlKey != e.ctrlKey) {
+                return false;
+            }
+            if (key.shiftKey !== undf && key.shiftKey != e.shiftKey) {
+                return false;
+            }
+            return !(key.keyCode !== undf && key.keyCode != e.keyCode);
+        }
+    },
+
+    keyHandler: function(event) {
+
+        var e       = normalizeEvent(event || window.event),
+            self    = this;
+
+        self.observable.trigger("key", e);
+    }
+
+
+}, true, false);
+
+
+Input.get = function(node) {
+    if (node.$$input) {
+        return node.$$input;
+    }
+    return new Input(node);
+};
+
+Input.getValue = getValue;
+Input.setValue = setValue;
+
+
+
+
+
+
+
+ns.register("validator.messages", {
+    required: 		"This field is required.",
+    remote:	 		"Please fix this field.",
+    email: 			"Please enter a valid email address.",
+    url: 			"Please enter a valid URL.",
+    date: 			"Please enter a valid date.",
+    dateISO: 		"Please enter a valid date (ISO).",
+    number: 		"Please enter a valid number.",
+    digits: 		"Please enter only digits.",
+    creditcard: 	"Please enter a valid credit card number.",
+    equalTo: 		"Please enter the same value again.",
+    accept: 		"Please enter a value with a valid extension.",
+    maxlength: 		"Please enter no more than {0} characters.",
+    minlength: 		"Please enter at least {0} characters.",
+    rangelength: 	"Please enter a value between {0} and {1} characters long.",
+    range: 			"Please enter a value between {0} and {1}.",
+    max: 			"Please enter a value less than or equal to {0}.",
+    min: 			"Please enter a value greater than or equal to {0}."
+});
+
+
+
+ns.register("validator.checkable", function(elem) {
+    return /radio|checkbox/i.test(elem.type);
+});
+
+function eachNode(el, fn, context) {
+    var i, len,
+        children = el.childNodes;
+
+    if (fn.call(context, el) !== false) {
+        for(i =- 1, len = children.length>>>0;
+            ++i !== len;
+            eachNode(children[i], fn, context)){}
+    }
+};
+
+
+
+
+
+
+
+(function(){
+
+    var checkable = ns.get("validator.checkable");
+
+    // from http://bassistance.de/jquery-plugins/jquery-plugin-validation/
+    return ns.register("validator.getLength", function(value, el) {
+        var l = 0;
+        switch( el.nodeName.toLowerCase() ) {
+            case 'select':
+                eachNode(el, function(node){
+                    if (node.selected) {
+                        l++;
+                    }
+                });
+                return l;
+            case 'input':
+                if (checkable(el)) {
+                    if (el.form) {
+                        eachNode(el.form, function (node) {
+                            if (node.type == el.type && node.name == el.name && node.checked) {
+                                l++;
+                            }
+                        });
+                    }
+                    else {
+                        var parent,
+                            inputs,
+                            i, len;
+
+                        if (isAttached(el)) {
+                            parent  = el.ownerDocument;
+                        }
+                        else {
+                            parent = el;
+                            while (parent.parentNode) {
+                                parent = parent.parentNode;
                             }
                         }
-                        return l;
+
+                        inputs  = select("input[name="+ el.name +"]", parent);
+                        for (i = 0, len = inputs.length; i < len; i++) {
+                            if (inputs[i].checked) {
+                                l++;
+                            }
+                        }
                     }
-            }
-            return value.length;
-        },
-
-        // from http://bassistance.de/jquery-plugins/jquery-plugin-validation/
-        empty = function(value, element) {
-
-            if (!element) {
-                return value == undf || value === '';
-            }
-
-            switch(element.nodeName.toLowerCase()) {
-                case 'select':{
-                    // could be an array for select-multiple or a string, both are fine this way
-                    var val = getValue(element);
-                    return !val || val.length == 0;
+                    return l;
                 }
-                case 'input':{
-                    if (checkable(element))
-                        return getLength(value, element) == 0;
-                    break;
-                }
+        }
+        return value.length;
+    })
+
+}());
+
+
+
+
+
+
+(function(){
+
+    var checkable   = ns.get("validator.checkable"),
+        getLength   = ns.get("validator.getLength");
+
+    // from http://bassistance.de/jquery-plugins/jquery-plugin-validation/
+    return ns.register("validator.empty", function(value, element) {
+
+        if (!element) {
+            return value == undf || value === '';
+        }
+
+        switch(element.nodeName.toLowerCase()) {
+            case 'select':{
+                // could be an array for select-multiple or a string, both are fine this way
+                var val = getValue(element);
+                return !val || val.length == 0;
             }
-
-            return trim(value).length == 0;
-        },
-
-        format = function(str, params) {
-
-            if (isFunction(params)) return str;
-
-            if (!isArray(params)) {
-                params = [params];
+            case 'input':{
+                if (checkable(element))
+                    return getLength(value, element) == 0;
+                break;
             }
+        }
 
-            var i, l = params.length;
+        return trim(value).length == 0;
+    });
 
-            for (i = -1; ++i < l;
-                 str = str.replace(new RegExp("\\{" + i + "\\}", "g"), params[i])){}
+}());
 
-            return str;
-        },
 
-        methods = {};
+
+
+
+
+
+(function(){
+
+    var empty = ns.get("validator.empty"),
+        getLength = ns.get("validator.getLength");
 
     // from http://bassistance.de/jquery-plugins/jquery-plugin-validation/
     // i've changed most of the functions, but the result is the same.
     // this === field's api.
-    extend(methods, {
+
+    return ns.register("validator.methods", {
 
         required: function(value, element, param) {
             if (param === false) {
@@ -4965,7 +6210,7 @@ var Validator = function(){
                        element ?
                        getLength(trim(value), element) >= param :
                        value.toString().length >= param
-                       );
+                   );
         },
 
         maxlength: function(value, element, param) {
@@ -4974,7 +6219,7 @@ var Validator = function(){
                        element ?
                        getLength(trim(value), element) <= param:
                        value.toString().length <= param
-                       );
+                   );
         },
 
         rangelength: function(value, element, param) {
@@ -5079,10 +6324,10 @@ var Validator = function(){
             var f       = api.getValidator().getField(param),
                 target  = f ? f.getElem() : param;
 
-            var listener = function(){
-                removeListener(target, "blur", listener);
-                api.check();
-            };
+            //var listener = function(){
+            //    removeListener(target, "blur", listener);
+            //    api.check();
+            //};
 
             return value == getValue(target);
         },
@@ -5092,10 +6337,10 @@ var Validator = function(){
             var f       = api.getValidator().getField(param),
                 target  = f ? f.getElem() : param;
 
-            var listener = function(){
-                removeListener(target, "blur", listener);
-                api.check();
-            };
+            //var listener = function(){
+            //    removeListener(target, "blur", listener);
+            //    api.check();
+            //};
 
             return value != getValue(target);
         },
@@ -5105,25 +6350,27 @@ var Validator = function(){
         }
     });
 
-    var messages	= {
-        required: 		"This field is required.",
-        remote:	 		"Please fix this field.",
-        email: 			"Please enter a valid email address.",
-        url: 			"Please enter a valid URL.",
-        date: 			"Please enter a valid date.",
-        dateISO: 		"Please enter a valid date (ISO).",
-        number: 		"Please enter a valid number.",
-        digits: 		"Please enter only digits.",
-        creditcard: 	"Please enter a valid credit card number.",
-        equalTo: 		"Please enter the same value again.",
-        accept: 		"Please enter a value with a valid extension.",
-        maxlength: 		"Please enter no more than {0} characters.",
-        minlength: 		"Please enter at least {0} characters.",
-        rangelength: 	"Please enter a value between {0} and {1} characters long.",
-        range: 			"Please enter a value between {0} and {1}.",
-        max: 			"Please enter a value less than or equal to {0}.",
-        min: 			"Please enter a value greater than or equal to {0}."
-    };
+
+}());
+
+
+
+
+ns.register("validator.format", function(str, params) {
+
+    if (isFunction(params)) return str;
+
+    if (!isArray(params)) {
+        params = [params];
+    }
+
+    var i, l = params.length;
+
+    for (i = -1; ++i < l;
+         str = str.replace(new RegExp("\\{" + i + "\\}", "g"), params[i])){}
+
+    return str;
+});
 
 
 
@@ -5133,14 +6380,12 @@ var Validator = function(){
 
 
 
-
-
-
+(function(){
 
     /* ***************************** FIELD ****************************************** */
 
 
-    var fieldDefaults = /*field-options-start*/{
+    var defaults = /*field-options-start*/{
 
         allowSubmit:		true,			// call form.submit() on field's ENTER keyup
         alwaysCheck:		false,			// run tests even the field is proven valid and hasn't changed since last check
@@ -5232,72 +6477,22 @@ var Validator = function(){
     };
 
 
+    var messages = ns.get("validator.messages"),
+        methods = ns.get("validator.methods"),
+        empty = ns.get("validator.empty"),
+        format = ns.get("validator.format");
 
-    var Field = function(elem, options, vldr) {
 
 
-        options             = options || {};
 
-        var self            = this,
-            cfg,
-            scope;
-
-        self._observable    = new Observable;
-
-        extend(self, self._observable.getApi());
-
-        self.cfg            = cfg = extend({}, fieldDefaults,
-                fixFieldShorthands(Validator.fieldDefaults),
-                fixFieldShorthands(options),
-                true, true
-        );
-
-        self.input          = Input.get(elem);
-        self.input.onChange(self.onInputChange, self);
-        self.input.onKey(13, self.onInputSubmit, self);
-
-        self.elem           = elem;
-        self.vldr           = vldr;
-        self.callbackScope  = scope = cfg.callback.scope;
-        self.enabled        = !elem.disabled;
-        self.id             = getAttr(elem, 'name') || getAttr(elem, 'id');
-        self.data           = options.data;
-        self.rules			= {};
-
-        cfg.messages        = extend({}, messages, Validator.messages, cfg.messages, true, true);
-
-        setAttr(elem, "data-validator", vldr.getVldId());
-
-        if (self.input.radio) {
-            self.initRadio();
-        }
-
-        for (var i in cfg.callback) {
-            if (cfg.callback[i]) {
-                self.on(i, cfg.callback[i], scope);
-            }
-        }
-
-        if (cfg.rules) {
-            self.setRules(cfg.rules, false);
-        }
-
-        self.readRules();
-
-        self.prev 	= self.input.getValue();
-
-        if (cfg.disabled) {
-            self.disable();
-        }
-    };
-
-    extend(Field.prototype, {
+    var Field = defineClass({
+        $class: "validator.Field",
+        $mixins: [ObservableMixin],
 
         vldr:           null,
         elem:           null,
         rules:          null,
         cfg:            null,
-        callbackScope:  null,
 
         input:          null,
 
@@ -5316,6 +6511,50 @@ var Validator = function(){
         checkTmt:		null,
         errorBox:       null,
         customError:    false,
+
+        $init: function(elem, options, vldr) {
+            options             = options || {};
+
+            var self            = this,
+                cfg;
+
+            self.cfg            = cfg = extend({}, defaults,
+                fixFieldShorthands(Field.defaults),
+                fixFieldShorthands(options),
+                true, true
+            );
+
+            self.input          = Input.get(elem);
+            self.input.onChange(self.onInputChange, self);
+            self.input.onKey(13, self.onInputSubmit, self);
+
+            self.elem           = elem;
+            self.vldr           = vldr;
+            self.enabled        = !elem.disabled;
+            self.id             = getAttr(elem, 'name') || getAttr(elem, 'id');
+            self.data           = options.data;
+            self.rules			= {};
+
+            cfg.messages        = extend({}, messages, cfg.messages, true, true);
+
+            setAttr(elem, "data-validator", vldr.getVldId());
+
+            if (self.input.radio) {
+                self.initRadio();
+            }
+
+            if (cfg.rules) {
+                self.setRules(cfg.rules, false);
+            }
+
+            self.readRules();
+
+            self.prev 	= self.input.getValue();
+
+            if (cfg.disabled) {
+                self.disable();
+            }
+        },
 
         getValidator: function() {
             return this.vldr;
@@ -5708,7 +6947,7 @@ var Validator = function(){
 
                 var fn = isFunction(rules[i]) ? rules[i] : methods[i];
 
-                if ((msg = fn.call(self.callbackScope, val, elem, rules[i], self)) !== true) {
+                if ((msg = fn.call(self.$$callbackContext, val, elem, rules[i], self)) !== true) {
                     valid = false;
                     self.setError(format(msg || cfg.messages[i] || "", rules[i]), i);
                     break;
@@ -5799,8 +7038,6 @@ var Validator = function(){
 
             var self = this;
 
-            self.trigger('destroy', self);
-
             removeAttr(self.elem, "data-validator");
 
             if (self.errorBox) {
@@ -5808,16 +7045,6 @@ var Validator = function(){
             }
 
             self.input.destroy();
-            self.input = null;
-
-            self._observable.destroy();
-
-            self._observable = null;
-            self.vldr = null;
-            self.cfg = null;
-            self.errorBox = null;
-            self.rules = null;
-            self.elem = null;
         },
 
 
@@ -5901,7 +7128,7 @@ var Validator = function(){
                 dom		= eb.elem;
 
             if (fn) {
-                self.errorBox = fn.call(self.callbackScope, self);
+                self.errorBox = fn.call(self.$$callbackContext, self);
             }
             else if(dom) {
                 self.errorBox = dom;
@@ -5942,9 +7169,9 @@ var Validator = function(){
             //ajax.error 		= self.onAjaxError;
             acfg.data 		= acfg.data || {};
             acfg.data[
-                acfg.paramName ||
-                getAttr(elem, 'name') ||
-                getAttr(elem, 'id')] = val;
+            acfg.paramName ||
+            getAttr(elem, 'name') ||
+            getAttr(elem, 'id')] = val;
 
             if (!acfg.handler) {
                 acfg.dataType 	= 'text';
@@ -5975,7 +7202,7 @@ var Validator = function(){
 
             if (rules['remote'].handler) {
 
-                var res = rules['remote'].handler.call(self.callbackScope, self, data);
+                var res = rules['remote'].handler.call(self.$$callbackContext, self, data);
 
                 if (res !== true) {
                     self.setError(format(res || cfg.messages['remote'] || "", rules['remote']), 'remote');
@@ -6018,17 +7245,34 @@ var Validator = function(){
                 self.trigger('after-ajax', self);
             }
         }
-    }, true, false);
+    }, {
+
+        defaults: {},
+        messages: {}
+
+    });
+
+
+    return Field;
+
+}());
 
 
 
 
 
-    /* ***************************** GROUP ****************************************** */
 
 
 
-    var groupDefaults	= /*group-options-start*/{
+
+(function(){
+
+
+/* ***************************** GROUP ****************************************** */
+
+
+
+    var defaults	= /*group-options-start*/{
 
         alwaysCheck:		false,			// run tests even the field is proven valid and hasn't changed since last check
         alwaysDisplayState:	false,
@@ -6063,69 +7307,18 @@ var Validator = function(){
     }/*group-options-end*/;
 
 
-
-    var Group       = function(options, vldr) {
-
-        options     = options || {};
-
-        var self            = this,
-            cfg,
-            scope;
-
-        self._observable    = new Observable;
-        self._vldr          = vldr;
-
-        extend(self, self._observable.getApi());
-
-        self.cfg            = cfg = extend({},
-                                groupDefaults,
-                                Validator.groupDefaults,
-                                options,
-                                true, true
-        );
-
-        self.callbackScope  = scope = cfg.callback.scope;
-
-        self.data           = options.data;
-
-        self.el             = options.elem;
+    var messages = ns.get("validator.messages"),
+        methods = ns.get("validator.methods"),
+        format = ns.get("validator.format");
 
 
-        self.fields         = {};
-        self.rules		    = {};
-
-        cfg.messages        = extend({}, messages, Validator.messages, cfg.messages, true, true);
-
-
-        var i, len;
-
-        if (cfg.callback) {
-            for (i in cfg.callback) {
-                if (cfg.callback[i]) {
-                    self.on(i, cfg.callback[i], scope);
-                }
-            }
-        }
-
-        if (cfg.rules) {
-            self.setRules(cfg.rules, false);
-        }
-
-        if (cfg.fields) {
-            for (i = 0, len = options.fields.length; i < len; i++) {
-                self.add(vldr.getField(cfg.fields[i]));
-            }
-        }
-
-        self.enabled = !cfg.disabled;
-    };
-
-    extend(Group.prototype, {
+    var Group = defineClass({
+        $class: "validator.Group",
+        $mixins: [ObservableMixin],
 
         fields:         null,
         rules:          null,
         cfg:            null,
-        callbackScope:  null,
         vldr:           null,
         enabled:		false,
         invalid:		null,
@@ -6136,6 +7329,44 @@ var Validator = function(){
         data:			null,
         errorBox:		null,
         el:			    null,
+
+        $init: function(options, vldr) {
+
+            options     = options || {};
+
+            var self            = this,
+                cfg;
+
+            self._vldr          = vldr;
+
+            self.cfg            = cfg = extend({},
+                defaults,
+                Group.defaults,
+                options,
+                true, true
+            );
+
+            self.data           = options.data;
+            self.el             = options.elem;
+            self.fields         = {};
+            self.rules		    = {};
+
+            cfg.messages        = extend({}, messages, cfg.messages, true, true);
+
+            var i, len;
+
+            if (cfg.rules) {
+                self.setRules(cfg.rules, false);
+            }
+
+            if (cfg.fields) {
+                for (i = 0, len = options.fields.length; i < len; i++) {
+                    self.add(vldr.getField(cfg.fields[i]));
+                }
+            }
+
+            self.enabled = !cfg.disabled;
+        },
 
         /**
          * Enable group
@@ -6359,14 +7590,14 @@ var Validator = function(){
                     vals[i]	= fields[i].getValue();
                 }
 
-                val	= cfg.value.call(self.callbackScope, vals, self);
+                val	= cfg.value.call(self.$$callbackContext, vals, self);
             }
 
             for (i in rules) {
 
                 var fn = isFunction(rules[i]) ? rules[i] : methods[i];
 
-                if ((msg = fn.call(self.callbackScope, val, null, rules[i], self, vals)) !== true) {
+                if ((msg = fn.call(self.$$callbackContext, val, null, rules[i], self, vals)) !== true) {
 
                     valid = false;
 
@@ -6451,7 +7682,7 @@ var Validator = function(){
             else if (!self.errorBox) {
 
                 if (isFunction(cfg.errorBox)) {
-                    self.errorBox	= cfg.errorBox.call(self.callbackScope, self);
+                    self.errorBox	= cfg.errorBox.call(self.$$callbackContext, self);
                 }
                 else {
                     self.errorBox	= cfg.errorBox;
@@ -6479,14 +7710,6 @@ var Validator = function(){
             if (self.errorBox) {
                 self.errorBox.parentNode.removeChild(self.errorBox);
             }
-
-            self._observable.destroy();
-
-            self._observable = null;
-            self.vldr = null;
-            self.rules = null;
-            self.fields = null;
-            self.cfg = null;
         },
 
         add:		function(field) {
@@ -6545,13 +7768,31 @@ var Validator = function(){
             self.trigger("field-state-change", self, f, valid);
             self.check();
         }
-    }, true, false);
+    }, {
+
+        defaults: {}
+    });
+
+
+
+    return Group;
+
+}());
 
 
 
 
 
-    /* ***************************** FORM ****************************************** */
+
+
+
+var Validator = (function(){
+
+
+    var validators  = {};
+
+    var Field = MetaphorJs.validator.Field,
+        Group = MetaphorJs.validator.Group;
 
 
     var defaults = /*validator-options-start*/{
@@ -6591,83 +7832,12 @@ var Validator = function(){
     }/*validator-options-end*/;
 
 
-    var Validator = function(el, preset, options) {
+    var Validator = defineClass({
 
-        var self    = this,
-            tag     = el.nodeName.toLowerCase(),
-            cfg,
-            scope;
+        $class: "Validator",
+        $mixins: [ObservableMixin],
 
-        self.vldId  = ++vldId;
-
-        validators[self.vldId] = self;
-
-        setAttr(el, "data-validator", self.vldId);
-
-        self.el     = el;
-
-        if (preset && !isString(preset)) {
-            options         = preset;
-            preset          = null;
-        }
-
-        self._observable    = new Observable;
-        self.cfg            = cfg = extend({}, defaults, Validator.defaults, Validator[preset], options, true, true);
-        self.callbackScope  = scope = cfg.callback.scope;
-
-        self.isForm         = tag == 'form';
-        self.isField        = /input|select|textarea/.test(tag);
-
-        self.fields         = {};
-        self.groups         = {};
-
-        extend(self, self._observable.getApi());
-
-        self._observable.createEvent("submit", false);
-        self._observable.createEvent("beforesubmit", false);
-
-        self.onRealSubmitClickDelegate  = bind(self.onRealSubmitClick, self);
-        self.resetDelegate = bind(self.reset, self);
-        self.onSubmitClickDelegate = bind(self.onSubmitClick, self);
-        self.onFormSubmitDelegate = bind(self.onFormSubmit, self);
-
-        delete cfg.callback.scope;
-
-        var i, c;
-
-        for (c in cfg.callback) {
-            self.on(c, cfg.callback[c], scope);
-        }
-
-        self.initFields();
-
-        var fields  = self.fields;
-
-        for (i in cfg.rules) {
-            if (!fields[i]) {
-                continue;
-            }
-            fields[i].setRules(cfg.rules[i], false);
-        }
-
-        cfg.rules	= null;
-
-        for (i in cfg.groups) {
-            self.addGroup(i, cfg.groups[i]);
-        }
-
-        self.initForm('bind');
-
-        delete cfg.rules;
-        delete cfg.fields;
-        delete cfg.groups;
-
-        self.enabled = true;
-    };
-
-    extend(Validator.prototype, {
-
-        vldId:          null,
+        id:             null,
         el:             null,
         cfg:            null,
         enabled: 		false,
@@ -6681,17 +7851,76 @@ var Validator = function(){
         isField: 		false,
         submitButton: 	null,
         hidden:			null,
-        callbackScope:  null,
 
         preventFormSubmit: false,
-
-        _observable:    null,
 
         fields:         null,
         groups:         null,
 
+        $init: function(el, preset, options) {
+
+            var self    = this,
+                tag     = el.nodeName.toLowerCase(),
+                cfg;
+
+            self.id     = nextUid();
+            validators[self.id] = self;
+
+            setAttr(el, "data-validator", self.id);
+
+            self.el     = el;
+
+            if (preset && !isString(preset)) {
+                options         = preset;
+                preset          = null;
+            }
+
+            self.cfg            = cfg = extend({}, defaults, Validator.defaults, Validator[preset], options, true, true);
+
+            self.isForm         = tag == 'form';
+            self.isField        = /input|select|textarea/.test(tag);
+
+            self.fields         = {};
+            self.groups         = {};
+
+            self.$$observable.createEvent("submit", false);
+            self.$$observable.createEvent("beforesubmit", false);
+
+            self.onRealSubmitClickDelegate  = bind(self.onRealSubmitClick, self);
+            self.resetDelegate = bind(self.reset, self);
+            self.onSubmitClickDelegate = bind(self.onSubmitClick, self);
+            self.onFormSubmitDelegate = bind(self.onFormSubmit, self);
+
+            var i;
+
+            self.initFields();
+
+            var fields  = self.fields;
+
+            for (i in cfg.rules) {
+                if (!fields[i]) {
+                    continue;
+                }
+                fields[i].setRules(cfg.rules[i], false);
+            }
+
+            cfg.rules	= null;
+
+            for (i in cfg.groups) {
+                self.addGroup(i, cfg.groups[i]);
+            }
+
+            self.initForm('bind');
+
+            delete cfg.rules;
+            delete cfg.fields;
+            delete cfg.groups;
+
+            self.enabled = true;
+        },
+
         getVldId:       function() {
-            return this.vldId;
+            return this.id;
         },
 
         /**
@@ -6702,14 +7931,14 @@ var Validator = function(){
         },
 
         /**
-         * @return {Group}
+         * @return {validator.Group}
          */
         getGroup: function(name) {
             return this.groups[name] || null;
         },
 
         /**
-         * @return {Field}
+         * @return {validator.Field}
          */
         getField:	function(id) {
             return this.fields[id] || null;
@@ -6935,7 +8164,7 @@ var Validator = function(){
 
             if (!fcfg.callback) {
                 fcfg.callback = {
-                    scope:	self.callbackScope
+                    context:	self.$$callbackContext
                 };
             }
 
@@ -7116,12 +8345,12 @@ var Validator = function(){
             for (i = -1, l = submits.length;
                  ++i < l;
                  submits[i].type != "submit" && fn(submits[i], "click", self.onSubmitClickDelegate)
-                ){}
+            ){}
 
             for (i = -1, l = resets.length;
                  ++i < l;
                  resets[i].type != "reset" && fn(resets[i], "click", self.resetDelegate)
-                ){}
+            ){}
 
             if (self.isForm) {
                 fn(el, "submit", self.onFormSubmitDelegate);
@@ -7363,9 +8592,9 @@ var Validator = function(){
                 i;
 
             self.reset();
-            self.trigger('destroy', self);
+            //self.trigger('destroy', self);
 
-            delete validators[self.vldId];
+            delete validators[self.id];
 
             for (i in groups) {
                 if (groups.hasOwnProperty(i) && groups[i]) {
@@ -7381,9 +8610,6 @@ var Validator = function(){
                 }
             }
 
-            self._observable.destroy();
-            self._observable = null;
-
             self.initForm('unbind');
 
             self.fields = null;
@@ -7392,32 +8618,33 @@ var Validator = function(){
             self.cfg = null;
         }
 
-    }, true, false);
+    }, {
 
+        defaults:   {},
 
-
-
-
-    Validator.defaults 		    = {};
-    Validator.messages 		    = {};
-    Validator.fieldDefaults 	= {};
-    Validator.groupDefaults 	= {};
-    Validator.addMethod 		= function(name, fn, message) {
-        if (!methods[name]) {
-            methods[name] = fn;
-            if (message) {
-                Validator.messages[name] = message;
+        addMethod:  function(name, fn, message) {
+            var methods = ns.get("validator.methods");
+            if (!methods[name]) {
+                methods[name] = fn;
+                if (message) {
+                    Validator.messages[name] = message;
+                }
             }
+        },
+
+        getValidator: function(el) {
+            var vldId = getAttr(el, "data-validator");
+            return validators[vldId] || null;
         }
-    };
-    Validator.getValidator      = function(el) {
-        var vldId = getAttr(el, "data-validator");
-        return validators[vldId] || null;
-    };
+
+
+    });
+
+
 
     return Validator;
-}();
 
+}());
 
 
 
@@ -7462,7 +8689,8 @@ if (window.jQuery) {
         });
     };
 }
-MetaphorJs['Validator'] = Validator;
-typeof global != "undefined" ? (global['MetaphorJs'] = MetaphorJs) : (window['MetaphorJs'] = MetaphorJs);
+var MetaphorJsExports = {};
+MetaphorJsExports['Validator'] = Validator;
+typeof global != "undefined" ? (global['MetaphorJs'] = MetaphorJsExports) : (window['MetaphorJs'] = MetaphorJsExports);
 
 }());

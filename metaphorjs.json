@@ -11,9 +11,9 @@
             "global": true,
             "target": "dist/metaphorjs.validator.js",
             "files": [
-                "../metaphorjs/src/MetaphorJs.js",
+                "metaphorjs/src/MetaphorJs.js",
                 [
-                    "src/metaphorjs.validator.js",
+                    "src/class/Validator.js",
                     {
                         "as": "Validator"
                     }
@@ -34,20 +34,20 @@
             },
             "files": [
                 [
-                    "src/metaphorjs.validator.js",
+                    "src/class/Validator.js",
                     {
                         "as": "Validator"
                     }
                 ]
             ],
             "omit": [
-                "../metaphorjs-observable/src/metaphorjs.observable.js",
-                "../metaphorjs-promise/src/metaphorjs.promise.js",
-                "../metaphorjs-ajax/src/metaphorjs.ajax.js",
-                "../metaphorjs-select/src/metaphorjs.select.js",
-                "../metaphorjs-input/src/metaphorjs.input.js",
-                "../metaphorjs-input/src/func/getValue.js",
-                "../metaphorjs-input/src/func/setValue.js"
+                "metaphorjs-observable/src/lib/Observable.js",
+                "metaphorjs-promise/src/lib/Promise.js",
+                "metaphorjs-ajax/src/func/ajax.js",
+                "metaphorjs-select/src/func/select.js",
+                "metaphorjs-input/src/lib/Input.js",
+                "metaphorjs-input/src/func/getValue.js",
+                "metaphorjs-input/src/func/setValue.js"
             ],
             "require": {
                 "metaphorjs-observable": "Observable",
@@ -71,7 +71,7 @@
             "target": "dist/metaphorjs.validator.amd.js",
             "files": [
                 [
-                    "src/metaphorjs.validator.js",
+                    "src/class/Validator.js",
                     {
                         "as": "Validator"
                     }
@@ -79,13 +79,13 @@
                 "src/jquery/plugin.js"
             ],
             "omit": [
-                "../metaphorjs-observable/src/metaphorjs.observable.js",
-                "../metaphorjs-promise/src/metaphorjs.promise.js",
-                "../metaphorjs-ajax/src/metaphorjs.ajax.js",
-                "../metaphorjs-select/src/metaphorjs.select.js",
-                "../metaphorjs-input/src/metaphorjs.input.js",
-                "../metaphorjs-input/src/func/getValue.js",
-                "../metaphorjs-input/src/func/setValue.js"
+                "metaphorjs-observable/src/lib/Observable.js",
+                "metaphorjs-promise/src/lib/Promise.js",
+                "metaphorjs-ajax/src/func/ajax.js",
+                "metaphorjs-select/src/func/select.js",
+                "metaphorjs-input/src/lib/Input.js",
+                "metaphorjs-input/src/func/getValue.js",
+                "metaphorjs-input/src/func/setValue.js"
             ],
             "prepend": [
                 "src/amd/prepend.js"

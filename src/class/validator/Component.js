@@ -1,34 +1,19 @@
 
-var Validator = require("../class/Validator.js"),
+var Validator = require("../Validator.js"),
     defineClass = require("metaphorjs-class/src/func/defineClass.js"),
     bind = require("metaphorjs/src/func/bind.js"),
     createFunc = require("metaphorjs-watchable/src/func/createFunc.js"),
     error = require("metaphorjs/src/func/error.js"),
     eachNode = require("metaphorjs/src/func/dom/eachNode.js"),
     isField = require("metaphorjs/src/func/dom/isField.js"),
-    Directive = require("metaphorjs/src/class/Directive.js"),
-    nsGet = require("metaphorjs-namespace/src/func/nsGet.js"),
     getAttr = require("metaphorjs/src/func/dom/getAttr.js"),
     getNodeConfig = require("metaphorjs/src/func/dom/getNodeConfig.js");
 
 
-Directive.registerAttribute("mjs-validate", 250, function(scope, node, expr, renderer) {
-
-    var cls     = expr || "ValidatorComponent",
-        constr  = nsGet(cls);
-
-    if (!constr) {
-        error(new Error("Class '"+cls+"' not found"));
-    }
-    else {
-        new constr(node, scope, renderer);
-    }
-});
-
 
 module.exports = defineClass({
 
-    $class: "ValidatorComponent",
+    $class: "validator.Component",
 
     node: null,
     scope: null,

@@ -1132,7 +1132,7 @@ var Class = function(){
                 for (i = 0, l = mixins.length; i < l; i++) {
                     mixin = mixins[i];
                     if (isString(mixin)) {
-                        mixin = ns.get("mixin." + mixin, true);
+                        mixin = ns.get(mixin, true);
                     }
                     mixinToPrototype(prototype, mixin);
                 }
@@ -1329,80 +1329,6 @@ var cs = new Class(ns);
 
 
 var defineClass = cs.define;
-
-
-
-/**
- * @mixin ObservableMixin
- */
-var ObservableMixin = ns.add("mixin.Observable", {
-
-    /**
-     * @type {Observable}
-     */
-    $$observable: null,
-    $$callbackContext: null,
-
-    $beforeInit: function(cfg) {
-
-        var self = this;
-
-        self.$$observable = new Observable;
-
-        if (cfg && cfg.callback) {
-            var ls = cfg.callback,
-                context = ls.context || ls.scope,
-                i;
-
-            ls.context = null;
-            ls.scope = null;
-
-            for (i in ls) {
-                if (ls[i]) {
-                    self.$$observable.on(i, ls[i], context || self);
-                }
-            }
-
-            cfg.callback = null;
-
-            if (context) {
-                self.$$callbackContext = context;
-            }
-        }
-    },
-
-    on: function() {
-        var o = this.$$observable;
-        return o.on.apply(o, arguments);
-    },
-
-    un: function() {
-        var o = this.$$observable;
-        return o.un.apply(o, arguments);
-    },
-
-    once: function() {
-        var o = this.$$observable;
-        return o.once.apply(o, arguments);
-    },
-
-    trigger: function() {
-        var o = this.$$observable;
-        return o.trigger.apply(o, arguments);
-    },
-
-    $beforeDestroy: function() {
-        this.$$observable.trigger("before-destroy", this);
-    },
-
-    $afterDestroy: function() {
-        var self = this;
-        self.$$observable.trigger("destroy", self);
-        self.$$observable.destroy();
-        self.$$observable = null;
-    }
-});
-
 
 /**
  * @param {Function} fn
@@ -2236,6 +2162,81 @@ ns.register("validator.format", function(str, params) {
 
 
 
+/**
+ * @mixin Observable
+ */
+ns.register("mixin.Observable", {
+
+    /**
+     * @type {Observable}
+     */
+    $$observable: null,
+    $$callbackContext: null,
+
+    $beforeInit: function(cfg) {
+
+        var self = this;
+
+        self.$$observable = new Observable;
+
+        if (cfg && cfg.callback) {
+            var ls = cfg.callback,
+                context = ls.context || ls.scope,
+                i;
+
+            ls.context = null;
+            ls.scope = null;
+
+            for (i in ls) {
+                if (ls[i]) {
+                    self.$$observable.on(i, ls[i], context || self);
+                }
+            }
+
+            cfg.callback = null;
+
+            if (context) {
+                self.$$callbackContext = context;
+            }
+        }
+    },
+
+    on: function() {
+        var o = this.$$observable;
+        return o.on.apply(o, arguments);
+    },
+
+    un: function() {
+        var o = this.$$observable;
+        return o.un.apply(o, arguments);
+    },
+
+    once: function() {
+        var o = this.$$observable;
+        return o.once.apply(o, arguments);
+    },
+
+    trigger: function() {
+        var o = this.$$observable;
+        return o.trigger.apply(o, arguments);
+    },
+
+    $beforeDestroy: function() {
+        this.$$observable.trigger("before-destroy", this);
+    },
+
+    $afterDestroy: function() {
+        var self = this;
+        self.$$observable.trigger("destroy", self);
+        self.$$observable.destroy();
+        self.$$observable = null;
+    }
+});
+
+
+
+
+
 
 
 
@@ -2349,7 +2350,7 @@ ns.register("validator.format", function(str, params) {
 
     var Field = defineClass({
         $class: "validator.Field",
-        $mixins: [ObservableMixin],
+        $mixins: ["mixin.Observable"],
 
         vldr:           null,
         elem:           null,
@@ -3176,7 +3177,7 @@ ns.register("validator.format", function(str, params) {
 
     var Group = defineClass({
         $class: "validator.Group",
-        $mixins: [ObservableMixin],
+        $mixins: ["mixin.Observable"],
 
         fields:         null,
         rules:          null,
@@ -3697,7 +3698,7 @@ var Validator = (function(){
     var Validator = defineClass({
 
         $class: "Validator",
-        $mixins: [ObservableMixin],
+        $mixins: ["mixin.Observable"],
 
         id:             null,
         el:             null,

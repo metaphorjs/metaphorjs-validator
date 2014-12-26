@@ -1,7 +1,6 @@
 
 
 var defineClass     = require("metaphorjs-class/src/func/defineClass.js"),
-    ObservableMixin = require("metaphorjs/src/mixin/ObservableMixin.js"),
     getValue        = require("metaphorjs-input/src/func/getValue.js"),
     extend          = require("metaphorjs/src/func/extend.js"),
     addClass        = require("metaphorjs/src/func/dom/addClass.js"),
@@ -12,7 +11,7 @@ var defineClass     = require("metaphorjs-class/src/func/defineClass.js"),
 require("../../var/messages.js");
 require("../../var/methods.js");
 require("../../func/format.js");
-
+require("metaphorjs-observable/src/mixin/Observable.js");
 
 module.exports = (function(){
 
@@ -63,7 +62,7 @@ module.exports = (function(){
 
     var Group = defineClass({
         $class: "validator.Group",
-        $mixins: [ObservableMixin],
+        $mixins: ["mixin.Observable"],
 
         fields:         null,
         rules:          null,

@@ -112,6 +112,8 @@ module.exports = (function(){
 
             self.cfg            = cfg = extend({}, defaults, Validator.defaults, Validator[preset], options, true, true);
 
+            self.$initObservable(cfg);
+
             self.isForm         = tag == 'form';
             self.isField        = /input|select|textarea/.test(tag);
 
@@ -605,7 +607,6 @@ module.exports = (function(){
         },
 
         onFormSubmit: function(e) {
-
             e = normalizeEvent(e);
             if (!this.isValid() || this.preventFormSubmit) {
                 e.preventDefault();

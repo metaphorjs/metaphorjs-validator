@@ -812,10 +812,7 @@ module.exports = (function(){
             //ajax.success 	= self.onAjaxSuccess;
             //ajax.error 		= self.onAjaxError;
             acfg.data 		= acfg.data || {};
-            acfg.data[
-            acfg.paramName ||
-            getAttr(elem, 'name') ||
-            getAttr(elem, 'id')] = val;
+            acfg.data[acfg.paramName || getAttr(elem, 'name') || getAttr(elem, 'id')] = val;
 
             if (!acfg.handler) {
                 acfg.dataType 	= 'text';

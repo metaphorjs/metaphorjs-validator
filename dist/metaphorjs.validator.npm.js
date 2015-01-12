@@ -693,6 +693,10 @@ var Class = function(){
                 ret             = fn.apply(self, arguments);
                 self.$super     = prev;
 
+                if (self.$destroyed) {
+                    self.$super = null;
+                }
+
                 return ret;
             };
         },
@@ -862,6 +866,7 @@ var Class = function(){
             $mixins: null,
 
             $destroyed: false,
+            $destroying: false,
 
             $constructor: emptyFn,
             $init: emptyFn,
@@ -945,11 +950,11 @@ var Class = function(){
                     plugins = self.$plugins,
                     i, l, res;
 
-                if (self.$destroyed) {
+                if (self.$destroying || self.$destroyed) {
                     return;
                 }
 
-                self.$destroyed = true;
+                self.$destroying = true;
 
                 for (i = -1, l = before.length; ++i < l;
                      before[i].apply(self, arguments)){}
@@ -977,6 +982,7 @@ var Class = function(){
                     }
                 }
 
+                self.$destroying = false;
                 self.$destroyed = true;
             },
 
@@ -2182,6 +2188,13 @@ ns.register("mixin.Observable", {
 
         self.$$observable = new Observable;
 
+        self.$initObservable(cfg);
+    },
+
+    $initObservable: function(cfg) {
+
+        var self = this;
+
         if (cfg && cfg.callback) {
             var ls = cfg.callback,
                 context = ls.context || ls.scope,
@@ -3034,10 +3047,7 @@ ns.register("mixin.Observable", {
             //ajax.success 	= self.onAjaxSuccess;
             //ajax.error 		= self.onAjaxError;
             acfg.data 		= acfg.data || {};
-            acfg.data[
-            acfg.paramName ||
-            getAttr(elem, 'name') ||
-            getAttr(elem, 'id')] = val;
+            acfg.data[acfg.paramName || getAttr(elem, 'name') || getAttr(elem, 'id')] = val;
 
             if (!acfg.handler) {
                 acfg.dataType 	= 'text';
@@ -3743,6 +3753,8 @@ var Validator = (function(){
 
             self.cfg            = cfg = extend({}, defaults, Validator.defaults, Validator[preset], options, true, true);
 
+            self.$initObservable(cfg);
+
             self.isForm         = tag == 'form';
             self.isField        = /input|select|textarea/.test(tag);
 
@@ -4236,7 +4248,6 @@ var Validator = (function(){
         },
 
         onFormSubmit: function(e) {
-
             e = normalizeEvent(e);
             if (!this.isValid() || this.preventFormSubmit) {
                 e.preventDefault();

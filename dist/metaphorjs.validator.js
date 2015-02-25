@@ -575,7 +575,8 @@ var extend = function(){
         }
 
         while (args.length) {
-            if (src = args.shift()) {
+            // IE < 9 fix: check for hasOwnProperty presence
+            if ((src = args.shift()) && src.hasOwnProperty) {
                 for (k in src) {
 
                     if (src.hasOwnProperty(k) && (value = src[k]) !== undf) {
@@ -1460,6 +1461,7 @@ extend(DomEvent.prototype, {
         var e = this.originalEvent;
 
         this.isPropagationStopped = returnTrue;
+        e.cancelBubble = true;
 
         if ( e && e.stopPropagation ) {
             e.stopPropagation();
@@ -1634,8 +1636,16 @@ var addListener = function(){
     return function addListener(el, event, func) {
 
         if (fn === null) {
-            fn = el.attachEvent ? "attachEvent" : "addEventListener";
-            prefix = el.attachEvent ? "on" : "";
+            if (el.addEventListener) {
+                fn = "addEventListener";
+                prefix = "";
+            }
+            else {
+                fn = "attachEvent";
+                prefix = "on";
+            }
+            //fn = el.attachEvent ? "attachEvent" : "addEventListener";
+            //prefix = el.attachEvent ? "on" : "";
         }
 
 
@@ -1665,8 +1675,16 @@ var removeListener = function(){
     return function removeListener(el, event, func) {
 
         if (fn === null) {
-            fn = el.detachEvent ? "detachEvent" : "removeEventListener";
-            prefix = el.detachEvent ? "on" : "";
+            if (el.removeEventListener) {
+                fn = "removeEventListener";
+                prefix = "";
+            }
+            else {
+                fn = "detachEvent";
+                prefix = "on";
+            }
+            //fn = el.detachEvent ? "detachEvent" : "removeEventListener";
+            //prefix = el.detachEvent ? "on" : "";
         }
 
         el[fn](prefix + event, func);
@@ -3251,22 +3269,54 @@ function isThenable(any) {
 
 
 
-function error(e) {
+var error = (function(){
 
-    var stack = e.stack || (new Error).stack;
+    var listeners = [];
 
-    if (typeof console != strUndef && console.log) {
-        async(function(){
-            console.log(e);
-            if (stack) {
-                console.log(stack);
+    var error = function error(e) {
+
+        var i, l;
+
+        for (i = 0, l = listeners.length; i < l; i++) {
+            listeners[i][0].call(listeners[i][1], e);
+        }
+
+        var stack = (e ? e.stack : null) || (new Error).stack;
+
+        if (typeof console != strUndef && console.log) {
+            async(function(){
+                if (e) {
+                    console.log(e);
+                }
+                if (stack) {
+                    console.log(stack);
+                }
+            });
+        }
+        else {
+            throw e;
+        }
+    };
+
+    error.on = function(fn, context) {
+        error.un(fn, context);
+        listeners.push([fn, context]);
+    };
+
+    error.un = function(fn, context) {
+        var i, l;
+        for (i = 0, l = listeners.length; i < l; i++) {
+            if (listeners[i][0] === fn && listeners[i][1] === context) {
+                listeners.splice(i, 1);
+                break;
             }
-        });
-    }
-    else {
-        throw e;
-    }
-};
+        }
+    };
+
+    return error;
+}());
+
+
 
 
 
@@ -3456,6 +3506,10 @@ var Promise = function(){
         },
 
         isFulfilled: function() {
+            return this._state == FULFILLED;
+        },
+
+        isResolved: function() {
             return this._state == FULFILLED;
         },
 
@@ -4050,6 +4104,71 @@ function setAttr(el, name, value) {
 };
 
 
+
+// partly from jQuery serialize.js
+
+var serializeParam = function(){
+
+    var r20 = /%20/g,
+        rbracket = /\[\]$/;
+
+    function buildParams(prefix, obj, add) {
+        var name,
+            i, l, v;
+
+        if (isArray(obj)) {
+            // Serialize array item.
+
+            for (i = 0, l = obj.length; i < l; i++) {
+                v = obj[i];
+
+                if (rbracket.test(prefix)) {
+                    // Treat each array item as a scalar.
+                    add(prefix, v);
+
+                } else {
+                    // Item is non-scalar (array or object), encode its numeric index.
+                    buildParams(
+                        prefix + "[" + ( typeof v === "object" ? i : "" ) + "]",
+                        v,
+                        add
+                    );
+                }
+            }
+        } else if (isPlainObject(obj)) {
+            // Serialize object item.
+            for (name in obj) {
+                buildParams(prefix + "[" + name + "]", obj[ name ], add);
+            }
+
+        } else {
+            // Serialize scalar item.
+            add(prefix, obj);
+        }
+    }
+
+    return function(obj) {
+
+        var prefix,
+            s = [],
+            add = function( key, value ) {
+                // If value is a function, invoke it and return its value
+                value = isFunction(value) ? value() : (value == null ? "" : value);
+                s[s.length] = encodeURIComponent( key ) + "=" + encodeURIComponent( value );
+            };
+
+        for ( prefix in obj ) {
+            buildParams(prefix, obj[prefix], add);
+        }
+
+        // Return the resulting serialization
+        return s.join( "&" ).replace( r20, "+" );
+    };
+
+
+}();
+
+
 /**
  * @mixin Promise
  */
@@ -4142,10 +4261,23 @@ ns.register("mixin.Promise", {
             self._ajax          = ajax;
 
             if (opt.progress) {
-                addListener(xhr, "progress", bind(opt.progress, opt.context));
+                /*if (xhr.addEventListener) {
+                    xhr.addEventListener("progress", bind(opt.progress, opt.context));
+                }
+                else {
+                    addListener(xhr, "progress", bind(opt.progress, opt.context));
+                }*/
+                xhr.onprogress = bind(opt.progress, opt.context);
             }
             if (opt.uploadProgress && xhr.upload) {
-                addListener(xhr.upload, "progress", bind(opt.uploadProgress, opt.context));
+                /*if (xhr.addEventListener) {
+                    xhr.upload.addEventListener("progress", bind(opt.uploadProgress, opt.context));
+                }
+                else {
+                    addListener(xhr.upload, "progress", bind(opt.uploadProgress, opt.context));
+                }*/
+
+                xhr.upload.onprogress = bind(opt.uploadProgress, opt.context);
             }
 
             xhr.onreadystatechange = bind(self.onReadyStateChange, self);
@@ -4313,6 +4445,7 @@ defineClass({
     _deferred: null,
     _ajax: null,
     _el: null,
+    _sent: false,
 
     $init: function(opt, deferred, ajax) {
         var self        = this;
@@ -4342,12 +4475,27 @@ defineClass({
 
         self._el = frame;
 
-        try {
-            form.submit();
-        }
-        catch (thrownError) {
-            self._deferred.reject(thrownError);
-        }
+        var tries = 0;
+
+        var submit = function() {
+
+            tries++;
+
+            try {
+                form.submit();
+                self._sent = true;
+            }
+            catch (thrownError) {
+                if (tries > 2) {
+                    self._deferred.reject(thrownError);
+                }
+                else {
+                    async(submit, null, [], 1000);
+                }
+            }
+        };
+
+        submit();
     },
 
     onLoad: function() {
@@ -4356,6 +4504,10 @@ defineClass({
             frame   = self._el,
             doc,
             data;
+
+        if (!self._sent) {
+            return;
+        }
 
         if (self._opt && !self._opt.jsonp) {
 
@@ -4371,6 +4523,11 @@ defineClass({
     },
 
     onError: function(evt) {
+
+        if (!this._sent) {
+            return;
+        }
+
         this._deferred.reject(evt);
     },
 
@@ -4454,31 +4611,15 @@ defineClass({
             return data + "";
         },
 
-        buildParams     = function(data, params, name) {
 
-            var i, len;
+        fixUrlDomain    = function(url) {
 
-            if (isPrimitive(data) && name) {
-                params.push(encodeURIComponent(name) + "=" + encodeURIComponent(""+data));
+            if (url.substr(0,1) == "/") {
+                return location.protocol + "//" + location.host + url;
             }
-            else if (isArray(data) && name) {
-                for (i = 0, len = data.length; i < len; i++) {
-                    buildParams(data[i], params, name + "["+i+"]");
-                }
+            else {
+                return url;
             }
-            else if (isObject(data)) {
-                for (i in data) {
-                    if (data.hasOwnProperty(i)) {
-                        buildParams(data[i], params, name ? name + "["+i+"]" : i);
-                    }
-                }
-            }
-        },
-
-        prepareParams   = function(data) {
-            var params = [];
-            buildParams(data, params, null);
-            return params.join("&").replace(/%20/g, "+");
         },
 
         prepareUrl  = function(url, opt) {
@@ -4496,14 +4637,11 @@ defineClass({
                       url + (rquery.test(url) ? "&" : "?" ) + "_=" + stamp;
             }
 
-            if (opt.data && (!formDataSupport || !(opt.data instanceof window.FormData))) {
+            if (opt.data && opt.method != "POST" && !opt.contentType && (!formDataSupport || !(opt.data instanceof window.FormData))) {
 
-                opt.data = !isString(opt.data) ? prepareParams(opt.data) : opt.data;
-
-                if (rgethead.test(opt.method)) {
-                    url += (rquery.test(url) ? "&" : "?") + opt.data;
-                    opt.data = null;
-                }
+                opt.data = !isString(opt.data) ? serializeParam(opt.data) : opt.data;
+                url += (rquery.test(url) ? "&" : "?") + opt.data;
+                opt.data = null;
             }
 
             return url;
@@ -4534,10 +4672,11 @@ defineClass({
             }
         },
 
+
         // https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest/Using_XMLHttpRequest
         serializeForm   = function(form) {
 
-            var oField, sFieldType, nFile, sSearch = "";
+            var oField, sFieldType, nFile, obj = {};
 
             for (var nItem = 0; nItem < form.elements.length; nItem++) {
 
@@ -4553,15 +4692,14 @@ defineClass({
                 if (sFieldType === "FILE") {
                     for (nFile = 0;
                          nFile < oField.files.length;
-                         sSearch += "&" + encodeURIComponent(oField.name) + "=" +
-                                    encodeURIComponent(oField.files[nFile++].name)){}
+                         obj[oField.name] = oField.files[nFile++].name){}
 
                 } else if ((sFieldType !== "RADIO" && sFieldType !== "CHECKBOX") || oField.checked) {
-                    sSearch += "&" + encodeURIComponent(oField.name) + "=" + encodeURIComponent(oField.value);
+                    obj[oField.name] = oField.value;
                 }
             }
 
-            return sSearch;
+            return serializeParam(obj);
         },
 
         globalEval = function(code){
@@ -4593,6 +4731,10 @@ defineClass({
         _removeForm: false,
 
         $init: function(opt) {
+
+            if (opt.url) {
+                opt.url = fixUrlDomain(opt.url);
+            }
 
             var self        = this,
                 href        = window ? window.location.href : "",
@@ -4628,23 +4770,28 @@ defineClass({
                 }
             }
 
-            if (opt.form && opt.transport != "iframe") {
-                if (opt.method == "POST") {
+            if (opt.form && opt.transport != "iframe" && opt.method == "POST") {
+                if (formDataSupport) {
                     opt.data = new FormData(opt.form);
                 }
                 else {
+                    opt.contentType = "application/x-www-form-urlencoded";
                     opt.data = serializeForm(opt.form);
                 }
             }
-            else if (opt.method == "POST" && formDataSupport) {
+            else if (opt.contentType == "json") {
+                opt.contentType = "text/plain";
+                opt.data = isString(opt.data) ? opt.data : JSON.stringify(opt.data);
+            }
+            else if (isPlainObject(opt.data) && opt.method == "POST" && formDataSupport) {
+
                 var d = opt.data,
                     k;
+
                 opt.data = new FormData;
 
-                if (isPlainObject(d)) {
-                    for (k in d) {
-                        opt.data.append(k, d[k]);
-                    }
+                for (k in d) {
+                    opt.data.append(k, d[k]);
                 }
             }
 
@@ -4765,7 +4912,7 @@ defineClass({
                     file = item[1];
                 }
                 else {
-                    if (item instanceof File) {
+                    if (window.File && item instanceof File) {
                         name = "upload" + (l > 1 ? "[]" : "");
                     }
                     else {
@@ -4774,7 +4921,7 @@ defineClass({
                     file = item;
                 }
 
-                if (!(file instanceof File)) {
+                if (!window.File || !(file instanceof File)) {
                     input = file;
                     file = null;
                 }
@@ -4848,7 +4995,7 @@ defineClass({
             data    = processData(data, opt, contentType);
 
             if (globalEvents.hasListener("process-response")) {
-                data    = globalEvents.trigger("process-response", data, self.$$promise);
+                globalEvents.trigger("process-response", data, self.$$promise);
             }
 
             if (opt.processResponse) {
@@ -4948,9 +5095,9 @@ var ajax = function(){
             username:       null,
             password:       null,
             cache:          null,
-            dataType:       null,
+            dataType:       null, // response data type
             timeout:        0,
-            contentType:    "application/x-www-form-urlencoded",
+            contentType:    null, // request data type
             xhrFields:      null,
             jsonp:          false,
             jsonpParam:     null,
@@ -5012,11 +5159,11 @@ var ajax = function(){
     };
 
     ajax.on     = function() {
-        MetaphorJs.Ajax.global.on.apply(globalEvents, arguments);
+        MetaphorJs.Ajax.global.on.apply(MetaphorJs.Ajax.global, arguments);
     };
 
     ajax.un     = function() {
-        MetaphorJs.Ajax.global.un.apply(globalEvents, arguments);
+        MetaphorJs.Ajax.global.un.apply(MetaphorJs.Ajax.global, arguments);
     };
 
     ajax.get    = function(url, opt) {
@@ -5158,74 +5305,78 @@ var getValue = function(){
     };
 }();
 
-var aIndexOf    = Array.prototype.indexOf;
 
-if (!aIndexOf) {
-    aIndexOf = Array.prototype.indexOf = function (searchElement, fromIndex) {
+var aIndexOf = (function(){
 
-        var k;
+    var aIndexOf    = Array.prototype.indexOf;
 
-        // 1. Let O be the result of calling ToObject passing
-        //    the this value as the argument.
-        if (this == null) {
-            throw new TypeError('"this" is null or not defined');
-        }
+    if (!aIndexOf) {
+        aIndexOf = Array.prototype.indexOf = function (searchElement, fromIndex) {
 
-        var O = Object(this);
+            var k;
 
-        // 2. Let lenValue be the result of calling the Get
-        //    internal method of O with the argument "length".
-        // 3. Let len be ToUint32(lenValue).
-        var len = O.length >>> 0;
-
-        // 4. If len is 0, return -1.
-        if (len === 0) {
-            return -1;
-        }
-
-        // 5. If argument fromIndex was passed let n be
-        //    ToInteger(fromIndex); else let n be 0.
-        var n = +fromIndex || 0;
-
-        if (Math.abs(n) === Infinity) {
-            n = 0;
-        }
-
-        // 6. If n >= len, return -1.
-        if (n >= len) {
-            return -1;
-        }
-
-        // 7. If n >= 0, then Let k be n.
-        // 8. Else, n<0, Let k be len - abs(n).
-        //    If k is less than 0, then let k be 0.
-        k = Math.max(n >= 0 ? n : len - Math.abs(n), 0);
-
-        // 9. Repeat, while k < len
-        while (k < len) {
-            var kValue;
-            // a. Let Pk be ToString(k).
-            //   This is implicit for LHS operands of the in operator
-            // b. Let kPresent be the result of calling the
-            //    HasProperty internal method of O with argument Pk.
-            //   This step can be combined with c
-            // c. If kPresent is true, then
-            //    i.  Let elementK be the result of calling the Get
-            //        internal method of O with the argument ToString(k).
-            //   ii.  Let same be the result of applying the
-            //        Strict Equality Comparison Algorithm to
-            //        searchElement and elementK.
-            //  iii.  If same is true, return k.
-            if (k in O && O[k] === searchElement) {
-                return k;
+            // 1. Let O be the result of calling ToObject passing
+            //    the this value as the argument.
+            if (this == null) {
+                throw new TypeError('"this" is null or not defined');
             }
-            k++;
-        }
-        return -1;
-    };
-}
 
+            var O = Object(this);
 
+            // 2. Let lenValue be the result of calling the Get
+            //    internal method of O with the argument "length".
+            // 3. Let len be ToUint32(lenValue).
+            var len = O.length >>> 0;
+
+            // 4. If len is 0, return -1.
+            if (len === 0) {
+                return -1;
+            }
+
+            // 5. If argument fromIndex was passed let n be
+            //    ToInteger(fromIndex); else let n be 0.
+            var n = +fromIndex || 0;
+
+            if (Math.abs(n) === Infinity) {
+                n = 0;
+            }
+
+            // 6. If n >= len, return -1.
+            if (n >= len) {
+                return -1;
+            }
+
+            // 7. If n >= 0, then Let k be n.
+            // 8. Else, n<0, Let k be len - abs(n).
+            //    If k is less than 0, then let k be 0.
+            k = Math.max(n >= 0 ? n : len - Math.abs(n), 0);
+
+            // 9. Repeat, while k < len
+            while (k < len) {
+                var kValue;
+                // a. Let Pk be ToString(k).
+                //   This is implicit for LHS operands of the in operator
+                // b. Let kPresent be the result of calling the
+                //    HasProperty internal method of O with argument Pk.
+                //   This step can be combined with c
+                // c. If kPresent is true, then
+                //    i.  Let elementK be the result of calling the Get
+                //        internal method of O with the argument ToString(k).
+                //   ii.  Let same be the result of applying the
+                //        Strict Equality Comparison Algorithm to
+                //        searchElement and elementK.
+                //  iii.  If same is true, return k.
+                if (k in O && O[k] === searchElement) {
+                    return k;
+                }
+                k++;
+            }
+            return -1;
+        };
+    }
+
+    return aIndexOf;
+}());
 
 
 
@@ -5612,10 +5763,11 @@ var functionFactory = function() {
         }
     };
 }();
+var createGetter, createFunc;
 
 
 
-var createGetter = functionFactory.createGetter;
+createGetter = createFunc = functionFactory.createGetter;
 
 var rToCamelCase = /-./g;
 
@@ -6035,7 +6187,7 @@ extend(Input.prototype, {
     },
 
 
-    onKey: function(key, fn, context) {
+    onKey: function(key, fn, context, args) {
 
         var self = this;
 
@@ -6047,7 +6199,8 @@ extend(Input.prototype, {
         }
 
         self.observable.on("key", fn, context, {
-            key: key
+            key: key,
+            prepend: args
         });
     },
 
@@ -6123,6 +6276,9 @@ ns.register("validator.messages", {
     max: 			"Please enter a value less than or equal to {0}.",
     min: 			"Please enter a value greater than or equal to {0}."
 });
+
+
+var rUrl = /^((https?|ftp):\/\/|)(((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+;=]|:)*@)?(((\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5]))|((([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])*([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])))\.)+(([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])*([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])))\.?)(:\d*)?)(\/((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+;=]|:|@)+(\/(([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+;=]|:|@)*)*)?)?(\?((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+;=]|:|@)|[\uE000-\uF8FF]|\/|\?)*)?(#((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+;=]|:|@)|\/|\?)*)?$/i;
 
 
 

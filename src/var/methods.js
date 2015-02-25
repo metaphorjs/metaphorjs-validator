@@ -1,7 +1,8 @@
 
 var ns = require("metaphorjs-namespace/src/var/ns.js"),
     isString        = require("metaphorjs/src/func/isString.js"),
-    getValue        = require("metaphorjs-input/src/func/getValue.js");
+    getValue        = require("metaphorjs-input/src/func/getValue.js"),
+    rUrl            = require("metaphorjs/src/var/rUrl.js");
 
 
 require("../func/empty.js");

@@ -693,13 +693,14 @@ var Class = function(){
                     self    = this,
                     prev    = self.$super;
 
+                if (self.$destroyed) {
+                    self.$super = null;
+                    return null;
+                }
+
                 self.$super     = $super;
                 ret             = fn.apply(self, arguments);
                 self.$super     = prev;
-
-                if (self.$destroyed) {
-                    self.$super = null;
-                }
 
                 return ret;
             };
@@ -724,8 +725,8 @@ var Class = function(){
                 return;
             }
 
-            prototype.$plugins = null;
-            prototype.$pluginMap = null;
+            prototype.$plugins      = null;
+            prototype.$pluginMap    = null;
 
             if (pp.$beforeInit) {
                 prototype.$beforeInit = pp.$beforeInit.slice();
@@ -910,8 +911,8 @@ var Class = function(){
             $intercept: function(method, fn, newContext, when, replaceValue) {
                 var self = this,
                     orig = self[method];
-                self[method] = intercept(orig, fn, newContext || self, self, when, replaceValue);
-                return orig;
+                self[method] = intercept(orig || emptyFn, fn, newContext || self, self, when, replaceValue);
+                return orig || emptyFn;
             },
 
             /**
@@ -921,7 +922,7 @@ var Class = function(){
             $implement: function(methods) {
                 var $self = this.constructor;
                 if ($self && $self.$parent) {
-                    preparePrototype(this, methods, $self.$parent);
+                    preparePrototype(this, methods, $self.$parent, true);
                 }
             },
 
@@ -940,6 +941,27 @@ var Class = function(){
              */
             $getPlugin: function(cls) {
                 return this.$pluginMap[ns.normalize(cls)] || null;
+            },
+
+            /**
+             * @param {function} fn
+             * @returns {Function}
+             */
+            $bind: function(fn) {
+                var self = this;
+                return function() {
+                    if (self.$isDestroyed()) {
+                        return;
+                    }
+                    return fn.apply(self, arguments);
+                };
+            },
+
+            /**
+             * @return bool
+             */
+            $isDestroyed: function() {
+                return self.$destroying || self.$destroyed;
             },
 
             /**
@@ -2823,6 +2845,10 @@ var ObservableEvent = (function(){
                     continue;
                 }
 
+                if (l.filter && l.filter.apply(l.filterContext || l.context, args) === false) {
+                    continue;
+                }
+
                 l.count++;
 
                 if (l.count < l.start) {
@@ -4092,13 +4118,6 @@ var Promise = function(){
 
 
 
-
-
-function isPrimitive(value) {
-    var vt = varType(value);
-    return vt < 3 && vt > -1;
-};
-
 function setAttr(el, name, value) {
     return el.setAttribute(name, value);
 };
@@ -4261,22 +4280,9 @@ ns.register("mixin.Promise", {
             self._ajax          = ajax;
 
             if (opt.progress) {
-                /*if (xhr.addEventListener) {
-                    xhr.addEventListener("progress", bind(opt.progress, opt.context));
-                }
-                else {
-                    addListener(xhr, "progress", bind(opt.progress, opt.context));
-                }*/
                 xhr.onprogress = bind(opt.progress, opt.context);
             }
             if (opt.uploadProgress && xhr.upload) {
-                /*if (xhr.addEventListener) {
-                    xhr.upload.addEventListener("progress", bind(opt.uploadProgress, opt.context));
-                }
-                else {
-                    addListener(xhr.upload, "progress", bind(opt.uploadProgress, opt.context));
-                }*/
-
                 xhr.upload.onprogress = bind(opt.uploadProgress, opt.context);
             }
 
@@ -4333,6 +4339,17 @@ ns.register("mixin.Promise", {
                     );
                 }
                 else {
+
+                    xhr.responseData = null;
+
+                    try {
+                        xhr.responseData = self._ajax.returnResponse(
+                            isString(xhr.responseText) ? xhr.responseText : undf,
+                            xhr.getResponseHeader("content-type") || ''
+                        );
+                    }
+                    catch (thrownErr) {}
+
                     deferred.reject(xhr);
                 }
             }
@@ -4626,7 +4643,7 @@ defineClass({
 
             url.replace(rhash, "");
 
-            if (opt.cache === false) {
+            if (!opt.allowCache) {
 
                 var stamp   = (new Date).getTime();
 
@@ -4913,7 +4930,7 @@ defineClass({
                 }
                 else {
                     if (window.File && item instanceof File) {
-                        name = "upload" + (l > 1 ? "[]" : "");
+                        name = item.uploadName || ("upload" + (l > 1 ? "[]" : ""));
                     }
                     else {
                         name = item.name || "upload" + (l > 1 ? "[]" : "");
@@ -5003,6 +5020,17 @@ defineClass({
             }
 
             return data;
+        },
+
+        returnResponse: function(data, contentType) {
+
+            var self    = this;
+
+            if (!self._opt.jsonp) {
+                return self.processResponseData(data, contentType);
+            }
+
+            return null;
         },
 
         processResponse: function(data, contentType) {
@@ -5763,11 +5791,10 @@ var functionFactory = function() {
         }
     };
 }();
-var createGetter, createFunc;
 
 
 
-createGetter = createFunc = functionFactory.createGetter;
+var createGetter = functionFactory.createGetter;
 
 var rToCamelCase = /-./g;
 
@@ -6618,19 +6645,25 @@ ns.register("mixin.Observable", {
 
     $initObservable: function(cfg) {
 
-        var self = this;
+        var self    = this,
+            obs     = self.$$observable;
 
         if (cfg && cfg.callback) {
             var ls = cfg.callback,
-                context = ls.context || ls.scope,
+                context = ls.context || ls.scope || ls.$context,
+                events = extend({}, self.$$events, ls.$events, true, false),
                 i;
+
+            for (i in events) {
+                obs.createEvent(i, events[i]);
+            }
 
             ls.context = null;
             ls.scope = null;
 
             for (i in ls) {
                 if (ls[i]) {
-                    self.$$observable.on(i, ls[i], context || self);
+                    obs.on(i, ls[i], context || self);
                 }
             }
 
@@ -6644,22 +6677,22 @@ ns.register("mixin.Observable", {
 
     on: function() {
         var o = this.$$observable;
-        return o.on.apply(o, arguments);
+        return o ? o.on.apply(o, arguments) : null;
     },
 
     un: function() {
         var o = this.$$observable;
-        return o.un.apply(o, arguments);
+        return o ? o.un.apply(o, arguments) : null;
     },
 
     once: function() {
         var o = this.$$observable;
-        return o.once.apply(o, arguments);
+        return o ? o.once.apply(o, arguments) : null;
     },
 
     trigger: function() {
         var o = this.$$observable;
-        return o.trigger.apply(o, arguments);
+        return o ? o.trigger.apply(o, arguments) : null;
     },
 
     $beforeDestroy: function() {
@@ -7531,8 +7564,19 @@ ns.register("mixin.Observable", {
 
         onAjaxError: function(xhr, status) {
 
-            var self    = this,
-                cfg     = self.cfg;
+            var self        = this,
+                cfg         = self.cfg,
+                response    = xhr.responseData,
+                rules       = self.rules;
+
+            if (response && rules['remote'].handler) {
+
+                var res = rules['remote'].handler.call(self.$$callbackContext, self, response);
+
+                if (res !== true) {
+                    self.setError(format(res || cfg.messages['remote'] || "", rules['remote']), 'remote');
+                }
+            }
 
             if (cfg.cls.ajax) {
                 removeClass(self.elem, cfg.cls.ajax);

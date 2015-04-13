@@ -871,8 +871,19 @@ module.exports = (function(){
 
         onAjaxError: function(xhr, status) {
 
-            var self    = this,
-                cfg     = self.cfg;
+            var self        = this,
+                cfg         = self.cfg,
+                response    = xhr.responseData,
+                rules       = self.rules;
+
+            if (response && rules['remote'].handler) {
+
+                var res = rules['remote'].handler.call(self.$$callbackContext, self, response);
+
+                if (res !== true) {
+                    self.setError(format(res || cfg.messages['remote'] || "", rules['remote']), 'remote');
+                }
+            }
 
             if (cfg.cls.ajax) {
                 removeClass(self.elem, cfg.cls.ajax);

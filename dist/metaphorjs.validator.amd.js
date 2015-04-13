@@ -687,13 +687,14 @@ var Class = function(){
                     self    = this,
                     prev    = self.$super;
 
+                if (self.$destroyed) {
+                    self.$super = null;
+                    return null;
+                }
+
                 self.$super     = $super;
                 ret             = fn.apply(self, arguments);
                 self.$super     = prev;
-
-                if (self.$destroyed) {
-                    self.$super = null;
-                }
 
                 return ret;
             };
@@ -718,8 +719,8 @@ var Class = function(){
                 return;
             }
 
-            prototype.$plugins = null;
-            prototype.$pluginMap = null;
+            prototype.$plugins      = null;
+            prototype.$pluginMap    = null;
 
             if (pp.$beforeInit) {
                 prototype.$beforeInit = pp.$beforeInit.slice();
@@ -904,8 +905,8 @@ var Class = function(){
             $intercept: function(method, fn, newContext, when, replaceValue) {
                 var self = this,
                     orig = self[method];
-                self[method] = intercept(orig, fn, newContext || self, self, when, replaceValue);
-                return orig;
+                self[method] = intercept(orig || emptyFn, fn, newContext || self, self, when, replaceValue);
+                return orig || emptyFn;
             },
 
             /**
@@ -915,7 +916,7 @@ var Class = function(){
             $implement: function(methods) {
                 var $self = this.constructor;
                 if ($self && $self.$parent) {
-                    preparePrototype(this, methods, $self.$parent);
+                    preparePrototype(this, methods, $self.$parent, true);
                 }
             },
 
@@ -934,6 +935,27 @@ var Class = function(){
              */
             $getPlugin: function(cls) {
                 return this.$pluginMap[ns.normalize(cls)] || null;
+            },
+
+            /**
+             * @param {function} fn
+             * @returns {Function}
+             */
+            $bind: function(fn) {
+                var self = this;
+                return function() {
+                    if (self.$isDestroyed()) {
+                        return;
+                    }
+                    return fn.apply(self, arguments);
+                };
+            },
+
+            /**
+             * @return bool
+             */
+            $isDestroyed: function() {
+                return self.$destroying || self.$destroyed;
             },
 
             /**
@@ -2211,19 +2233,25 @@ ns.register("mixin.Observable", {
 
     $initObservable: function(cfg) {
 
-        var self = this;
+        var self    = this,
+            obs     = self.$$observable;
 
         if (cfg && cfg.callback) {
             var ls = cfg.callback,
-                context = ls.context || ls.scope,
+                context = ls.context || ls.scope || ls.$context,
+                events = extend({}, self.$$events, ls.$events, true, false),
                 i;
+
+            for (i in events) {
+                obs.createEvent(i, events[i]);
+            }
 
             ls.context = null;
             ls.scope = null;
 
             for (i in ls) {
                 if (ls[i]) {
-                    self.$$observable.on(i, ls[i], context || self);
+                    obs.on(i, ls[i], context || self);
                 }
             }
 
@@ -2237,22 +2265,22 @@ ns.register("mixin.Observable", {
 
     on: function() {
         var o = this.$$observable;
-        return o.on.apply(o, arguments);
+        return o ? o.on.apply(o, arguments) : null;
     },
 
     un: function() {
         var o = this.$$observable;
-        return o.un.apply(o, arguments);
+        return o ? o.un.apply(o, arguments) : null;
     },
 
     once: function() {
         var o = this.$$observable;
-        return o.once.apply(o, arguments);
+        return o ? o.once.apply(o, arguments) : null;
     },
 
     trigger: function() {
         var o = this.$$observable;
-        return o.trigger.apply(o, arguments);
+        return o ? o.trigger.apply(o, arguments) : null;
     },
 
     $beforeDestroy: function() {
@@ -3124,8 +3152,19 @@ ns.register("mixin.Observable", {
 
         onAjaxError: function(xhr, status) {
 
-            var self    = this,
-                cfg     = self.cfg;
+            var self        = this,
+                cfg         = self.cfg,
+                response    = xhr.responseData,
+                rules       = self.rules;
+
+            if (response && rules['remote'].handler) {
+
+                var res = rules['remote'].handler.call(self.$$callbackContext, self, response);
+
+                if (res !== true) {
+                    self.setError(format(res || cfg.messages['remote'] || "", rules['remote']), 'remote');
+                }
+            }
 
             if (cfg.cls.ajax) {
                 removeClass(self.elem, cfg.cls.ajax);

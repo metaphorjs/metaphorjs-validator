@@ -130,6 +130,7 @@ module.exports = defineClass({
         state.$$validator = self.validator;
         state.$invalid = false;
         state.$pristine = true;
+        state.$isDestroyed = bind(self.$isDestroyed, self);
         state.$submit = bind(self.validator.onSubmit, self.validator);
         state.$reset = bind(self.validator.reset, self.validator);
     },
@@ -224,9 +225,7 @@ module.exports = defineClass({
     destroy: function() {
         var self = this;
 
-        if (!self.destroyed) {
-            self.validator.destroy();
-        }
+        self.validator.$destroy();
 
         if (self.scope) {
             delete self.scope[self.formName];

@@ -13,7 +13,7 @@ Directive.registerAttribute("mjs-validate", 250, function(scope, node, expr, ren
         error(new Error("Class '"+cls+"' not found"));
     }
     else {
-        new constr(node, scope, renderer);
+        return new constr(node, scope, renderer);
     }
 });
 

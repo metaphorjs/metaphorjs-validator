@@ -669,6 +669,8 @@ module.exports = (function(){
                 self.onFieldStateChange();
 
                 if (self.pending) {
+                    // TODO: find out why this flag is not being set in all onSubmit handlers
+                    self.submitted = true;
                     e && e.preventDefault();
                     return false;
                 }

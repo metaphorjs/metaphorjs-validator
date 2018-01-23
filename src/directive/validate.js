@@ -4,7 +4,7 @@ var Directive = require("metaphorjs/src/class/Directive.js"),
 
 require("../class/validator/Component.js");
 
-Directive.registerAttribute("mjs-validate", 250, function(scope, node, expr, renderer) {
+Directive.registerAttribute("validate", 250, function(scope, node, expr, renderer) {
 
     var cls     = expr || "validator.Component",
         constr  = nsGet(cls);

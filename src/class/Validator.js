@@ -11,7 +11,6 @@ var defineClass     = require("metaphorjs-class/src/func/defineClass.js"),
     normalizeEvent  = require("metaphorjs/src/func/event/normalizeEvent.js"),
     isFunction      = require("metaphorjs/src/func/isFunction.js"),
     isString        = require("metaphorjs/src/func/isString.js"),
-    ajax            = require("metaphorjs-ajax/src/func/ajax.js"),
     getAttr         = require("metaphorjs/src/func/dom/getAttr.js"),
     setAttr         = require("metaphorjs/src/func/dom/setAttr.js"),
     nextUid         = require("metaphorjs/src/func/nextUid.js");
@@ -114,7 +113,7 @@ module.exports = (function(){
 
             self.$initObservable(cfg);
 
-            self.isForm         = tag == 'form';
+            self.isForm         = tag === 'form';
             self.isField        = /input|select|textarea/.test(tag);
 
             self.fields         = {};
@@ -280,7 +279,7 @@ module.exports = (function(){
         getErrors: function(plain) {
 
             var self    = this,
-                ers     = plain == true ? [] : {},
+                ers     = plain === true ? [] : {},
                 err,
                 i, j,
                 all     = [self.fields, self.groups],
@@ -380,7 +379,6 @@ module.exports = (function(){
                 cfg         = self.cfg,
                 fields      = self.fields,
                 fcfg,
-                name,
                 f;
 
             if (!id) {
@@ -563,7 +561,7 @@ module.exports = (function(){
                 nodes   = el.getElementsByTagName("input"),
                 submits = select(".submit", el),
                 resets  = select(".reset", el),
-                fn      = mode == "bind" ? addListener : removeListener,
+                fn      = mode === "bind" ? addListener : removeListener,
                 i, l,
                 type,
                 node;
@@ -571,22 +569,22 @@ module.exports = (function(){
             for (i = 0, l = nodes.length; i < l; i++) {
                 node = nodes[i];
                 type = node.type;
-                if (type == "submit") {
+                if (type === "submit") {
                     fn(node, "click", self.onRealSubmitClickDelegate);
                 }
-                else if (type == "reset") {
+                else if (type === "reset") {
                     fn(node, "click", self.resetDelegate);
                 }
             }
 
             for (i = -1, l = submits.length;
                  ++i < l;
-                 submits[i].type != "submit" && fn(submits[i], "click", self.onSubmitClickDelegate)
+                 submits[i].type !== "submit" && fn(submits[i], "click", self.onSubmitClickDelegate)
             ){}
 
             for (i = -1, l = resets.length;
                  ++i < l;
-                 resets[i].type != "reset" && fn(resets[i], "click", self.resetDelegate)
+                 resets[i].type !== "reset" && fn(resets[i], "click", self.resetDelegate)
             ){}
 
             if (self.isForm) {
@@ -641,7 +639,7 @@ module.exports = (function(){
                 return false;
             }
 
-            var buttonClicked = self.submitButton ? true : false;
+            var buttonClicked = !!self.submitButton;
 
             if (self.isForm) {
 
@@ -697,7 +695,7 @@ module.exports = (function(){
             }
 
             var res = self.trigger('submit', self);
-            self.preventFormSubmit = !res;
+            self.preventFormSubmit = res === false;
             return !self.isForm ? false : res;
         },
 

@@ -6,8 +6,7 @@ var Validator = require("../Validator.js"),
     error = require("metaphorjs/src/func/error.js"),
     eachNode = require("metaphorjs/src/func/dom/eachNode.js"),
     isField = require("metaphorjs/src/func/dom/isField.js"),
-    getAttr = require("metaphorjs/src/func/dom/getAttr.js"),
-    getNodeConfig = require("metaphorjs/src/func/dom/getNodeConfig.js");
+    getAttr = require("metaphorjs/src/func/dom/getAttr.js");
 
 
 
@@ -21,8 +20,9 @@ module.exports = defineClass({
     scopeState: null,
     fields: null,
     formName: null,
+    nodeCfg: null,
 
-    $init: function(node, scope, renderer) {
+    $init: function(node, scope, renderer, nodeCfg) {
 
         var self        = this;
 
@@ -30,6 +30,7 @@ module.exports = defineClass({
         self.scope      = scope;
         self.scopeState = {};
         self.fields     = [];
+        self.nodeCfg    = nodeCfg;
         self.validator  = self.createValidator();
         self.formName   = getAttr(node, 'name') || getAttr(node, 'id') || '$form';
 
@@ -48,7 +49,7 @@ module.exports = defineClass({
         var self    = this,
             node    = self.node,
             cfg     = {},
-            ncfg    = getNodeConfig(node),
+            ncfg    = self.nodeCfg,
             submit;
 
         if (submit = ncfg.submit) {

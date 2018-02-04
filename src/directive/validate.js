@@ -5,12 +5,11 @@ var Directive = require("metaphorjs/src/class/Directive.js"),
 require("../class/validator/Component.js");
 
 Directive.registerAttribute("validate", 250,
-    function(scope, node, expr, renderer, attrMap) {
+    function(scope, node, expr, renderer, attr) {
 
     var cls     = expr || "validator.Component",
         constr  = nsGet(cls),
-        cfg     = attrMap['modifier']['validate'] ?
-                    attrMap['modifier']['validate'] : {};
+        cfg     = attr ? attr.config : {};
 
     if (!constr) {
         error(new Error("Class '"+cls+"' not found"));

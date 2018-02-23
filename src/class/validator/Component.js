@@ -52,7 +52,7 @@ module.exports = defineClass({
             ncfg    = self.nodeCfg,
             submit;
 
-        if (ncfg.value && (submit = ncfg.value.submit)) {
+        if ((submit = ncfg.submit)) {
             cfg.callback = cfg.callback || {};
             cfg.callback.submit = function(fn, scope){
                 return function() {

@@ -2,7 +2,6 @@
     "name": "metaphorjs-validator",
     "version": "0.9.7",
     "description": "Form validator",
-    "main": "dist/metaphorjs.validator.npm.js",
     "directories": {
         "test": "test"
     },
@@ -18,11 +17,5 @@
     "bugs": {
         "url": "https://github.com/metaphorjs/metaphorjs-validator/issues"
     },
-    "homepage": "https://github.com/metaphorjs/metaphorjs-validator",
-    "dependencies": {
-        "metaphorjs-observable": "*",
-        "metaphorjs-ajax": "*",
-        "metaphorjs-select": "*",
-        "metaphorjs-input": "*"
-    }
+    "homepage": "https://github.com/metaphorjs/metaphorjs-validator"
 }

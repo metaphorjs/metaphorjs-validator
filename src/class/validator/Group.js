@@ -1,7 +1,7 @@
 
 
-var defineClass     = require("metaphorjs-class/src/func/defineClass.js"),
-    getValue        = require("metaphorjs-input/src/func/getValue.js"),
+var cls             = require("metaphorjs-class/src/cls.js"),
+    MetaphorJs      = require("metaphorjs/src/MetaphorJs.js"),
     extend          = require("metaphorjs/src/func/extend.js"),
     addClass        = require("metaphorjs/src/func/dom/addClass.js"),
     removeClass     = require("metaphorjs/src/func/dom/removeClass.js"),
@@ -55,14 +55,14 @@ module.exports = (function(){
     }/*group-options-end*/;
 
 
-    var messages = ns.get("validator.messages"),
-        methods = ns.get("validator.methods"),
-        format = ns.get("validator.format");
+    var messages = MetaphorJs.validator.messages,
+        methods = MetaphorJs.validator.methods,
+        format = MetaphorJs.validator.format;
 
 
-    var Group = defineClass({
-        $class: "validator.Group",
-        $mixins: ["mixin.Observable"],
+    return cls({
+        $class: "MetaphorJs.validator.Group",
+        $mixins: [MetaphorJs.mixin.Observable],
 
         fields:         null,
         rules:          null,
@@ -89,7 +89,7 @@ module.exports = (function(){
 
             self.cfg            = cfg = extend({},
                 defaults,
-                Group.defaults,
+                MetaphorJs.validator.Group.defaults,
                 options,
                 true, true
             );
@@ -444,7 +444,7 @@ module.exports = (function(){
         /**
          * Destroy group
          */
-        destroy:	function() {
+        onDestroy:	function() {
 
             var self    = this,
                 fields  = self.fields;
@@ -520,9 +520,5 @@ module.exports = (function(){
 
         defaults: {}
     });
-
-
-
-    return Group;
 
 }());

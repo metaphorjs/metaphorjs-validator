@@ -1,23 +1,23 @@
 
-var ns = require("metaphorjs-namespace/src/var/ns.js"),
+require("../__init.js");
+require("../func/empty.js");
+require("../func/getLength.js");
+
+var MetaphorJs      = require("metaphorjs/src/MetaphorJs.js"),
     isString        = require("metaphorjs/src/func/isString.js"),
     getValue        = require("metaphorjs-input/src/func/getValue.js"),
     rUrl            = require("metaphorjs/src/var/rUrl.js");
 
-
-require("../func/empty.js");
-require("../func/getLength.js");
-
 module.exports = (function(){
 
-    var empty = ns.get("validator.empty"),
-        getLength = ns.get("validator.getLength");
+    var empty = MetaphorJs.validator.empty,
+        getLength = MetaphorJs.validator.getLength;
 
     // from http://bassistance.de/jquery-plugins/jquery-plugin-validation/
     // i've changed most of the functions, but the result is the same.
     // this === field's api.
 
-    return ns.register("validator.methods", {
+    return MetaphorJs.validator.methods = {
 
         required: function(value, element, param) {
             if (param === false) {
@@ -180,7 +180,7 @@ module.exports = (function(){
         zxcvbn: function(value, element, param) {
             return zxcvbn(value).score >= parseInt(param);
         }
-    });
+    };
 
 
 }());

@@ -1,6 +1,6 @@
 
 var Validator = require("../Validator.js"),
-    defineClass = require("metaphorjs-class/src/func/defineClass.js"),
+    cls = require("metaphorjs-class/src/cls.js"),
     bind = require("metaphorjs/src/func/bind.js"),
     createFunc = require("metaphorjs-watchable/src/func/createFunc.js"),
     error = require("metaphorjs/src/func/error.js"),
@@ -10,9 +10,9 @@ var Validator = require("../Validator.js"),
 
 
 
-module.exports = defineClass({
+module.exports = cls({
 
-    $class: "validator.Component",
+    $class: "MetaphorJs.validator.Component",
 
     node: null,
     scope: null,
@@ -223,7 +223,7 @@ module.exports = defineClass({
     },
 
 
-    destroy: function() {
+    onDestroy: function() {
         var self = this;
 
         self.validator.$destroy();

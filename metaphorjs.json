@@ -7,99 +7,23 @@
     ],
     "build": {
         "standalone": {
-            "wrap": true,
-            "global": true,
             "target": "dist/metaphorjs.validator.js",
             "files": [
-                "metaphorjs/src/MetaphorJs.js",
-                [
-                    "src/class/Validator.js",
-                    {
-                        "as": "Validator"
-                    }
-                ],
-                "src/jquery/plugin.js"
+                ["metaphorjs/src/MetaphorJs.js", {"as": "*"}],
+                ["src/class/Validator.js", {"as": "Validator"}]
             ],
-            "expose": [
-                "Validator"
-            ]
-        },
-        "npm": {
-            "target": "dist/metaphorjs.validator.npm.js",
-            "compile": false,
-            "wrap": {
-                "exported": true,
-                "deferred": true,
-                "args": ["window"]
-            },
-            "files": [
-                [
-                    "src/class/Validator.js",
-                    {
-                        "as": "Validator"
-                    }
-                ]
-            ],
-            "omit": [
-                "metaphorjs-observable/src/lib/Observable.js",
-                "metaphorjs-promise/src/lib/Promise.js",
-                "metaphorjs-ajax/src/func/ajax.js",
-                "metaphorjs-select/src/func/select.js",
-                "metaphorjs-input/src/lib/Input.js",
-                "metaphorjs-input/src/func/getValue.js",
-                "metaphorjs-input/src/func/setValue.js"
-            ],
-            "require": {
-                "metaphorjs-observable": "Observable",
-                "metaphorjs-ajax": {
-                    "as": "ajax",
-                    "args": ["window"]
-                },
-                "metaphorjs-select": {
-                    "as": "select",
-                    "args": ["window"]
-                },
-                "metaphorjs-input": {
-                    "as": "Input",
-                    "args": ["window"]
-                }
-            },
-            "returns": "Validator"
-        },
-        "amd": {
-            "auto": false,
-            "target": "dist/metaphorjs.validator.amd.js",
-            "files": [
-                [
-                    "src/class/Validator.js",
-                    {
-                        "as": "Validator"
-                    }
-                ],
-                "src/jquery/plugin.js"
-            ],
-            "omit": [
-                "metaphorjs-observable/src/lib/Observable.js",
-                "metaphorjs-promise/src/lib/Promise.js",
-                "metaphorjs-ajax/src/func/ajax.js",
-                "metaphorjs-select/src/func/select.js",
-                "metaphorjs-input/src/lib/Input.js",
-                "metaphorjs-input/src/func/getValue.js",
-                "metaphorjs-input/src/func/setValue.js"
-            ],
-            "prepend": [
-                "src/amd/prepend.js"
-            ],
-            "define": {
-                "name": "metaphorjs-validator",
-                "return": "Validator",
-                "deps": {
-                    "metaphorjs-observable": "Observable",
-                    "metaphorjs-ajax": "ajax",
-                    "metaphorjs-select": "select",
-                    "metaphorjs-input": "Input"
-                }
+            "options": {
+                "wrap": true,
+                "global": true,
+                "expose": [
+                    "Validator"
+                ]    
             }
+        },
+        "standalone-min": {
+            "extend": "standalone", 
+            "target": "dist/metaphorjs.validator.min.js",
+            "pipe": ["build", "compile", "write"]
         }
     }
 }

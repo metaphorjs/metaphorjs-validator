@@ -1,6 +1,6 @@
 
-var defineClass     = require("metaphorjs-class/src/func/defineClass.js"),
-    getValue        = require("metaphorjs-input/src/func/getValue.js"),
+var cls             = require("metaphorjs-class/src/cls.js"),
+    MetaphorJs      = require("metaphorjs/src/MetaphorJs.js"),
     extend          = require("metaphorjs/src/func/extend.js"),
     trim            = require("metaphorjs/src/func/trim.js"),
     bind            = require("metaphorjs/src/func/bind.js"),
@@ -121,17 +121,15 @@ module.exports = (function(){
     };
 
 
-    var messages = ns.get("validator.messages"),
-        methods = ns.get("validator.methods"),
-        empty = ns.get("validator.empty"),
-        format = ns.get("validator.format");
+    var messages = MetaphorJs.validator.messages,
+        methods = MetaphorJs.validator.methods,
+        empty = MetaphorJs.validator.empty,
+        format = MetaphorJs.validator.format;
 
 
-
-
-    var Field = defineClass({
-        $class: "validator.Field",
-        $mixins: ["mixin.Observable"],
+    return cls({
+        $class: "MetaphorJs.validator.Field",
+        $mixins: [MetaphorJs.mixin.Observable],
 
         vldr:           null,
         elem:           null,
@@ -163,7 +161,7 @@ module.exports = (function(){
                 cfg;
 
             self.cfg            = cfg = extend({}, defaults,
-                fixFieldShorthands(Field.defaults),
+                fixFieldShorthands(MetaphorJs.validator.Field.defaults),
                 fixFieldShorthands(options),
                 true, true
             );
@@ -678,7 +676,7 @@ module.exports = (function(){
         },
 
 
-        destroy: function() {
+        onDestroy: function() {
 
             var self = this;
 
@@ -688,7 +686,7 @@ module.exports = (function(){
                 self.errorBox.parentNode.removeChild(self.errorBox);
             }
 
-            self.input.destroy();
+            self.input.$destroy();
         },
 
 
@@ -904,7 +902,5 @@ module.exports = (function(){
 
     });
 
-
-    return Field;
 
 }());

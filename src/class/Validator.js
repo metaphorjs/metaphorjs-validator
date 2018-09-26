@@ -1,5 +1,8 @@
 
-var defineClass     = require("metaphorjs-class/src/func/defineClass.js"),
+require("../__init.js");
+
+var cls             = require("metaphorjs-class/src/cls.js"),
+    MetaphorJs      = require("metaphorjs/src/MetaphorJs.js"),
     extend          = require("metaphorjs/src/func/extend.js"),
     bind            = require("metaphorjs/src/func/bind.js"),
     addListener     = require("metaphorjs/src/func/event/addListener.js"),
@@ -66,10 +69,10 @@ module.exports = (function(){
     }/*validator-options-end*/;
 
 
-    var Validator = defineClass({
+    var Validator = cls({
 
-        $class: "Validator",
-        $mixins: ["mixin.Observable"],
+        $class: "MetaphorJs.validator.Validator",
+        $mixins: [MetaphorJs.mixin.Observable],
 
         id:             null,
         el:             null,
@@ -820,7 +823,7 @@ module.exports = (function(){
         /**
          * Destroy validator
          */
-        destroy: function() {
+        onDestroy: function() {
 
             var self    = this,
                 groups  = self.groups,
@@ -835,14 +838,14 @@ module.exports = (function(){
             for (i in groups) {
                 if (groups.hasOwnProperty(i) && groups[i]) {
                     self.setGroupEvents(groups[i], 'un');
-                    groups[i].destroy();
+                    groups[i].$destroy();
                 }
             }
 
             for (i in fields) {
                 if (fields.hasOwnProperty(i) && fields[i]) {
                     self.setFieldEvents(fields[i], 'un');
-                    fields[i].destroy();
+                    fields[i].$destroy();
                 }
             }
 

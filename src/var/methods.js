@@ -4,6 +4,7 @@ require("../func/empty.js");
 require("../func/getLength.js");
 require("metaphorjs/src/func/dom/getInputValue.js");
 require("metaphorjs-shared/src/var/regexp/url.js");
+require("metaphorjs-shared/src/var/regexp/email.js");
 
 var MetaphorJs      = require("metaphorjs-shared/src/MetaphorJs.js"),
     isString        = require("metaphorjs-shared/src/func/isString.js");
@@ -19,6 +20,11 @@ module.exports = (function(){
 
     return MetaphorJs.validator.methods = {
 
+        /**
+         * Checks that field value is not empty
+         * @validator required
+         * @param {boolean} param 
+         */
         required: function(value, element, param) {
             if (param === false) {
                 return true;
@@ -26,16 +32,34 @@ module.exports = (function(){
             return !empty(value, element);
         },
 
+        /**
+         * Test field's value using this regular expression. 
+         * Empty value passes as success.
+         * @validator regexp
+         * @param {string|Regexp} param 
+         */
         regexp: function(value, element, param) {
             var reg = param instanceof RegExp ? param : new RegExp(param);
             return empty(value, element) || reg.test(value);
         },
 
+        /**
+         * Same as validator.regexp but with the opposite result.
+         * Empty value passes as success.
+         * @validator notregexp
+         * @param {string|Regexp} param 
+         */
         notregexp: function(value, element, param) {
             var reg = param instanceof RegExp ? param : new RegExp(param);
             return empty(value, element) || !reg.test(value);
         },
 
+        /**
+         * Check if field's value length more than param. 
+         * Empty value passes as success.
+         * @validator minlength
+         * @param {string|int} param 
+         */
         minlength: function(value, element, param) {
             return empty(value, element) ||
                    (
@@ -45,6 +69,12 @@ module.exports = (function(){
                    );
         },
 
+        /**
+         * Check if field's value length less than param.
+         * Empty value passes as success.
+         * @validator maxlength
+         * @param {string|int} param 
+         */
         maxlength: function(value, element, param) {
             return empty(value, element) ||
                    (
@@ -54,63 +84,118 @@ module.exports = (function(){
                    );
         },
 
+        /**
+         * Check if field's value length between given range.
+         * Empty value passes as success.
+         * @validator rangelength
+         * @param {array} param [min, max]
+         */
         rangelength: function(value, element, param) {
             var length = element ? getLength(value.trim(), element) : value.toString().length;
             return empty(value, element) || ( length >= param[0] && length <= param[1] );
         },
 
+        /**
+         * Check if field's value is greater than given number.
+         * Empty value passes as success.
+         * @validator min
+         * @param {int} param 
+         */
         min: function(value, element, param) {
             return empty(value, element) || parseInt(value, 10) >= param;
         },
 
+        /**
+         * Check if field's value is lesser than given number.
+         * Empty value passes as success.
+         * @validator max
+         * @param {int} param 
+         */
         max: function(value, element, param) {
             return empty(value, element) || parseInt(value, 10) <= param;
         },
 
+        /**
+         * Check if field's value is between given range.
+         * Empty value passes as success.
+         * @validator range
+         * @param {array} param [min, max]
+         */
         range: function(value, element, param) {
             value = parseInt(value, 10);
             return empty(value, element) || ( value >= param[0] && value <= param[1] );
         },
 
         // http://docs.jquery.com/Plugins/Validation/Methods/email
+        /**
+         * Check is field's value matches email regexp. 
+         * Empty value passes as success.
+         * @validator email
+         */
         email: function(value, element) {
             // contributed by Scott Gonzalez: http://projects.scottsplayground.com/email_address_validation/
-            return empty(value, element) || /^((([a-z]|\d|[!#\$%&'\*\+\-\/=\?\^_`{\|}~]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])+(\.([a-z]|\d|[!#\$%&'\*\+\-\/=\?\^_`{\|}~]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])+)*)|((\x22)((((\x20|\x09)*(\x0d\x0a))?(\x20|\x09)+)?(([\x01-\x08\x0b\x0c\x0e-\x1f\x7f]|\x21|[\x23-\x5b]|[\x5d-\x7e]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(\\([\x01-\x09\x0b\x0c\x0d-\x7f]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF]))))*(((\x20|\x09)*(\x0d\x0a))?(\x20|\x09)+)?(\x22)))@((([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])*([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])))\.)+(([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])*([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])))\.?$/i.test(value);
+            return empty(value, element) || MetaphorJs.regexp.email.test(value);
         },
 
         // http://docs.jquery.com/Plugins/Validation/Methods/url
+        /**
+         * Check is field's value matches url regexp. 
+         * Empty value passes as success.
+         * @validator email
+         */
         url: function(value, element) {
             // contributed by Scott Gonzalez: http://projects.scottsplayground.com/iri/
             return empty(value, element) || MetaphorJs.regexp.url.test(value);
-            //	/^(https?|ftp):\/\/(((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:)*@)?(((\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5]))|((([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])*([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])))\.)+(([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])*([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])))\.?)(:\d*)?)(\/((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)+(\/(([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)*)*)?)?(\?((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)|[\uE000-\uF8FF]|\/|\?)*)?(\#((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)|\/|\?)*)?$/i.test(value);
         },
 
         // http://docs.jquery.com/Plugins/Validation/Methods/date
+        /**
+         * Check if field's value can be parsed as a date.
+         * Empty value passes as success.
+         * @validator date
+         */
         date: function(value, element) {
             return empty(value, element) || !/Invalid|NaN/.test(new Date(value));
         },
 
         // http://docs.jquery.com/Plugins/Validation/Methods/dateISO
+        /**
+         * Check if field's value can be parsed as a yyyy-mm-dd date.
+         * Empty value passes as success.
+         * @validator dateiso
+         */
         dateiso: function(value, element) {
             return empty(value, element) || /^\d{4}[\/-]\d{1,2}[\/-]\d{1,2}$/.test(value);
         },
 
         // http://docs.jquery.com/Plugins/Validation/Methods/number
+        /**
+         * Check if field's value is a number. Empty value passes as success.
+         * @validator number
+         */
         number: function(value, element) {
             return empty(value, element) || /^-?(?:\d+|\d{1,3}(?:,\d{3})+)(?:\.\d+)?$/.test(value);
         },
 
         // http://docs.jquery.com/Plugins/Validation/Methods/digits
+        /**
+         * Check if field's value only consists of digits. Empty value passes as success.
+         * @validator digits
+         */
         digits: function(value, element) {
             return empty(value, element) || /^\d+$/.test(value);
         },
 
         // http://docs.jquery.com/Plugins/Validation/Methods/creditcard
         // based on http://en.wikipedia.org/wiki/Luhn
+        /**
+         * Check if field's value passes for credit card number. Empty value passes as success.
+         * @validator creditcard
+         */
         creditcard: function(value, element) {
 
             if (empty(value, element)) {
-                return true; // !! who said this field is required?
+                return true; 
             }
 
             // accept only digits and dashes
@@ -144,39 +229,50 @@ module.exports = (function(){
         },
 
         // http://docs.jquery.com/Plugins/Validation/Methods/accept
+        /**
+         * Makes a file upload accept only specified mime-types. 
+         * Empty value passes as success.
+         * @param {string} param mime type string
+         */
         accept: function(value, element, param) {
             param = isString(param) ? param.replace(/,/g, '|') : "png|jpe?g|gif";
             return empty(value, element) || value.match(new RegExp(".(" + param + ")$", "i"));
         },
 
         // http://docs.jquery.com/Plugins/Validation/Methods/equalTo
+        /**
+         * Check if field's value equals to another field's value
+         * @validator equalto
+         * @param {*} param Another field's name or id
+         */
         equalto: function(value, element, param, api) {
-            // bind to the blur event of the target in order to revalidate whenever the target field is updated
+            // bind to the blur event of the target in order to revalidate 
+            // whenever the target field is updated
 
             var f       = api.getValidator().getField(param),
                 target  = f ? f.getElem() : param;
 
-            //var listener = function(){
-            //    removeListener(target, "blur", listener);
-            //    api.check();
-            //};
-
             return value == MetaphorJs.dom.getInputValue(target);
         },
 
+        /**
+         * Check if field's value does not equal another field's value
+         * @validator notequalto
+         * @param {*} param Another field's name or id
+         */
         notequalto: function(value, element, param, api) {
 
             var f       = api.getValidator().getField(param),
                 target  = f ? f.getElem() : param;
 
-            //var listener = function(){
-            //    removeListener(target, "blur", listener);
-            //    api.check();
-            //};
-
             return value != MetaphorJs.dom.getInputValue(target);
         },
 
+        /**
+         * Password strength estimator. Expects zxcvbn() 
+         * func to be available globally. 
+         * @param {*} param 
+         */
         zxcvbn: function(value, element, param) {
             return zxcvbn(value).score >= parseInt(param);
         }

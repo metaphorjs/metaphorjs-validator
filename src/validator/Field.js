@@ -29,36 +29,128 @@ module.exports = MetaphorJs.validator.Field = (function(){
     /* ***************************** FIELD ****************************************** */
 
 
-    var defaults = /*field-options-start*/{
+    /**
+     * @object MetaphorJs.validator.Field.defaults
+     */
+    var defaults = {
 
-        allowSubmit:		true,			// call form.submit() on field's ENTER keyup
-        alwaysCheck:		false,			// run tests even the field is proven valid and hasn't changed since last check
+        /**
+         * @property {boolean} allowSubmit call form.submit() on field's ENTER keyup
+         */
+        allowSubmit:		true,
+
+        /**
+         * @property {boolean} alwaysCheck run tests even the field is proven 
+         * valid and hasn't changed since last check
+         */
+        alwaysCheck:		false,
+
+        /**
+         * @property {boolean} alwaysDisplayState 
+         */
         alwaysDisplayState:	false,
-        data:				null,
-        ignore:				null,			// put ignore:true to field config to ignore the field completely
-        disabled:			false,			// make validator disabled for this field initially
 
+        /**
+         * @property {*} data User data to store with the field
+         */
+        data:				null,
+
+        /**
+         * @property {boolean} ignore put ignore:true to field config to ignore the field completely
+         */
+        ignore:				null,
+
+        /**
+         * @property {boolean} disabled make validator disabled for this field initially
+         */
+        disabled:			false,
+
+        /**
+         * @object cls
+         */
         cls: {
-            valid: 			'',				// css class for a valid form
-            error:			'',				// css class for a not valid form
-            ajax:			''				// css class for a form while it is being checked with ajax request
+            /**
+             * @property {string} valid css class for a valid state
+             */
+            valid: 			'',
+            /**
+             * @property {string} error css class for an error state
+             */
+            error:			'',
+            /**
+             * @property {string} ajax css class for the field with it is being checked remotely
+             */
+            ajax:			''
+
+            /**
+             * @end-object
+             */
         },
 
         // if string is provided, considered errorBox: {tag: '...'}
+        /**
+         * @object errorBox error box config
+         */
         errorBox: {
-            cls: 			'',				// add this class to the automatically created element
-            fn:				null, 			// must return dom node (cancels auto creation), receives api as the only param
-            tag:			'',				// create element automatically
-            position:		'after',		// place it before|after the form element
-            elem:			null,			// jquery or dom object or selector (already existing object)
-            enabled:		true			// can be disabled later (toggleErrorBox())
+            /**
+             * @property {string} cls error box css class
+             */
+            cls: 			'',
+            /**
+             * @property {function} fn {
+             *  Must return dom node (cancels auto creation)
+             *  @param {MetaphorJs.validator.Field} f
+             *  @returns {DomNode}
+             * }
+             */
+            fn:				null,
+            /**
+             * @property {string} tag Auto-create element with this tag
+             */
+            tag:			'',
+            /**
+             * @property {string} position {
+             *  before|after|appendParent where to put newly created element
+             *  @default after
+             * }
+             */
+            position:		'after',
+            /**
+             * @property {string|DomNode} elem {
+             *  Use this element as error box. (Dom node or selector)
+             * }
+             */
+            elem:			null,
+            /**
+             * @property {boolean} enabled {
+             *  Enable or disable error box
+             *  @default true
+             * }
+             */
+            enabled:		true
+
+            /**
+             * @end-object
+             */
         },
 
         // callbacks are case insensitive
         // you can use camel case if you like.
+        /**
+         * @object callback
+         */
         callback: {
-
+            /**
+             * @property {object} scope all callback's context
+             */
             scope:			null,
+
+            /**
+             * @property {function} * {
+             *  eventName: function(f); See class's events
+             *  @param {MetaphorJs.validator.Field} f
+             * }
+             */
 
             destroy:		null,			// called when field's validator is being destroyed. fn(api)
             statechange:	null,			// when field's state has been changed. fn(api, (boolean) state)
@@ -70,13 +162,34 @@ module.exports = MetaphorJs.validator.Field = (function(){
             afterAjax:		null,			// when ajax check ended. fn(api)
 
             displaystate:	null			// use this to display custom field state: fn(api, valid, error)
+            /**
+             * @end-object
+             */
         },
 
-        rules: 				{},				// {name: value}
-        // {name: fn(fieldValue, dom, ruleValue, api)}
-        // fn must return error message, false or true.
+        /**
+         * @property {object} rules {
+         *  Keys of this object are validators from 
+         *  <code>MetaphorJs.validator.methods</code>, values
+         *  of this object are validator params.<br>
+         *  Rule can also be a function (custom validator):
+         *  fn(fieldValue, dom, ruleValue, field)<br>
+         *  The function must return error message, false or true.
+         * }
+         */
+        rules: 				{},
+
+        /**
+         * @property {object} messages {
+         *  <code>rule: message</code>, error messages 
+         * }
+         */
         messages: 			{}
-    }/*field-options-end*/;
+
+        /**
+         * @end-object
+         */
+    };
 
 
     var fixFieldShorthands = function(options) {
@@ -127,7 +240,56 @@ module.exports = MetaphorJs.validator.Field = (function(){
         format = MetaphorJs.validator.format;
 
 
+    /**
+     * @class MetaphorJs.validator.Field
+     * @mixes MetaphorJs.mixin.Observable
+     */
     return cls({
+
+        /**
+         * @event check {
+         *  @param {MetaphorJs.validator.Field} f
+         *  @param {boolean} valid
+         * }
+         */
+        /**
+         * @event display-state {
+         *  @param {MetaphorJs.validator.Field} f
+         *  @param {boolean} valid
+         *  @param {string} error
+         * }
+         */
+        /**
+         * @event state-change {
+         *  @param {MetaphorJs.validator.Field} f
+         *  @param {boolean} valid
+         * }
+         */
+        /**
+         * @event error-change {
+         *  @param {MetaphorJs.validator.Field} f
+         *  @param {string} error 
+         *  @param {string} rule
+         * }
+         */
+        /**
+         * @event submit {
+         *  @param {MetaphorJs.validator.Field} f
+         *  @param {MetaphorJs.lib.DomEvent} event
+         *  @returns {boolean} return false to cancel
+         * }
+         */
+        /**
+         * @event before-ajax {
+         *  @param {MetaphorJs.validator.Field} f
+         *  @param {object} ajaxCfg
+         * }
+         */
+        /**
+         * @event after-ajax {
+         *  @param {MetaphorJs.validator.Field} f
+         * }
+         */
         
         $mixins: [MetaphorJs.mixin.Observable],
 
@@ -154,6 +316,13 @@ module.exports = MetaphorJs.validator.Field = (function(){
         errorBox:       null,
         customError:    false,
 
+        /**
+         * @constructor
+         * @method
+         * @param {Element} elem 
+         * @param {object} options See <code>MetaphorJs.validator.Field.defaults</code>
+         * @param {MetaphorJs.validator.Validator} vldr 
+         */
         $init: function(elem, options, vldr) {
             options             = options || {};
 
@@ -199,6 +368,10 @@ module.exports = MetaphorJs.validator.Field = (function(){
             }
         },
 
+        /**
+         * @method
+         * @returns {MetaphorJs.validator.Validator}
+         */
         getValidator: function() {
             return this.vldr;
         },
@@ -217,6 +390,15 @@ module.exports = MetaphorJs.validator.Field = (function(){
 
         /**
          * Set/add field rules
+         * @method
+         * @param {object} list {
+         *  name: value set of rules. See 
+         *  <code>MetaphorJs.validator.Field.defaults.rules</code> 
+         * }
+         * @param {boolean} check {
+         *  Re-check field's validity
+         *  @default false
+         * }
          */
         setRules: function(list, check) {
 
@@ -240,6 +422,13 @@ module.exports = MetaphorJs.validator.Field = (function(){
 
         /**
          * Set/add field rule
+         * @method
+         * @param {string} rule Validator name
+         * @param {*|function} value
+         * @param {boolean} check {
+         *  Re-check field's validity
+         *  @default false
+         * }
          */
         setRule: function(rule, value, check) {
 
@@ -276,6 +465,9 @@ module.exports = MetaphorJs.validator.Field = (function(){
 
         /**
          * Set rule message
+         * @method
+         * @param {string} rule
+         * @param {string} message
          */
         setMessage: function(rule, message) {
             this.cfg.messages[rule] = message;
@@ -284,6 +476,10 @@ module.exports = MetaphorJs.validator.Field = (function(){
 
         /**
          * Set rule messages
+         * @method
+         * @param {object} messages {
+         *  rule: message 
+         * }
          */
         setMessages: function(messages) {
 
@@ -297,12 +493,15 @@ module.exports = MetaphorJs.validator.Field = (function(){
 
         /**
          * Get rule messages
+         * @method 
+         * @returns {object}
          */
         getMessages: function() {
             return extend({}, this.cfg.messages);
         },
 
         /**
+         * @ignore
          * Read rules from attributes and classes
          * (this happens on init)
          */
@@ -324,7 +523,7 @@ module.exports = MetaphorJs.validator.Field = (function(){
                     if (val == undf || val === false) {
                         continue;
                     }
-                    if ((i == 'minlength' || i == 'maxlength') && parseInt(val, 10) == -1) {
+                    if ((i === 'minlength' || i === 'maxlength') && parseInt(val, 10) === -1) {
                         continue;
                     }
 
@@ -345,7 +544,7 @@ module.exports = MetaphorJs.validator.Field = (function(){
 
                     name = cls[i].trim();
 
-                    if (methods[name] || name == 'remote') {
+                    if (methods[name] || name === 'remote') {
                         found[name] = true;
                     }
                 }
@@ -358,13 +557,17 @@ module.exports = MetaphorJs.validator.Field = (function(){
 
         /**
          * Get field rules
+         * @method
+         * @returns {object}
          */
         getRules: function() {
             return this.rules;
         },
 
         /**
-         * @return boolean
+         * @method
+         * @param {string} name
+         * @return {boolean}
          */
         hasRule: function(name) {
             return this.rules[name] ? true : false;
@@ -372,6 +575,8 @@ module.exports = MetaphorJs.validator.Field = (function(){
 
         /**
          * Get field value
+         * @method
+         * @returns {string}
          */
         getValue: function() {
             return this.input.getValue();
@@ -379,14 +584,17 @@ module.exports = MetaphorJs.validator.Field = (function(){
 
         /**
          * Get user data
+         * @method
+         * @returns {*}
          */
         getUserData: function() {
             return this.data;
         },
 
-
         /**
          * Set user data
+         * @method
+         * @param {*} data
          */
         setUserData: function(data) {
             var self    = this,
@@ -396,7 +604,9 @@ module.exports = MetaphorJs.validator.Field = (function(){
         },
 
         /**
-         * @returns boolean
+         * Is the field currently empty
+         * @method
+         * @returns {boolean}
          */
         isEmpty: function() {
             var self = this;
@@ -405,6 +615,7 @@ module.exports = MetaphorJs.validator.Field = (function(){
 
         /**
          * Enable field validation
+         * @method
          */
         enable: function() {
             var self = this;
@@ -415,6 +626,7 @@ module.exports = MetaphorJs.validator.Field = (function(){
 
         /**
          * Disable field validation
+         * @method
          */
         disable: function() {
             var self = this;
@@ -427,19 +639,32 @@ module.exports = MetaphorJs.validator.Field = (function(){
             return self;
         },
 
+        /**
+         * @method
+         */
         enableDisplayState:	function() {
             this.displayState = true;
         },
 
+        /**
+         * @method
+         */
         disableDisplayState:	function() {
             this.displayState = false;
         },
 
+        /**
+         * @method
+         * @returns {boolean}
+         */
         isDisplayStateEnabled: function() {
             return this.displayState;
         },
 
-
+        /**
+         * @method
+         * @param {boolean} state 
+         */
         toggleErrorBox: function(state) {
 
             var self    = this,
@@ -453,26 +678,53 @@ module.exports = MetaphorJs.validator.Field = (function(){
             }
         },
 
+        /**
+         * @method
+         * @returns {boolean}
+         */
         isEnabled: function() {
             return this.enabled;
         },
 
+        /**
+         * Get field's dom node
+         * @method
+         * @returns {DomNode}
+         */
         getElem: function() {
             return this.elem;
         },
 
+        /**
+         * @method
+         * @returns {string}
+         */
         getName: function() {
             return this.id;
         },
 
+        /**
+         * Get current error
+         * @method
+         * @returns {string|null}
+         */
         getError: function() {
             return this.error;
         },
 
+        /**
+         * Get the name of last validator that invalidated the field
+         * @method
+         * @returns {string|null}
+         */
         getErrorRule: function() {
             return this.errorRule;
         },
 
+        /**
+         * @method
+         * @returns {boolean}
+         */
         isValid: function() {
 
             var self = this;
@@ -484,13 +736,20 @@ module.exports = MetaphorJs.validator.Field = (function(){
                 return false;
             }
 
-            return (self.valid === true && !self.pending) || self.rulesNum === 0;
+            return (self.valid === true && !self.pending) || 
+                    self.rulesNum === 0;
         },
 
         getExactValidState: function() {
             return this.valid;
         },
 
+        /**
+         * Set custom error
+         * @method
+         * @param {string} error 
+         * @param {string} rule 
+         */
         setCustomError:	function(error, rule) {
             var self = this;
             self.customError = error ? true : false;
@@ -499,6 +758,10 @@ module.exports = MetaphorJs.validator.Field = (function(){
             self.doDisplayState();
         },
 
+        /**
+         * Reset field to untouched state
+         * @method
+         */
         reset: function() {
 
             var self = this;
@@ -516,6 +779,7 @@ module.exports = MetaphorJs.validator.Field = (function(){
 
         /**
          * Abort ajax check
+         * @method
          */
         abort: function() {
             var self = this;
@@ -526,6 +790,12 @@ module.exports = MetaphorJs.validator.Field = (function(){
             return self;
         },
 
+        /**
+         * Check if field is valid
+         * @method
+         * @param {boolean} force Check even if field's value haven't changed
+         * @returns {boolean}
+         */
         check: function(force) {
 
             var self = this,
@@ -580,8 +850,9 @@ module.exports = MetaphorJs.validator.Field = (function(){
             for (var i in rules) {
 
                 // we always call remote check after all others
-                if (i == 'remote') {
-                    if (self.dirty || cfg.alwaysCheck || self.valid === null || force === true) {
+                if (i === 'remote') {
+                    if (self.dirty || cfg.alwaysCheck || 
+                        self.valid === null || force === true) {
                         if (val || rules[i].checkEmpty) {
                             remote = true;
                         }
@@ -660,7 +931,8 @@ module.exports = MetaphorJs.validator.Field = (function(){
         },
 
         /**
-         * @returns jQuery
+         * @method
+         * @returns {DomNode}
          */
         getErrorBox: function() {
 
@@ -694,6 +966,11 @@ module.exports = MetaphorJs.validator.Field = (function(){
         },
 
 
+        /**
+         * Is this field still running remote check
+         * @method
+         * @returns {boolean}
+         */
         isPending: function() {
             return this.pending !== null;
         },

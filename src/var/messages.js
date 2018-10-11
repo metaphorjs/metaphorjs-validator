@@ -2,6 +2,11 @@
 require("../__init.js");
 var MetaphorJs = require("metaphorjs-shared/src/MetaphorJs.js");
 
+/**
+ * @var {object} MetaphorJs.validator.messages {
+ *  Validator error messages. _validator_: "_message_".
+ * }
+ */
 module.exports = MetaphorJs.validator.messages = {
     required: 		"This field is required.",
     remote:	 		"Please fix this field.",

@@ -31,29 +31,88 @@ module.exports = MetaphorJs.validator.Validator = (function(){
         Group = MetaphorJs.validator.Group;
 
 
-    var defaults = /*validator-options-start*/{
+    /**
+     * @object MetaphorJs.validator.Validator.defaults
+     */
+    var defaults = {
 
-        form:               null,           // form element -- jquery
+        /**
+         * @property {Element} form The form being validated
+         */
+        form:               null,
 
-        all: 				{},				// {} of field properties which work as a preset
-        fields: 			{},				// {field: properties}
+        /**
+         * @property {object} all All fields properties. 
+         * See <code>MetaphorJs.validator.Field.defaults</code>
+         */
+        all: 				{},
+
+        /**
+         * @property {object} fields {
+         *  <code>name: config</code>. 
+         * For config see <code>MetaphorJs.validator.Field.defaults</code>.
+         * }
+         */
+        fields: 			{},
+
+        /**
+         * @property {object} rules {
+         *  <code>field: []</code> set of rules. 
+         *  See <code>MetaphorJs.validator.Field.defaults</code> for rules description.
+         * }
+         */
         rules: 				{},				// {field: rules}
 
+        /**
+         * Css classes to apply to the form
+         * @object cls
+         */
         cls: {
-            valid: 			'',				// css class for a valid form
-            error:			'',				// css class for a not valid form
-            checking:		''				// css class for a form while it is being checked with ajax request
+            /**
+             * @property {string} valid Form is valid
+             */
+            valid: 			'',	
+            /**
+             * @property {string} valid Form has an error
+             */	
+            error:			'',			
+            /**
+             * @property {string} valid Form is being checked (async check)
+             */
+            checking:		''
+
+            /**
+             * @end-object
+             */
         },
 
+        /**
+         * @property {object} groups {
+         *  <code>name: cfg</code> set of options. 
+         * See <code>MetaphorJs.validator.Group.defaults</code>.
+         * }
+         */
         groups: 			{},				// see groupDefaults. {name: cfg}
 
         // callbacks are case insensitive
         // you can use camel case if you like.
+        /**
+         * @object callback
+         */
         callback: {
-
+            /**
+             * @property {object} scope all callback's context
+             */
             scope:			null,
 
-            destroy:		null,			// when validator is being destroyd. fn(api)
+            /**
+             * @property {function} * {
+             *  eventName: function(v); See class's events
+             *  @param {MetaphorJs.validator.Validator} v
+             * }
+             */
+
+            destroy:		null,			// when validator is being destroyed. fn(api)
             reset:			null,			// when the form was resetted. fn(api)
             beforesubmit:	null,			// when form is about to be submitted: valid and non-valid. fn(api)
             submit:			null,			// when form is about to be submitted: only valid. fn(api).
@@ -64,11 +123,86 @@ module.exports = MetaphorJs.validator.Validator = (function(){
 
             displaystate:	null,			// fn(api, valid)
             displaystatechange:	null		// fn(api, state)
+
+            /**
+             * @end-object
+             */
         }
-    }/*validator-options-end*/;
+        /**
+         * @end-object
+         */
+    };
 
 
+    /**
+     * @class MetaphorJs.validator.Validator
+     * @mixes MetaphorJs.mixin.Observable
+     */
     var Validator = cls({
+
+        /**
+         * @event display-state-change {
+         *  When displayState has been enabled or disabled
+         *  @param {MetaphorJs.validator.Validator} v
+         *  @param {boolean} state
+         * }
+         */
+        /**
+         * @event check {
+         *  When form is being checked
+         *  @param {MetaphorJs.validator.Validator} v
+         *  @returns {boolean} return false to cancel check
+         * }
+         */
+        /**
+         * @event state-change {
+         *  After form check, if it changed its state
+         *  @param {MetaphorJs.validator.Validator} v
+         *  @param {boolean} valid 
+         * }
+         */
+        /**
+         * @event reset {
+         *  @param {MetaphorJs.validator.Validator} v
+         * }
+         */
+        /**
+         * @event before-submit {
+         *  @param {MetaphorJs.validator.Validator} v
+         *  @returns {boolean} return false to cancel submitting
+         * }
+         */
+        /**
+         * @event submit {
+         *  @param {MetaphorJs.validator.Validator} v
+         *  @returns {boolean} return false to cancel submitting
+         * }
+         */
+        /**
+         * @event failed-submit {
+         *  @param {MetaphorJs.validator.Validator} v
+         * }
+         */
+        /**
+         * @event field-error-change {
+         *  @param {MetaphorJs.validator.Validator} v
+         *  @param {MetaphorJs.validator.Field} f 
+         *  @param {string} error
+         * }
+         */
+        /**
+         * @event field-state-change {
+         *  @param {MetaphorJs.validator.Validator} v
+         *  @param {MetaphorJs.validator.Field} f 
+         *  @param {boolean} valid
+         * }
+         */
+        /**
+         * @event display-state {
+         *  @param {MetaphorJs.validator.Validator} v
+         *  @param {boolean} valid
+         * }
+         */
 
         $mixins: [MetaphorJs.mixin.Observable],
 
@@ -92,6 +226,22 @@ module.exports = MetaphorJs.validator.Validator = (function(){
         fields:         null,
         groups:         null,
 
+
+        /**
+         * @constructor
+         * @method
+         * @param {Element} el 
+         * @param {object} options See <code>MetaphorJs.validator.Validator.defaults</code>
+         */
+
+        /**
+         * @constructor
+         * @method
+         * @param {Element} el 
+         * @param {string} preset Preset name to take options from. 
+         * (Preset options will be overriden by <code>options</code>)
+         * @param {object} options See <code>MetaphorJs.validator.Validator.defaults</code>
+         */
         $init: function(el, preset, options) {
 
             var self    = this,
@@ -156,11 +306,18 @@ module.exports = MetaphorJs.validator.Validator = (function(){
             self.enabled = true;
         },
 
+        /**
+         * Get validator id
+         * @method
+         * @returns {string}
+         */
         getVldId:       function() {
             return this.id;
         },
 
         /**
+         * Get form element
+         * @method
          * @returns {Element}
          */
         getElem:        function() {
@@ -168,21 +325,28 @@ module.exports = MetaphorJs.validator.Validator = (function(){
         },
 
         /**
-         * @return {validator.Group}
+         * Get group by its name
+         * @method
+         * @param {string} name
+         * @returns {MetaphorJs.validator.Group}
          */
         getGroup: function(name) {
             return this.groups[name] || null;
         },
 
         /**
-         * @return {validator.Field}
+         * Get field by name or id
+         * @method
+         * @param {string} id
+         * @return {MetaphorJs.validator.Field}
          */
         getField:	function(id) {
             return this.fields[id] || null;
         },
 
         /**
-         * Enable validator
+         * Enable validator (enabled by default)
+         * @method
          */
         enable: function() {
             this.enabled = true;
@@ -191,6 +355,7 @@ module.exports = MetaphorJs.validator.Validator = (function(){
 
         /**
          * Disable validator
+         * @method
          */
         disable: function() {
             this.enabled = false;
@@ -198,12 +363,18 @@ module.exports = MetaphorJs.validator.Validator = (function(){
         },
 
         /**
-         * @return boolean
+         * Is this validator enabled
+         * @method
+         * @returns {boolean}
          */
         isEnabled: function() {
             return this.enabled;
         },
 
+        /**
+         * Make validator show form errors and other messages. (Enabled by default)
+         * @method
+         */
         enableDisplayState:	function() {
 
             var self    = this,
@@ -228,6 +399,10 @@ module.exports = MetaphorJs.validator.Validator = (function(){
             return self;
         },
 
+        /**
+         * Make validator not show form errors and other messages
+         * @method
+         */
         disableDisplayState:	function() {
 
             var self    = this,
@@ -253,15 +428,16 @@ module.exports = MetaphorJs.validator.Validator = (function(){
         },
 
         /**
+         * Check if form shows errors and messages
+         * @method
          * @return {boolean}
          */
         isDisplayStateEnabled:	function() {
             return this.displayState;
         },
 
-
         /**
-         * Is form valid
+         * Is the form valid
          * @return {boolean}
          */
         isValid: function() {
@@ -277,6 +453,15 @@ module.exports = MetaphorJs.validator.Validator = (function(){
                       self.outside === true;
         },
 
+        /**
+         * Get form errors
+         * @method 
+         * @param {boolean} plain {
+         *  If plain=true, will return array [err, err], if false (default),
+         *  object: (field: err, field: err)
+         * }
+         * @returns {array|object}
+         */
         getErrors: function(plain) {
 
             var self    = this,
@@ -322,9 +507,11 @@ module.exports = MetaphorJs.validator.Validator = (function(){
 
         /**
          * Check form for errors
+         * @method
+         * @returns {boolean} returns current form state 
+         * (it may change in a second after remote checks)
          */
         check: function() {
-
 
             var self    = this,
                 fields  = self.fields,
@@ -361,6 +548,10 @@ module.exports = MetaphorJs.validator.Validator = (function(){
 
         /**
          * Add field
+         * @method 
+         * @param {Element} node
+         * @param {object} fieldCfg See <code>MetaphorJs.validator.Field.defaults</code>
+         * @returns {MetaphorJs.validator.Validator}
          */
         add: function(node, fieldCfg) {
 
@@ -430,6 +621,10 @@ module.exports = MetaphorJs.validator.Validator = (function(){
 
         /**
          * Add group of fields
+         * @method
+         * @param {string} name
+         * @param {object} cfg See <code>MetaphorJs.validator.Group.defaults</code>
+         * @returns {MetaphorJs.validator.Validator}
          */
         addGroup:		function(name, cfg) {
 
@@ -447,11 +642,14 @@ module.exports = MetaphorJs.validator.Validator = (function(){
                     groups[name].check();
                 }
             }
+
+            return self;
         },
 
 
         /**
          * Focus first invalid field
+         * @method
          */
         focusInvalid: function() {
             var fields  = this.fields;
@@ -465,7 +663,8 @@ module.exports = MetaphorJs.validator.Validator = (function(){
 
 
         /**
-         * Reset validator
+         * Reset validator: reset all groups and fields to untouched state.
+         * @method
          */
         reset: function() {
 
@@ -499,7 +698,8 @@ module.exports = MetaphorJs.validator.Validator = (function(){
 
 
         /**
-         * Submit form
+         * Submit form or display errors
+         * @method
          */
         submit: function() {
 
@@ -823,9 +1023,6 @@ module.exports = MetaphorJs.validator.Validator = (function(){
         },
 
 
-        /**
-         * Destroy validator
-         */
         onDestroy: function() {
 
             var self    = this,
@@ -864,6 +1061,23 @@ module.exports = MetaphorJs.validator.Validator = (function(){
 
         defaults:   {},
 
+        /**
+         * Add validator
+         * @static
+         * @method
+         * @param {string} name 
+         * @param {function} fn {
+         *  @param {string} value
+         *  @param {Element} node
+         *  @param {string|*} param {
+         *      Validator's attribute value. <br>
+         *      <pre><input minlength="10"></pre><br>
+         *      param=10
+         *  }
+         *  @returns {boolean} Return false to invalidate field
+         * }
+         * @param {string} message Error message to display if the field is invalid
+         */
         addMethod:  function(name, fn, message) {
             var methods = ns.get("MetaphorJs.validator.methods");
             if (!methods[name]) {
@@ -874,12 +1088,17 @@ module.exports = MetaphorJs.validator.Validator = (function(){
             }
         },
 
+        /**
+         * Check if dom element already has validator initialized
+         * @static
+         * @method
+         * @param {Element} el 
+         * @returns {MetaphorJs.validator.Validator|null}
+         */
         getValidator: function(el) {
             var vldId = MetaphorJs.dom.getAttr(el, "data-validator");
             return validators[vldId] || null;
         }
-
-
     });
 
 

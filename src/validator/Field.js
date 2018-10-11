@@ -1,30 +1,30 @@
 
 var cls             = require("metaphorjs-class/src/cls.js"),
-    MetaphorJs      = require("metaphorjs/src/MetaphorJs.js"),
-    extend          = require("metaphorjs/src/func/extend.js"),
-    trim            = require("metaphorjs/src/func/trim.js"),
-    bind            = require("metaphorjs/src/func/bind.js"),
-    addClass        = require("metaphorjs/src/func/dom/addClass.js"),
-    removeClass     = require("metaphorjs/src/func/dom/removeClass.js"),
-    normalizeEvent  = require("metaphorjs/src/func/event/normalizeEvent.js"),
-    Input           = require("metaphorjs-input/src/lib/Input.js"),
-    isFunction      = require("metaphorjs/src/func/isFunction.js"),
-    isString        = require("metaphorjs/src/func/isString.js"),
-    isBool          = require("metaphorjs/src/func/isBool.js"),
+    MetaphorJs      = require("metaphorjs-shared/src/MetaphorJs.js"),
+    extend          = require("metaphorjs-shared/src/func/extend.js"),
+    bind            = require("metaphorjs-shared/src/func/bind.js"),
+    isFunction      = require("metaphorjs-shared/src/func/isFunction.js"),
+    isString        = require("metaphorjs-shared/src/func/isString.js"),
+    isBool          = require("metaphorjs-shared/src/func/isBool.js"),
     ajax            = require("metaphorjs-ajax/src/func/ajax.js"),
-    undf            = require("metaphorjs/src/var/undf.js"),
-    getAttr         = require("metaphorjs/src/func/dom/getAttr.js"),
-    setAttr         = require("metaphorjs/src/func/dom/setAttr.js"),
-    removeAttr      = require("metaphorjs/src/func/dom/removeAttr.js");
+    undf            = require("metaphorjs-shared/src/var/undf.js");
 
-
-require("../../var/messages.js");
-require("../../var/methods.js");
-require("../../func/empty.js");
-require("../../func/format.js");
+require("../__init.js");
+require("metaphorjs/src/func/dom/getAttr.js");
+require("metaphorjs/src/func/dom/setAttr.js");
+require("metaphorjs/src/func/dom/removeAttr.js");
+require("metaphorjs/src/func/dom/addClass.js");
+require("metaphorjs/src/func/dom/removeClass.js");
+require("metaphorjs/src/func/dom/normalizeEvent.js");
+require("metaphorjs/src/lib/Input.js");
 require("metaphorjs-observable/src/mixin/Observable.js");
+require("../var/messages.js");
+require("../var/methods.js");
+require("../func/empty.js");
+require("../func/format.js");
 
-module.exports = (function(){
+
+module.exports = MetaphorJs.validator.Field = (function(){
 
     /* ***************************** FIELD ****************************************** */
 
@@ -128,7 +128,7 @@ module.exports = (function(){
 
 
     return cls({
-        $class: "MetaphorJs.validator.Field",
+        
         $mixins: [MetaphorJs.mixin.Observable],
 
         vldr:           null,
@@ -166,20 +166,21 @@ module.exports = (function(){
                 true, true
             );
 
-            self.input          = Input.get(elem);
+            self.input          = MetaphorJs.lib.Input.get(elem);
             self.input.onChange(self.onInputChange, self);
             self.input.onKey(13, self.onInputSubmit, self);
 
             self.elem           = elem;
             self.vldr           = vldr;
             self.enabled        = !elem.disabled;
-            self.id             = getAttr(elem, 'name') || getAttr(elem, 'id');
+            self.id             = MetaphorJs.dom.getAttr(elem, 'name') || 
+                                    MetaphorJs.dom.getAttr(elem, 'id');
             self.data           = options.data;
             self.rules			= {};
 
             cfg.messages        = extend({}, messages, cfg.messages, true, true);
 
-            setAttr(elem, "data-validator", vldr.getVldId());
+            MetaphorJs.dom.setAttr(elem, "data-validator", vldr.getVldId());
 
             if (self.input.radio) {
                 self.initRadio();
@@ -210,7 +211,7 @@ module.exports = (function(){
                 i,l;
 
             for(i = 0, l = radios.length; i < l; i++) {
-                setAttr(radios[i], "data-validator", vldId);
+                MetaphorJs.dom.setAttr(radios[i], "data-validator", vldId);
             }
         },
 
@@ -317,7 +318,8 @@ module.exports = (function(){
 
                 if (methods.hasOwnProperty(i)) {
 
-                    val = getAttr(elem, i) || getAttr(elem, "data-validate-" + i);
+                    val = MetaphorJs.dom.getAttr(elem, i) || 
+                            MetaphorJs.dom.getAttr(elem, "data-validate-" + i);
 
                     if (val == undf || val === false) {
                         continue;
@@ -328,12 +330,12 @@ module.exports = (function(){
 
                     found[i] = val;
 
-                    val = getAttr(elem, "data-message-" + i);
+                    val = MetaphorJs.dom.getAttr(elem, "data-message-" + i);
                     val && self.setMessage(i, val);
                 }
             }
 
-            if ((val = getAttr(elem, 'remote'))) {
+            if ((val = MetaphorJs.dom.getAttr(elem, 'remote'))) {
                 found['remote'] = val;
             }
 
@@ -341,7 +343,7 @@ module.exports = (function(){
                 cls = cls.split(" ");
                 for (i = 0, len = cls.length; i < len; i++) {
 
-                    name = trim(cls[i]);
+                    name = cls[i].trim();
 
                     if (methods[name] || name == 'remote') {
                         found[name] = true;
@@ -636,10 +638,12 @@ module.exports = (function(){
             }
 
             if (errorCls) {
-                valid === false ? addClass(elem, errorCls) : removeClass(elem, errorCls);
+                valid === false ? MetaphorJs.dom.addClass(elem, errorCls) : 
+                                    MetaphorJs.dom.removeClass(elem, errorCls);
             }
             if (validCls) {
-                valid === true ? addClass(elem, validCls) : removeClass(elem, validCls);
+                valid === true ? MetaphorJs.dom.addClass(elem, validCls) : 
+                                    MetaphorJs.dom.removeClass(elem, validCls);
             }
 
             var box 	= self.getErrorBox(),
@@ -680,7 +684,7 @@ module.exports = (function(){
 
             var self = this;
 
-            removeAttr(self.elem, "data-validator");
+            MetaphorJs.dom.removeAttr(self.elem, "data-validator");
 
             if (self.errorBox) {
                 self.errorBox.parentNode.removeChild(self.errorBox);
@@ -747,7 +751,7 @@ module.exports = (function(){
 
         onInputSubmit: function(e) {
 
-            e = normalizeEvent(e);
+            e = MetaphorJs.dom.normalizeEvent(e);
 
             if (!e.isDefaultPrevented || !e.isDefaultPrevented()) {
                 var res = this.trigger("submit", this, e);
@@ -810,7 +814,8 @@ module.exports = (function(){
             //ajax.success 	= self.onAjaxSuccess;
             //ajax.error 		= self.onAjaxError;
             acfg.data 		= acfg.data || {};
-            acfg.data[acfg.paramName || getAttr(elem, 'name') || getAttr(elem, 'id')] = val;
+            acfg.data[acfg.paramName || MetaphorJs.dom.getAttr(elem, 'name') || 
+                                        MetaphorJs.dom.getAttr(elem, 'id')] = val;
 
             if (!acfg.handler) {
                 acfg.dataType 	= 'text';
@@ -819,7 +824,7 @@ module.exports = (function(){
             acfg.cache 		= false;
 
             if (cfg.cls.ajax) {
-                addClass(elem, cfg.cls.ajax);
+                MetaphorJs.dom.addClass(elem, cfg.cls.ajax);
             }
 
             self.trigger('before-ajax', self, acfg);
@@ -859,7 +864,7 @@ module.exports = (function(){
             }
 
             if (cfg.cls.ajax) {
-                removeClass(self.elem, cfg.cls.ajax);
+                MetaphorJs.dom.removeClass(self.elem, cfg.cls.ajax);
             }
 
             self.setValidState(valid);
@@ -884,7 +889,7 @@ module.exports = (function(){
             }
 
             if (cfg.cls.ajax) {
-                removeClass(self.elem, cfg.cls.ajax);
+                MetaphorJs.dom.removeClass(self.elem, cfg.cls.ajax);
             }
 
             self.pending = null;

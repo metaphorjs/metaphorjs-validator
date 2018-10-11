@@ -1,5 +1,5 @@
 
-var MetaphorJs = require("metaphorjs/src/MetaphorJs.js");
+var MetaphorJs = require("metaphorjs-shared/src/MetaphorJs.js");
 
 // add namespace manually
 MetaphorJs.validator = MetaphorJs.validator || {};

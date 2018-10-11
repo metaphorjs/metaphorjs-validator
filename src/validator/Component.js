@@ -1,18 +1,18 @@
 
-var Validator = require("../Validator.js"),
-    cls = require("metaphorjs-class/src/cls.js"),
-    bind = require("metaphorjs/src/func/bind.js"),
+var cls = require("metaphorjs-class/src/cls.js"),
+    bind = require("metaphorjs-shared/src/func/bind.js"),
     createFunc = require("metaphorjs-watchable/src/func/createFunc.js"),
-    error = require("metaphorjs/src/func/error.js"),
-    eachNode = require("metaphorjs/src/func/dom/eachNode.js"),
-    isField = require("metaphorjs/src/func/dom/isField.js"),
-    getAttr = require("metaphorjs/src/func/dom/getAttr.js");
+    error = require("metaphorjs-shared/src/func/error.js"),
+    MetaphorJs = require("metaphorjs-shared/src/MetaphorJs.js");
+
+require("../__init.js");
+require("./Validator.js")
+require("metaphorjs/src/func/dom/eachNode.js"),
+require("metaphorjs/src/func/dom/isField.js"),
+require("metaphorjs/src/func/dom/getAttr.js");
 
 
-
-module.exports = cls({
-
-    $class: "MetaphorJs.validator.Component",
+module.exports = MetaphorJs.validator.Component = cls({
 
     node: null,
     scope: null,
@@ -32,7 +32,9 @@ module.exports = cls({
         self.fields     = [];
         self.nodeCfg    = nodeCfg;
         self.validator  = self.createValidator();
-        self.formName   = getAttr(node, 'name') || getAttr(node, 'id') || '$form';
+        self.formName   = MetaphorJs.dom.getAttr(node, 'name') || 
+                            MetaphorJs.dom.getAttr(node, 'id') || 
+                            '$form';
 
         self.initScope();
         self.initScopeState();
@@ -66,7 +68,7 @@ module.exports = cls({
             }(createFunc(submit), self.scope);
         }
 
-        return new Validator(node, cfg);
+        return new MetaphorJs.validator.Validator(node, cfg);
     },
 
     initValidatorEvents: function() {
@@ -106,8 +108,8 @@ module.exports = cls({
         }
         else {
             els     = [];
-            eachNode(node, function(el) {
-                if (isField(el)) {
+            MetaphorJs.dom.eachNode(node, function(el) {
+                if (MetaphorJs.dom.isField(el)) {
                     els.push(el);
                 }
             });
@@ -115,7 +117,8 @@ module.exports = cls({
 
         for (i = -1, l = els.length; ++i < l;) {
             el = els[i];
-            name = getAttr(el, "name") || getAttr(el, 'id');
+            name = MetaphorJs.dom.getAttr(el, "name") || 
+                    MetaphorJs.dom.getAttr(el, 'id');
 
             if (name && !state[name]) {
                 fields.push(name);

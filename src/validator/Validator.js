@@ -1,29 +1,28 @@
 
-require("../__init.js");
-
 var cls             = require("metaphorjs-class/src/cls.js"),
-    MetaphorJs      = require("metaphorjs/src/MetaphorJs.js"),
-    extend          = require("metaphorjs/src/func/extend.js"),
-    bind            = require("metaphorjs/src/func/bind.js"),
-    addListener     = require("metaphorjs/src/func/event/addListener.js"),
-    removeListener  = require("metaphorjs/src/func/event/removeListener.js"),
-    addClass        = require("metaphorjs/src/func/dom/addClass.js"),
-    removeClass     = require("metaphorjs/src/func/dom/removeClass.js"),
-    select          = require("metaphorjs-select/src/func/select.js"),
-    isField         = require("metaphorjs/src/func/dom/isField.js"),
-    normalizeEvent  = require("metaphorjs/src/func/event/normalizeEvent.js"),
-    isFunction      = require("metaphorjs/src/func/isFunction.js"),
-    isString        = require("metaphorjs/src/func/isString.js"),
-    getAttr         = require("metaphorjs/src/func/dom/getAttr.js"),
-    setAttr         = require("metaphorjs/src/func/dom/setAttr.js"),
-    nextUid         = require("metaphorjs/src/func/nextUid.js");
+    MetaphorJs      = require("metaphorjs-shared/src/MetaphorJs.js"),
+    extend          = require("metaphorjs-shared/src/func/extend.js"),
+    bind            = require("metaphorjs-shared/src/func/bind.js"),
+    isFunction      = require("metaphorjs-shared/src/func/isFunction.js"),
+    isString        = require("metaphorjs-shared/src/func/isString.js"),
+    nextUid         = require("metaphorjs-shared/src/func/nextUid.js");
+
+require("../__init.js");
+require("metaphorjs/src/func/dom/addListener.js"),
+require("metaphorjs/src/func/dom/removeListener.js"),
+require("metaphorjs/src/func/dom/addClass.js"),
+require("metaphorjs/src/func/dom/removeClass.js"),
+require("metaphorjs/src/func/dom/select.js"),
+require("metaphorjs/src/func/dom/isField.js"),
+require("metaphorjs/src/func/dom/normalizeEvent.js"),
+require("metaphorjs/src/func/dom/getAttr.js"),
+require("metaphorjs/src/func/dom/setAttr.js"),
+require("metaphorjs-observable/src/mixin/Observable.js");    
+require("./Field.js");
+require("./Group.js");
 
 
-require("./validator/Field.js");
-require("./validator/Group.js");
-require("metaphorjs-observable/src/mixin/Observable.js");
-
-module.exports = (function(){
+module.exports = MetaphorJs.validator.Validator = (function(){
 
 
     var validators  = {};
@@ -71,7 +70,6 @@ module.exports = (function(){
 
     var Validator = cls({
 
-        $class: "MetaphorJs.validator.Validator",
         $mixins: [MetaphorJs.mixin.Observable],
 
         id:             null,
@@ -103,7 +101,7 @@ module.exports = (function(){
             self.id     = nextUid();
             validators[self.id] = self;
 
-            setAttr(el, "data-validator", self.id);
+            MetaphorJs.dom.setAttr(el, "data-validator", self.id);
 
             self.el     = el;
 
@@ -368,17 +366,18 @@ module.exports = (function(){
 
             var self    = this;
 
-            if (!isField(node)) {
+            if (!MetaphorJs.dom.isField(node)) {
                 return self;
             }
-            if (getAttr(node, "data-no-validate") !== null) {
+            if (MetaphorJs.dom.getAttr(node, "data-no-validate") !== null) {
                 return self;
             }
-            if (getAttr(node, "data-validator") !== null) {
+            if (MetaphorJs.dom.getAttr(node, "data-validator") !== null) {
                 return self;
             }
 
-            var id 			= getAttr(node, 'name') || getAttr(node, 'id'),
+            var id 			= MetaphorJs.dom.getAttr(node, 'name') || 
+                                MetaphorJs.dom.getAttr(node, 'id'),
                 cfg         = self.cfg,
                 fields      = self.fields,
                 fcfg,
@@ -562,9 +561,10 @@ module.exports = (function(){
             var self    = this,
                 el      = self.el,
                 nodes   = el.getElementsByTagName("input"),
-                submits = select(".submit", el),
-                resets  = select(".reset", el),
-                fn      = mode === "bind" ? addListener : removeListener,
+                submits = MetaphorJs.dom.select(".submit", el),
+                resets  = MetaphorJs.dom.select(".reset", el),
+                fn      = mode === "bind" ? MetaphorJs.dom.addListener : 
+                                            MetaphorJs.dom.removeListener,
                 i, l,
                 type,
                 node;
@@ -596,7 +596,7 @@ module.exports = (function(){
         },
 
         onRealSubmitClick: function(e) {
-            e = normalizeEvent(e || window.event);
+            e = MetaphorJs.dom.normalizeEvent(e || window.event);
             this.submitButton  = e.target || e.srcElement;
             this.preventFormSubmit = false;
             return this.onSubmit(e);
@@ -604,11 +604,11 @@ module.exports = (function(){
 
         onSubmitClick: function(e) {
             this.preventFormSubmit = false;
-            return this.onSubmit(normalizeEvent(e || window.event));
+            return this.onSubmit(MetaphorJs.dom.normalizeEvent(e || window.event));
         },
 
         onFormSubmit: function(e) {
-            e = normalizeEvent(e);
+            e = MetaphorJs.dom.normalizeEvent(e);
             if (!this.isValid() || this.preventFormSubmit) {
                 e.preventDefault();
                 return false;
@@ -657,7 +657,7 @@ module.exports = (function(){
                 if (self.submitButton && /input|button/.test(self.submitButton.nodeName)) {
                     self.hidden = window.document.createElement("input");
                     self.hidden.type = "hidden";
-                    setAttr(self.hidden, "name", self.submitButton.name);
+                    MetaphorJs.dom.setAttr(self.hidden, "name", self.submitButton.name);
                     self.hidden.value = self.submitButton.value;
                     self.el.appendChild(self.hidden);
                 }
@@ -705,7 +705,8 @@ module.exports = (function(){
         onFieldDestroy: function(f) {
 
             var elem 	= f.getElem(),
-                id		= getAttr(elem, 'name') || getAttr(elem, 'id');
+                id		= MetaphorJs.dom.getAttr(elem, 'name') || 
+                            MetaphorJs.dom.getAttr(elem, 'id');
 
             delete this.fields[id];
         },
@@ -772,10 +773,12 @@ module.exports = (function(){
             }
 
             if (errorCls) {
-                valid === false ? addClass(el, errorCls) : removeClass(el, errorCls);
+                valid === false ? MetaphorJs.dom.addClass(el, errorCls) : 
+                                MetaphorJs.dom.removeClass(el, errorCls);
             }
             if (validCls) {
-                valid === true ? addClass(el, validCls) : removeClass(el, validCls);
+                valid === true ? MetaphorJs.dom.addClass(el, validCls) : 
+                                MetaphorJs.dom.removeClass(el, validCls);
             }
 
             self.trigger('display-state', self, valid);
@@ -785,7 +788,7 @@ module.exports = (function(){
             var self = this;
             self.pending++;
             if (self.cfg.cls.ajax) {
-                addClass(self.el, self.cfg.cls.ajax);
+                MetaphorJs.dom.addClass(self.el, self.cfg.cls.ajax);
             }
         },
 
@@ -804,7 +807,7 @@ module.exports = (function(){
             self.doDisplayState();
 
             if (cfg.cls.ajax) {
-                removeClass(self.el, cfg.cls.ajax);
+                MetaphorJs.dom.removeClass(self.el, cfg.cls.ajax);
             }
 
             if (self.submitted && self.pending == 0) {
@@ -862,7 +865,7 @@ module.exports = (function(){
         defaults:   {},
 
         addMethod:  function(name, fn, message) {
-            var methods = ns.get("validator.methods");
+            var methods = ns.get("MetaphorJs.validator.methods");
             if (!methods[name]) {
                 methods[name] = fn;
                 if (message) {
@@ -872,7 +875,7 @@ module.exports = (function(){
         },
 
         getValidator: function(el) {
-            var vldId = getAttr(el, "data-validator");
+            var vldId = MetaphorJs.dom.getAttr(el, "data-validator");
             return validators[vldId] || null;
         }
 

@@ -1,19 +1,20 @@
 
-
 var cls             = require("metaphorjs-class/src/cls.js"),
-    MetaphorJs      = require("metaphorjs/src/MetaphorJs.js"),
-    extend          = require("metaphorjs/src/func/extend.js"),
-    addClass        = require("metaphorjs/src/func/dom/addClass.js"),
-    removeClass     = require("metaphorjs/src/func/dom/removeClass.js"),
-    isFunction      = require("metaphorjs/src/func/isFunction.js"),
-    undf            = require("metaphorjs/src/var/undf.js");
+    MetaphorJs      = require("metaphorjs-shared/src/MetaphorJs.js"),
+    extend          = require("metaphorjs-shared/src/func/extend.js"),
+    isFunction      = require("metaphorjs-shared/src/func/isFunction.js"),
+    undf            = require("metaphorjs-shared/src/var/undf.js");
 
-require("../../var/messages.js");
-require("../../var/methods.js");
-require("../../func/format.js");
+require("../__init.js");
+require("metaphorjs/src/func/dom/addClass.js");
+require("metaphorjs/src/func/dom/removeClass.js");
 require("metaphorjs-observable/src/mixin/Observable.js");
+require("../var/messages.js");
+require("../var/methods.js");
+require("../func/format.js");
 
-module.exports = (function(){
+
+module.exports = MetaphorJs.validator.Group = (function(){
 
 
 /* ***************************** GROUP ****************************************** */
@@ -61,7 +62,7 @@ module.exports = (function(){
 
 
     return cls({
-        $class: "MetaphorJs.validator.Group",
+
         $mixins: [MetaphorJs.mixin.Observable],
 
         fields:         null,
@@ -405,10 +406,12 @@ module.exports = (function(){
             valid = self.valid;
 
             if (errorCls) {
-                valid === false ? addClass(self.el, errorCls) : removeClass(self.el, errorCls);
+                valid === false ? MetaphorJs.dom.addClass(self.el, errorCls) : 
+                                    MetaphorJs.dom.removeClass(self.el, errorCls);
             }
             if (validCls) {
-                valid === true ? addClass(self.el, validCls) : removeClass(self.el, validCls);
+                valid === true ? MetaphorJs.dom.addClass(self.el, validCls) : 
+                                    MetaphorJs.dom.removeClass(self.el, validCls);
             }
 
             self.trigger('display-state', self, self.valid);

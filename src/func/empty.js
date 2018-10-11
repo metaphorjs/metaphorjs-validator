@@ -2,10 +2,9 @@
 require("../__init.js");
 require("./checkable.js");
 require("./getLength.js");
+require("metaphorjs/src/func/dom/getInputValue.js");
 
-var MetaphorJs = require("metaphorjs/src/MetaphorJs.js"),
-    trim        = require("metaphorjs/src/func/trim.js"),
-    getValue    = require("metaphorjs-input/src/func/getValue.js");
+var MetaphorJs = require("metaphorjs-shared/src/MetaphorJs.js");
 
 // from http://bassistance.de/jquery-plugins/jquery-plugin-validation/
 module.exports = MetaphorJs.validator.empty = function(value, element) {
@@ -17,7 +16,7 @@ module.exports = MetaphorJs.validator.empty = function(value, element) {
     switch(element.nodeName.toLowerCase()) {
         case 'select':{
             // could be an array for select-multiple or a string, both are fine this way
-            var val = getValue(element);
+            var val = MetaphorJs.dom.getInputValue(element);
             return !val || val.length == 0;
         }
         case 'input':{
@@ -27,5 +26,5 @@ module.exports = MetaphorJs.validator.empty = function(value, element) {
         }
     }
 
-    return trim(value).length == 0;
+    return value.trim().length == 0;
 };

@@ -1,9 +1,9 @@
 
 require("../__init.js");
 
-var MetaphorJs      = require("metaphorjs/src/MetaphorJs.js"),
-    isFunction      = require("metaphorjs/src/func/isFunction.js"),
-    isArray         = require("metaphorjs/src/func/isArray.js");
+var MetaphorJs      = require("metaphorjs-shared/src/MetaphorJs.js"),
+    isFunction      = require("metaphorjs-shared/src/func/isFunction.js"),
+    isArray         = require("metaphorjs-shared/src/func/isArray.js");
 
 module.exports = MetaphorJs.validator.format = function(str, params) {
 

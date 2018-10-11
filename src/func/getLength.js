@@ -2,9 +2,9 @@
 require("../__init.js");
 require("./checkable.js");
 
-var MetaphorJs      = require("metaphorjs/src/MetaphorJs.js"),
+var MetaphorJs      = require("metaphorjs-shared/src/MetaphorJs.js"),
     eachNode        = require("metaphorjs/src/func/dom/eachNode.js"),
-    select          = require("metaphorjs-select/src/func/select.js"),
+    select          = require("metaphorjs/src/func/dom/select.js"),
     isAttached      = require("metaphorjs/src/func/dom/isAttached.js");
 
 // from http://bassistance.de/jquery-plugins/jquery-plugin-validation/

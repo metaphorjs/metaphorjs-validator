@@ -2,11 +2,11 @@
 require("../__init.js");
 require("../func/empty.js");
 require("../func/getLength.js");
+require("metaphorjs/src/func/dom/getInputValue.js");
+require("metaphorjs-shared/src/var/regexp/url.js");
 
-var MetaphorJs      = require("metaphorjs/src/MetaphorJs.js"),
-    isString        = require("metaphorjs/src/func/isString.js"),
-    getValue        = require("metaphorjs-input/src/func/getValue.js"),
-    rUrl            = require("metaphorjs/src/var/rUrl.js");
+var MetaphorJs      = require("metaphorjs-shared/src/MetaphorJs.js"),
+    isString        = require("metaphorjs-shared/src/func/isString.js");
 
 module.exports = (function(){
 
@@ -40,7 +40,7 @@ module.exports = (function(){
             return empty(value, element) ||
                    (
                        element ?
-                       getLength(trim(value), element) >= param :
+                       getLength(value.trim(), element) >= param :
                        value.toString().length >= param
                    );
         },
@@ -49,13 +49,13 @@ module.exports = (function(){
             return empty(value, element) ||
                    (
                        element ?
-                       getLength(trim(value), element) <= param:
+                       getLength(value.trim(), element) <= param:
                        value.toString().length <= param
                    );
         },
 
         rangelength: function(value, element, param) {
-            var length = element ? getLength(trim(value), element) : value.toString().length;
+            var length = element ? getLength(value.trim(), element) : value.toString().length;
             return empty(value, element) || ( length >= param[0] && length <= param[1] );
         },
 
@@ -81,7 +81,7 @@ module.exports = (function(){
         // http://docs.jquery.com/Plugins/Validation/Methods/url
         url: function(value, element) {
             // contributed by Scott Gonzalez: http://projects.scottsplayground.com/iri/
-            return empty(value, element) || rUrl.test(value);
+            return empty(value, element) || MetaphorJs.regexp.url.test(value);
             //	/^(https?|ftp):\/\/(((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:)*@)?(((\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5]))|((([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])*([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])))\.)+(([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])*([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])))\.?)(:\d*)?)(\/((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)+(\/(([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)*)*)?)?(\?((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)|[\uE000-\uF8FF]|\/|\?)*)?(\#((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)|\/|\?)*)?$/i.test(value);
         },
 
@@ -161,7 +161,7 @@ module.exports = (function(){
             //    api.check();
             //};
 
-            return value == getValue(target);
+            return value == MetaphorJs.dom.getInputValue(target);
         },
 
         notequalto: function(value, element, param, api) {
@@ -174,7 +174,7 @@ module.exports = (function(){
             //    api.check();
             //};
 
-            return value != getValue(target);
+            return value != MetaphorJs.dom.getInputValue(target);
         },
 
         zxcvbn: function(value, element, param) {

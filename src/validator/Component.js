@@ -1,12 +1,12 @@
 
 var cls = require("metaphorjs-class/src/cls.js"),
     bind = require("metaphorjs-shared/src/func/bind.js"),
-    createFunc = require("metaphorjs-watchable/src/func/createFunc.js"),
     error = require("metaphorjs-shared/src/func/error.js"),
     MetaphorJs = require("metaphorjs-shared/src/MetaphorJs.js");
 
 require("../__init.js");
 require("./Validator.js")
+require("metaphorjs/src/lib/Expression.js");
 require("metaphorjs/src/func/dom/eachNode.js"),
 require("metaphorjs/src/func/dom/isField.js"),
 require("metaphorjs/src/func/dom/getAttr.js");
@@ -65,7 +65,7 @@ module.exports = MetaphorJs.validator.Component = cls({
                         error(thrownError);
                     }
                 }
-            }(createFunc(submit), self.scope);
+            }(MetaphorJs.lib.Expression.parse(submit), self.scope);
         }
 
         return new MetaphorJs.validator.Validator(node, cfg);

@@ -2,7 +2,7 @@
 var Directive = require("metaphorjs/src/app/Directive.js"),
     ns = require("metaphorjs-namespace/src/var/ns.js");
 
-require("../class/validator/Component.js");
+require("../validator/Component.js");
 
 Directive.registerAttribute("validate", 250,
     function(scope, node, expr, renderer, attr) {

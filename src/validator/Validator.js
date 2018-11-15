@@ -8,15 +8,15 @@ var cls             = require("metaphorjs-class/src/cls.js"),
     nextUid         = require("metaphorjs-shared/src/func/nextUid.js");
 
 require("../__init.js");
-require("metaphorjs/src/func/dom/addListener.js"),
-require("metaphorjs/src/func/dom/removeListener.js"),
-require("metaphorjs/src/func/dom/addClass.js"),
-require("metaphorjs/src/func/dom/removeClass.js"),
-require("metaphorjs/src/func/dom/select.js"),
-require("metaphorjs/src/func/dom/isField.js"),
-require("metaphorjs/src/func/dom/normalizeEvent.js"),
-require("metaphorjs/src/func/dom/getAttr.js"),
-require("metaphorjs/src/func/dom/setAttr.js"),
+require("metaphorjs/src/func/dom/addListener.js");
+require("metaphorjs/src/func/dom/removeListener.js");
+require("metaphorjs/src/func/dom/addClass.js");
+require("metaphorjs/src/func/dom/removeClass.js");
+require("metaphorjs/src/func/dom/select.js");
+require("metaphorjs/src/func/dom/isField.js");
+require("metaphorjs/src/func/dom/normalizeEvent.js");
+require("metaphorjs/src/func/dom/getAttr.js");
+require("metaphorjs/src/func/dom/setAttr.js");
 require("metaphorjs-observable/src/mixin/Observable.js");    
 require("./Field.js");
 require("./Group.js");

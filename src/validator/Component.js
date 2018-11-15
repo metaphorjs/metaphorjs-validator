@@ -5,10 +5,10 @@ var cls = require("metaphorjs-class/src/cls.js"),
     MetaphorJs = require("metaphorjs-shared/src/MetaphorJs.js");
 
 require("../__init.js");
-require("./Validator.js")
+require("./Validator.js");
 require("metaphorjs/src/lib/Expression.js");
-require("metaphorjs/src/func/dom/eachNode.js"),
-require("metaphorjs/src/func/dom/isField.js"),
+require("metaphorjs/src/func/dom/eachNode.js");
+require("metaphorjs/src/func/dom/isField.js");
 require("metaphorjs/src/func/dom/getAttr.js");
 
 

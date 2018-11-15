@@ -1,5 +1,5 @@
 
-var Directive = require("metaphorjs/src/class/Directive.js"),
+var Directive = require("metaphorjs/src/app/Directive.js"),
     ns = require("metaphorjs-namespace/src/var/ns.js");
 
 require("../class/validator/Component.js");

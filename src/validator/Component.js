@@ -54,7 +54,7 @@ module.exports = MetaphorJs.validator.Component = cls({
             ncfg    = self.nodeCfg,
             submit;
 
-        if ((submit = ncfg.submit)) {
+        if ((submit = ncfg.get("submit"))) {
             cfg.callback = cfg.callback || {};
             cfg.callback.submit = function(fn, scope){
                 return function() {
@@ -65,7 +65,7 @@ module.exports = MetaphorJs.validator.Component = cls({
                         error(thrownError);
                     }
                 }
-            }(MetaphorJs.lib.Expression.parse(submit), self.scope);
+            }(submit, self.scope);
         }
 
         return new MetaphorJs.validator.Validator(node, cfg);

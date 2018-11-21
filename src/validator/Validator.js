@@ -749,7 +749,7 @@ module.exports = MetaphorJs.validator.Validator = (function(){
                 return self;
             }
 
-            els = select("input, textarea, select", el);
+            els = MetaphorJs.dom.select("input, textarea, select", el);
 
             for (i = -1, l = els.length; ++i < l; self.add(els[i])){}
 

@@ -10,11 +10,13 @@ require("../validator/Component.js");
 Directive.registerAttribute("validate", 250,
     function(scope, node, config, renderer, attrSet) {
 
-    config.setProperty("value", {mode: MetaphorJs.lib.Config.MODE_STATIC});
-    config.setProperty("submit", {mode: MetaphorJs.lib.Config.MODE_GETTER});
-    config.lateInit();
+    config.setProperty("value", {
+        mode: MetaphorJs.lib.Config.MODE_STATIC,
+        defaultValue: "MetaphorJs.validator.Component"
+    });
+    config.setMode("submit", MetaphorJs.lib.Config.MODE_FUNC);
 
-    var cls     = config.get("value") || "MetaphorJs.validator.Component",
+    var cls     = config.get("value"),
         constr  = ns.get(cls);
 
     if (!constr) {

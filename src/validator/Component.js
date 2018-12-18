@@ -4,6 +4,7 @@ var cls = require("metaphorjs-class/src/cls.js"),
     error = require("metaphorjs-shared/src/func/error.js"),
     MetaphorJs = require("metaphorjs-shared/src/MetaphorJs.js");
 
+require("metaphorjs/src/lib/Config.js");
 require("../__init.js");
 require("./Validator.js");
 require("metaphorjs/src/lib/Expression.js");
@@ -26,13 +27,16 @@ module.exports = MetaphorJs.validator.Component = cls({
 
         var self        = this;
 
+        nodeCfg.setDefaultMode("ref", MetaphorJs.lib.Config.MODE_STATIC);
+
         self.node       = node;
         self.scope      = scope;
         self.scopeState = {};
         self.fields     = [];
         self.nodeCfg    = nodeCfg;
         self.validator  = self.createValidator();
-        self.formName   = MetaphorJs.dom.getAttr(node, 'name') || 
+        self.formName   = nodeCfg.get("ref") ||
+                            MetaphorJs.dom.getAttr(node, 'name') || 
                             MetaphorJs.dom.getAttr(node, 'id') || 
                             '$form';
 

@@ -10,6 +10,7 @@ var cls             = require("metaphorjs-class/src/cls.js"),
     undf            = require("metaphorjs-shared/src/var/undf.js");
 
 require("../__init.js");
+require("metaphorjs/src/func/dom/data.js");
 require("metaphorjs/src/func/dom/getAttr.js");
 require("metaphorjs/src/func/dom/setAttr.js");
 require("metaphorjs/src/func/dom/removeAttr.js");
@@ -17,6 +18,7 @@ require("metaphorjs/src/func/dom/addClass.js");
 require("metaphorjs/src/func/dom/removeClass.js");
 require("metaphorjs/src/func/dom/normalizeEvent.js");
 require("metaphorjs/src/lib/Input.js");
+require("metaphorjs/src/lib/Config.js");
 require("metaphorjs-observable/src/mixin/Observable.js");
 require("../var/messages.js");
 require("../var/methods.js");
@@ -552,6 +554,34 @@ module.exports = MetaphorJs.validator.Field = (function(){
 
             for (i in found) {
                 self.setRule(i, found[i], false);
+            }
+        },
+
+        setConfigRules: function(config) {
+            var self    = this,
+                elem    = self.elem,
+                val, i;
+
+            for (i in methods) {
+
+                if (methods.hasOwnProperty(i)) {
+
+                    if (config.hasProperty(i)) {
+                        config.setDefaultMode(i, MetaphorJs.lib.Config.MODE_STATIC);
+                    }
+
+                    val = config.get(i);
+
+                    if (val == undf || val === false) {
+                        continue;
+                    }
+
+                    self.setRule(i, val, false);
+
+                    val = (config ? config.get(i + ".msg") : null) ||
+                            MetaphorJs.dom.getAttr(elem, "data-message-" + i);
+                    val && self.setMessage(i, val);
+                }
             }
         },
 

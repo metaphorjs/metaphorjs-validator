@@ -525,7 +525,8 @@ module.exports = MetaphorJs.validator.Field = (function(){
                     if (val == undf || val === false) {
                         continue;
                     }
-                    if ((i === 'minlength' || i === 'maxlength') && parseInt(val, 10) === -1) {
+                    if ((i === 'minlength' || i === 'maxlength') && 
+                        (val = parseInt(val, 10)) === -1) {
                         continue;
                     }
 
@@ -568,11 +569,16 @@ module.exports = MetaphorJs.validator.Field = (function(){
 
                     if (config.hasProperty(i)) {
                         config.setDefaultMode(i, MetaphorJs.lib.Config.MODE_STATIC);
+                        config.setDefaultMode(i+".msg", MetaphorJs.lib.Config.MODE_STATIC);
                     }
 
                     val = config.get(i);
 
                     if (val == undf || val === false) {
+                        continue;
+                    }
+                    if ((i === 'minlength' || i === 'maxlength') && 
+                        (val = parseInt(val, 10)) === -1) {
                         continue;
                     }
 

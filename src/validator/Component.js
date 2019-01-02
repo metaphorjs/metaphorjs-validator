@@ -46,7 +46,9 @@ module.exports = MetaphorJs.validator.Component = cls({
 
         // wait for the renderer to finish
         // before making judgements :)
-        renderer.once("rendered", self.validator.check, self.validator);
+        renderer.on("rendered", self.validator.check, self.validator, {
+            once: true
+        });
         renderer.on("destroy", self.$destroy, self);
         scope.$on("destroy", self.$destroy, self);
     },

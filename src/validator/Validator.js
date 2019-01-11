@@ -780,10 +780,12 @@ module.exports = MetaphorJs.validator.Validator = (function(){
                 }
             }
 
-            for (i = -1, l = submits.length;
-                 ++i < l;
-                 submits[i].type !== "submit" && fn(submits[i], "click", self.onSubmitClickDelegate)
-            ){}
+            for (i = -1, l = submits.length; ++i < l;){
+                if (submits[i].type !== "submit" || 
+                    submits[i].tagName.toLowerCase() === "button")  {
+                    fn(submits[i], "click", self.onSubmitClickDelegate);
+                }
+            }
 
             for (i = -1, l = resets.length;
                  ++i < l;
@@ -817,7 +819,6 @@ module.exports = MetaphorJs.validator.Validator = (function(){
         },
 
         onFieldSubmit: function(fapi, e) {
-
             var self    = this;
             self.preventFormSubmit = false;
             self.enableDisplayState();
@@ -827,7 +828,6 @@ module.exports = MetaphorJs.validator.Validator = (function(){
         },
 
         onSubmit: function(e) {
-
             var self    = this;
 
             self.enableDisplayState();

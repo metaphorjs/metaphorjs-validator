@@ -12,12 +12,16 @@ Directive.registerAttribute("validate", 250,
 
     config.setProperty("value", {
         mode: MetaphorJs.lib.Config.MODE_STATIC,
+        type: "string",
         defaultValue: "MetaphorJs.validator.Component"
     });
     config.setMode("submit", MetaphorJs.lib.Config.MODE_FUNC);
 
+    
+
     var cls     = config.get("value"),
         constr  = ns.get(cls);
+
 
     if (!constr) {
         error(new Error("Class '"+cls+"' not found"));

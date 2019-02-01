@@ -321,7 +321,7 @@ module.exports = MetaphorJs.validator.Field = (function(){
         /**
          * @constructor
          * @method
-         * @param {Element} elem 
+         * @param {HTMLElement} elem 
          * @param {object} options See <code>MetaphorJs.validator.Field.defaults</code>
          * @param {MetaphorJs.validator.Validator} vldr 
          */

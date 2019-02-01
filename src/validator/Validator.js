@@ -37,7 +37,7 @@ module.exports = MetaphorJs.validator.Validator = (function(){
     var defaults = {
 
         /**
-         * @property {Element} form The form being validated
+         * @property {HTMLElement} form The form being validated
          */
         form:               null,
 
@@ -230,14 +230,14 @@ module.exports = MetaphorJs.validator.Validator = (function(){
         /**
          * @constructor
          * @method
-         * @param {Element} el 
+         * @param {HTMLElement} el 
          * @param {object} options See <code>MetaphorJs.validator.Validator.defaults</code>
          */
 
         /**
          * @constructor
          * @method
-         * @param {Element} el 
+         * @param {HTMLElement} el 
          * @param {string} preset Preset name to take options from. 
          * (Preset options will be overriden by <code>options</code>)
          * @param {object} options See <code>MetaphorJs.validator.Validator.defaults</code>
@@ -318,7 +318,7 @@ module.exports = MetaphorJs.validator.Validator = (function(){
         /**
          * Get form element
          * @method
-         * @returns {Element}
+         * @returns {HTMLElement}
          */
         getElem:        function() {
             return this.el;
@@ -549,7 +549,7 @@ module.exports = MetaphorJs.validator.Validator = (function(){
         /**
          * Add field
          * @method 
-         * @param {Element} node
+         * @param {HTMLElement} node
          * @param {object} fieldCfg See <code>MetaphorJs.validator.Field.defaults</code>
          * @returns {MetaphorJs.validator.Validator}
          */
@@ -1068,7 +1068,7 @@ module.exports = MetaphorJs.validator.Validator = (function(){
          * @param {string} name 
          * @param {function} fn {
          *  @param {string} value
-         *  @param {Element} node
+         *  @param {HTMLElement} node
          *  @param {string|*} param {
          *      Validator's attribute value. <br>
          *      <pre><input minlength="10"></pre><br>
@@ -1092,7 +1092,7 @@ module.exports = MetaphorJs.validator.Validator = (function(){
          * Check if dom element already has validator initialized
          * @static
          * @method
-         * @param {Element} el 
+         * @param {HTMLElement} el 
          * @returns {MetaphorJs.validator.Validator|null}
          */
         getValidator: function(el) {

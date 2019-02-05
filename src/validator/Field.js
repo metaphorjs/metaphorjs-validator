@@ -102,7 +102,7 @@ module.exports = MetaphorJs.validator.Field = (function(){
              * @property {function} fn {
              *  Must return dom node (cancels auto creation)
              *  @param {MetaphorJs.validator.Field} f
-             *  @returns {DomNode}
+             *  @returns {HTMLElement}
              * }
              */
             fn:				null,
@@ -725,7 +725,7 @@ module.exports = MetaphorJs.validator.Field = (function(){
         /**
          * Get field's dom node
          * @method
-         * @returns {DomNode}
+         * @returns {HTMLElement}
          */
         getElem: function() {
             return this.elem;
@@ -968,7 +968,7 @@ module.exports = MetaphorJs.validator.Field = (function(){
 
         /**
          * @method
-         * @returns {DomNode}
+         * @returns {HTMLElement}
          */
         getErrorBox: function() {
 

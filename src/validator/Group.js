@@ -51,7 +51,7 @@ module.exports = MetaphorJs.validator.Group = (function(){
         value:				null,
 
         /**
-         * @property {DomNode} elem Group's dom node. 
+         * @property {HTMLElement} elem Group's dom node. 
          */
         elem:				null,			// dom node
 
@@ -576,7 +576,7 @@ module.exports = MetaphorJs.validator.Group = (function(){
 
         /**
          * @method
-         * @returns {DomNode}
+         * @returns {HTMLElement}
          */
         getErrorBox: function() {
 

@@ -17,17 +17,19 @@ Directive.registerAttribute("validate", 250,
     });
     config.setMode("submit", MetaphorJs.lib.Config.MODE_FUNC);
 
-    
-
     var cls     = config.get("value"),
         constr  = ns.get(cls);
-
 
     if (!constr) {
         error(new Error("Class '"+cls+"' not found"));
     }
     else {
-        return new constr(node, scope, renderer, config);
+        Directive.resolveNode(node, "validate", function(node){
+            if (!renderer.destroyed) {
+                var v = new constr(node, scope, renderer, config);
+                renderer.on("destroy", v.$destroy, v);
+            }
+        });
     }
 });
 

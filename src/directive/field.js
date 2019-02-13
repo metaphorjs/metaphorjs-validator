@@ -10,7 +10,7 @@ Directive.registerAttribute("field", 200, function(scope, node, config, renderer
 
     Directive.resolveNode(node, "field", function(node){
 
-        if (!renderer.destroyed) {
+        if (!renderer.$destroyed) {
             var id = MetaphorJs.dom.getAttr(node, "name") ||
                     MetaphorJs.dom.getAttr(node, "id"),
             v = MetaphorJs.validator.Validator.getValidator(node),

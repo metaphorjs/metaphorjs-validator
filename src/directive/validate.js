@@ -25,7 +25,7 @@ Directive.registerAttribute("validate", 250,
     }
     else {
         Directive.resolveNode(node, "validate", function(node){
-            if (!renderer.destroyed) {
+            if (!renderer.$destroyed) {
                 var v = new constr(node, scope, renderer, config);
                 renderer.on("destroy", v.$destroy, v);
             }

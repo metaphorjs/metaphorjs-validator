@@ -563,14 +563,11 @@ module.exports = MetaphorJs.validator.Field = (function(){
                 elem    = self.elem,
                 val, i;
 
+            this.$self.deepInitConfig(config);
+
             for (i in methods) {
 
                 if (methods.hasOwnProperty(i)) {
-
-                    if (config.hasProperty(i)) {
-                        config.setDefaultMode(i, MetaphorJs.lib.Config.MODE_STATIC);
-                        config.setDefaultMode(i+".msg", MetaphorJs.lib.Config.MODE_STATIC);
-                    }
 
                     val = config.get(i);
 
@@ -1216,7 +1213,19 @@ module.exports = MetaphorJs.validator.Field = (function(){
     }, {
 
         defaults: {},
-        messages: {}
+        messages: {},
+
+        deepInitConfig: function(config) {
+            var ms = MetaphorJs.lib.Config.MODE_STATIC;
+            for (var i in methods) {
+                if (methods.hasOwnProperty(i)) {
+                    if (config.hasProperty(i)) {
+                        config.setDefaultMode(i, ms);
+                        config.setDefaultMode(i+".msg", ms);
+                    }
+                }
+            }
+        }
 
     });
 

@@ -6,22 +6,31 @@ require("metaphorjs-validator/src/validator/Validator.js");
 var Directive = require("metaphorjs/src/app/Directive.js"),
     MetaphorJs = require("metaphorjs-shared/src/MetaphorJs.js");
 
-Directive.registerAttribute("validate", 200, function(scope, node, config, renderer) { 
+Directive.registerAttribute("validate", 200, function(){
 
-    Directive.resolveNode(node, "validate", function(node){
+    var dir = function validate_directive(scope, node, config, renderer) { 
 
-        if (!renderer.$destroyed) {
-            var id = MetaphorJs.dom.getAttr(node, "name") ||
-                    MetaphorJs.dom.getAttr(node, "id"),
-            v = MetaphorJs.validator.Validator.getValidator(node),
-            f = v ? v.getField(id) : null;
-
-            if (f) {
-                f.setConfigRules(config);
-            }
-
-            config.clear();
-        }
-    });
+        Directive.resolveNode(node, "validate", function(node){
     
-});
+            if (!renderer.$destroyed) {
+                var id = MetaphorJs.dom.getAttr(node, "name") ||
+                        MetaphorJs.dom.getAttr(node, "id"),
+                v = MetaphorJs.validator.Validator.getValidator(node),
+                f = v ? v.getField(id) : null;
+    
+                if (f) {
+                    f.setConfigRules(config);
+                }
+    
+                config.clear();
+            }
+        });
+    }
+
+    dir.deepInitConfig = function(config) {
+        MetaphorJs.validator.Field.deepInitConfig(config);
+    }
+
+    return dir;
+
+}());

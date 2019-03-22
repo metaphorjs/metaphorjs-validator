@@ -27,7 +27,7 @@ module.exports = MetaphorJs.validator.Component = cls({
 
         var self        = this;
 
-        nodeCfg.setDefaultMode("ref", MetaphorJs.lib.Config.MODE_STATIC);
+        self.$self.initConfig(nodeCfg);
 
         self.node       = node;
         self.scope      = scope;
@@ -242,5 +242,9 @@ module.exports = MetaphorJs.validator.Component = cls({
         }
     }
 
+}, {
+    initConfig: function(config) {
+        config.setDefaultMode("ref", MetaphorJs.lib.Config.MODE_STATIC);
+    }
 });
 

@@ -1,8 +1,13 @@
 
-var ns = require("metaphorjs-namespace/src/var/ns.js");
+require("../__init.js");
+var MetaphorJs = require("metaphorjs-shared/src/MetaphorJs.js");
 
-
-module.exports = ns.register("validator.messages", {
+/**
+ * @var {object} MetaphorJs.validator.messages {
+ *  Validator error messages. _validator_: "_message_".
+ * }
+ */
+module.exports = MetaphorJs.validator.messages = {
     required: 		"This field is required.",
     remote:	 		"Please fix this field.",
     email: 			"Please enter a valid email address.",
@@ -20,4 +25,4 @@ module.exports = ns.register("validator.messages", {
     range: 			"Please enter a value between {0} and {1}.",
     max: 			"Please enter a value less than or equal to {0}.",
     min: 			"Please enter a value greater than or equal to {0}."
-});
+};

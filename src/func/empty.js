@@ -1,36 +1,30 @@
 
-var ns          = require("metaphorjs-namespace/src/var/ns.js"),
-    getValue    = require("metaphorjs-input/src/func/getValue.js");
-
+require("../__init.js");
 require("./checkable.js");
 require("./getLength.js");
+require("metaphorjs/src/func/dom/getInputValue.js");
 
-module.exports = (function(){
+var MetaphorJs = require("metaphorjs-shared/src/MetaphorJs.js");
 
-    var checkable   = ns.get("validator.checkable"),
-        getLength   = ns.get("validator.getLength");
+// from http://bassistance.de/jquery-plugins/jquery-plugin-validation/
+module.exports = MetaphorJs.validator.empty = function(value, element) {
 
-    // from http://bassistance.de/jquery-plugins/jquery-plugin-validation/
-    return ns.register("validator.empty", function(value, element) {
+    if (!element) {
+        return value == undf || value === '';
+    }
 
-        if (!element) {
-            return value == undf || value === '';
+    switch(element.nodeName.toLowerCase()) {
+        case 'select':{
+            // could be an array for select-multiple or a string, both are fine this way
+            var val = MetaphorJs.dom.getInputValue(element);
+            return !val || val.length == 0;
         }
-
-        switch(element.nodeName.toLowerCase()) {
-            case 'select':{
-                // could be an array for select-multiple or a string, both are fine this way
-                var val = getValue(element);
-                return !val || val.length == 0;
-            }
-            case 'input':{
-                if (checkable(element))
-                    return getLength(value, element) == 0;
-                break;
-            }
+        case 'input':{
+            if (MetaphorJs.validator.checkable(element))
+                return MetaphorJs.validator.getLength(value, element) == 0;
+            break;
         }
+    }
 
-        return trim(value).length == 0;
-    });
-
-}());
+    return value.trim().length == 0;
+};

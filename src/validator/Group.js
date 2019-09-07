@@ -1,68 +1,189 @@
 
+var cls             = require("metaphorjs-class/src/cls.js"),
+    MetaphorJs      = require("metaphorjs-shared/src/MetaphorJs.js"),
+    extend          = require("metaphorjs-shared/src/func/extend.js"),
+    isFunction      = require("metaphorjs-shared/src/func/isFunction.js"),
+    undf            = require("metaphorjs-shared/src/var/undf.js");
 
-var defineClass     = require("metaphorjs-class/src/func/defineClass.js"),
-    getValue        = require("metaphorjs-input/src/func/getValue.js"),
-    extend          = require("metaphorjs/src/func/extend.js"),
-    addClass        = require("metaphorjs/src/func/dom/addClass.js"),
-    removeClass     = require("metaphorjs/src/func/dom/removeClass.js"),
-    isFunction      = require("metaphorjs/src/func/isFunction.js"),
-    undf            = require("metaphorjs/src/var/undf.js");
-
-require("../../var/messages.js");
-require("../../var/methods.js");
-require("../../func/format.js");
+require("../__init.js");
+require("metaphorjs/src/func/dom/addClass.js");
+require("metaphorjs/src/func/dom/removeClass.js");
 require("metaphorjs-observable/src/mixin/Observable.js");
+require("../var/messages.js");
+require("../var/methods.js");
+require("../func/format.js");
 
-module.exports = (function(){
+
+module.exports = MetaphorJs.validator.Group = (function(){
 
 
 /* ***************************** GROUP ****************************************** */
 
 
+    /**
+     * @object MetaphorJs.validator.Group.defaults
+     */
+    var defaults	= {
 
-    var defaults	= /*group-options-start*/{
+        /**
+         * @property {boolean} alwaysCheck run tests even the group is proven 
+         * valid and hasn't changed since last check
+         */
+        alwaysCheck:		false,
 
-        alwaysCheck:		false,			// run tests even the field is proven valid and hasn't changed since last check
+        /**
+         * @property {boolean} alwaysDisplayState 
+         */
         alwaysDisplayState:	false,
-        disabled:			false,			// initialize disabled
 
-        value:				null,			// fn(api, vals)
+        /**
+         * @property {boolean} disabled Make group disabled by default
+         */
+        disabled:			false,
+
+        /**
+         * @property {function} value { 
+         *  @param {object} values Field values - name:value
+         *  @param {MetaphorJs.validator.Group} g 
+         *  @returns {*} group value
+         * }
+         */
+        value:				null,
+
+        /**
+         * @property {HTMLElement} elem Group's dom node. 
+         */
         elem:				null,			// dom node
-        errorBox:			null,			// fieldId|dom|jquery|selector|fn(api)
-        // fn must return dom|jquery object
-        errorField:			null,			// fieldId - relay errors to this field
 
+        /**
+         * @property {string|DomNode|function} errorBox {
+         *  string: either field name/id or selector<br>
+         *  function: fn(MetaphorJs.validator.Group)
+         * }
+         */
+        errorBox:			null,			
+
+        /**
+         * @property {string} errorField field's name or id - where to display group's error
+         */
+        errorField:			null,
+
+        /**
+         * @property {*} data User data
+         */
         data:				null,
 
+        /**
+         * @object cls
+         */
         cls: {
-            valid: 			'',				// css class for a valid form
-            error:			''				// css class for a not valid form
+            /**
+             * @property {string} valid Css class for valid state
+             */
+            valid: 			'',
+            /**
+             * @property {string} error Css class for error state
+             */
+            error:			''
+
+            /**
+             * @end-object
+             */
         },
 
+        /**
+         * @property {array} fields Array of field names/ids
+         */
         fields:				[],
+
+        /**
+         * @property {object} rules {
+         *  Keys of this object are validators from 
+         *  <code>MetaphorJs.validator.methods</code>, values
+         *  of this object are validator params.<br>
+         *  Rule can also be a function (custom validator):
+         *  fn(fieldValue, dom, ruleValue, field)<br>
+         *  The function must return error message, false or true.
+         * }
+         */
         rules:				{},
+
+        /**
+         * @property {object} messages {
+         *  <code>rule: message</code>, error messages 
+         * }
+         */
         messages:			{},
 
+        /**
+         * @object callback
+         */
         callback:		{
-
+            /**
+             * @property {object} scope all callback's context
+             */
             scope:			null,
 
+            /**
+             * @property {function} * {
+             *  eventName: function(f); See class's events
+             *  @param {MetaphorJs.validator.Field} f
+             * }
+             */
             destroy:		null,
             statechange:	null,
             errorchange:	null,
             displaystate:	null
+
+            /**
+             * @end-object
+             */
         }
-    }/*group-options-end*/;
+
+        /**
+         * @end-object
+         */
+    };
 
 
-    var messages = ns.get("validator.messages"),
-        methods = ns.get("validator.methods"),
-        format = ns.get("validator.format");
+    var messages = MetaphorJs.validator.messages,
+        methods = MetaphorJs.validator.methods,
+        format = MetaphorJs.validator.format;
 
 
-    var Group = defineClass({
-        $class: "validator.Group",
-        $mixins: ["mixin.Observable"],
+    /**
+     * @class MetaphorJs.validator.Group
+     * @mixes MetaphorJs.mixin.Observable
+     */
+    return cls({
+
+        /**
+         * @event error-change {
+         *  @param {MetaphorJs.validator.Group} grp
+         *  @param {string} error
+         * }
+         */
+        /**
+         * @event display-state {
+         *  @param {MetaphorJs.validator.Group} grp
+         *  @param {boolean} valid
+         * }
+         */
+        /**
+         * @event state-change {
+         *  @param {MetaphorJs.validator.Group} grp
+         *  @param {boolean} valid
+         * }
+         */
+        /**
+         * @event field-state-change {
+         *  @param {MetaphorJs.validator.Group} grp
+         *  @param {MetaphorJs.validator.Field} fld 
+         *  @param {boolean} valid
+         * }
+         */
+
+        $mixins: [MetaphorJs.mixin.Observable],
 
         fields:         null,
         rules:          null,
@@ -78,6 +199,12 @@ module.exports = (function(){
         errorBox:		null,
         el:			    null,
 
+        /**
+         * @constructor
+         * @method
+         * @param {object} options See <code>MetaphorJs.validator.Group.defaults</code>
+         * @param {MetaphorJs.validator.Validator} vldr 
+         */
         $init: function(options, vldr) {
 
             options     = options || {};
@@ -89,7 +216,7 @@ module.exports = (function(){
 
             self.cfg            = cfg = extend({},
                 defaults,
-                Group.defaults,
+                MetaphorJs.validator.Group.defaults,
                 options,
                 true, true
             );
@@ -117,7 +244,8 @@ module.exports = (function(){
         },
 
         /**
-         * Enable group
+         * Enable group (enabled by default)
+         * @method
          */
         enable:		function() {
             this.enabled	= true;
@@ -126,6 +254,7 @@ module.exports = (function(){
 
         /**
          * Disable group
+         * @method
          */
         disable:	function() {
             this.enabled	= false;
@@ -134,6 +263,7 @@ module.exports = (function(){
 
         /**
          * Is group enabled
+         * @method
          * @return {boolean}
          */
         isEnabled:	function() {
@@ -142,6 +272,7 @@ module.exports = (function(){
 
         /**
          * Are all fields in this group valid
+         * @method
          * @return {boolean}
          */
         isValid:		function() {
@@ -150,6 +281,7 @@ module.exports = (function(){
         },
 
         /**
+         * @method
          * @return {boolean|null}
          */
         getExactValidState: function() {
@@ -158,6 +290,7 @@ module.exports = (function(){
 
         /**
          * Reset group
+         * @method
          */
         reset:		function() {
             var self = this;
@@ -170,6 +303,8 @@ module.exports = (function(){
 
         /**
          * Get user data specified in group config
+         * @method
+         * @returns {*}
          */
         getUserData: function() {
             return this.data;
@@ -177,6 +312,8 @@ module.exports = (function(){
 
         /**
          * Get group name
+         * @method
+         * @returns {string}
          */
         getName: function() {
             return this.cfg.name;
@@ -184,8 +321,9 @@ module.exports = (function(){
 
         /**
          * Set group's rules
+         * @method
          * @param {object} list {rule: param}
-         * @param {bool} check
+         * @param {bool} check Re-check group
          */
         setRules: 	function(list, check) {
 
@@ -208,9 +346,11 @@ module.exports = (function(){
         },
 
         /**
-         * @param rule
-         * @param value
-         * @param check
+         * Add group rule
+         * @method
+         * @param {string} rule
+         * @param {*} value
+         * @param {boolean} check Re-check group
          */
         setRule:	function(rule, value, check) {
 
@@ -247,6 +387,7 @@ module.exports = (function(){
 
         /**
          * Get group rules
+         * @method
          * @returns {name: value}
          */
         getRules:	function() {
@@ -254,7 +395,9 @@ module.exports = (function(){
         },
 
         /**
-         * @returns boolean
+         * @method
+         * @param {string} name
+         * @returns {boolean}
          */
         hasRule:	function(name) {
             return this.rules[name] ? true : false;
@@ -262,6 +405,8 @@ module.exports = (function(){
 
         /**
          * Set group custom error
+         * @method
+         * @param {string} error
          */
         setError:	function(error) {
 
@@ -283,28 +428,41 @@ module.exports = (function(){
 
         /**
          * Get current error
+         * @method
+         * @returns {string}
          */
         getError: function() {
             return this.error;
         },
 
         /**
-         * @returns {id: field}
+         * @method 
+         * @returns {object} 
          */
         getFields: function() {
             return this.fields;
         },
 
+        /**
+         * @method
+         */
         enableDisplayState:		function() {
             this.displayState	= true;
             return this;
         },
 
+        /**
+         * @method
+         */
         disableDisplayState:	function() {
             this.displayState	= false;
             return this;
         },
 
+        /**
+         * @method
+         * @returns {boolean}
+         */
         check: function() {
 
             var self    = this,
@@ -405,17 +563,20 @@ module.exports = (function(){
             valid = self.valid;
 
             if (errorCls) {
-                valid === false ? addClass(self.el, errorCls) : removeClass(self.el, errorCls);
+                valid === false ? MetaphorJs.dom.addClass(self.el, errorCls) : 
+                                    MetaphorJs.dom.removeClass(self.el, errorCls);
             }
             if (validCls) {
-                valid === true ? addClass(self.el, validCls) : removeClass(self.el, validCls);
+                valid === true ? MetaphorJs.dom.addClass(self.el, validCls) : 
+                                    MetaphorJs.dom.removeClass(self.el, validCls);
             }
 
             self.trigger('display-state', self, self.valid);
         },
 
         /**
-         * @returns {Element}
+         * @method
+         * @returns {HTMLElement}
          */
         getErrorBox: function() {
 
@@ -441,10 +602,7 @@ module.exports = (function(){
         },
 
 
-        /**
-         * Destroy group
-         */
-        destroy:	function() {
+        onDestroy:	function() {
 
             var self    = this,
                 fields  = self.fields;
@@ -460,6 +618,11 @@ module.exports = (function(){
             }
         },
 
+        /**
+         * Add field to the group
+         * @method
+         * @param {MetaphorJs.validator.Field} field 
+         */
         add:		function(field) {
 
             var self    = this,
@@ -478,6 +641,11 @@ module.exports = (function(){
             f[mode]('state-change', self.onFieldStateChange, self);
         },
 
+        /**
+         * Remove field from the group
+         * @method
+         * @param {MetaphorJs.validator.Field} field 
+         */
         remove:		function(field) {
 
             var self    = this,
@@ -520,9 +688,5 @@ module.exports = (function(){
 
         defaults: {}
     });
-
-
-
-    return Group;
 
 }());

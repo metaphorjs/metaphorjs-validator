@@ -1,6 +1,7 @@
 
-var ns = require("metaphorjs-namespace/src/var/ns.js");
+require("../__init.js");
+var MetaphorJs = require("metaphorjs-shared/src/MetaphorJs.js");
 
-module.exports = ns.register("validator.checkable", function(elem) {
+module.exports = MetaphorJs.validator.checkable = function(elem) {
     return /radio|checkbox/i.test(elem.type);
-});
+};

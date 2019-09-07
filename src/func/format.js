@@ -1,12 +1,15 @@
 
-var ns              = require("metaphorjs-namespace/src/var/ns.js"),
-    isFunction      = require("metaphorjs/src/func/isFunction.js"),
-    isArray         = require("metaphorjs/src/func/isArray.js");
+require("../__init.js");
 
+var MetaphorJs      = require("metaphorjs-shared/src/MetaphorJs.js"),
+    isFunction      = require("metaphorjs-shared/src/func/isFunction.js"),
+    isArray         = require("metaphorjs-shared/src/func/isArray.js");
 
-module.exports = ns.register("validator.format", function(str, params) {
+module.exports = MetaphorJs.validator.format = function(str, params) {
 
-    if (isFunction(params)) return str;
+    if (isFunction(params)) {
+        return str;
+    }
 
     if (!isArray(params)) {
         params = [params];
@@ -18,4 +21,4 @@ module.exports = ns.register("validator.format", function(str, params) {
          str = str.replace(new RegExp("\\{" + i + "\\}", "g"), params[i])){}
 
     return str;
-});
+};

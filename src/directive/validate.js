@@ -1,21 +1,36 @@
 
-var Directive = require("metaphorjs/src/class/Directive.js"),
-    nsGet = require("metaphorjs-namespace/src/func/nsGet.js");
+require("metaphorjs/src/func/dom/data.js");
+require("metaphorjs/src/func/dom/getAttr.js");
+require("metaphorjs-validator/src/validator/Validator.js");
 
-require("../class/validator/Component.js");
+var Directive = require("metaphorjs/src/app/Directive.js"),
+    MetaphorJs = require("metaphorjs-shared/src/MetaphorJs.js");
 
-Directive.registerAttribute("validate", 250,
-    function(scope, node, expr, renderer, attr) {
+Directive.registerAttribute("validate", 200, function(){
 
-    var cls     = expr || "validator.Component",
-        constr  = nsGet(cls),
-        cfg     = attr ? attr.config : {};
+    var dir = function validate_directive(scope, node, config, renderer) { 
 
-    if (!constr) {
-        error(new Error("Class '"+cls+"' not found"));
+        Directive.resolveNode(node, "validate", function(node){
+    
+            if (!renderer.$destroyed) {
+                var id = MetaphorJs.dom.getAttr(node, "name") ||
+                        MetaphorJs.dom.getAttr(node, "id"),
+                v = MetaphorJs.validator.Validator.getValidator(node),
+                f = v ? v.getField(id) : null;
+    
+                if (f) {
+                    f.setConfigRules(config);
+                }
+    
+                config.clear();
+            }
+        });
     }
-    else {
-        return new constr(node, scope, renderer, cfg);
-    }
-});
 
+    dir.deepInitConfig = function(config) {
+        MetaphorJs.validator.Field.deepInitConfig(config);
+    }
+
+    return dir;
+
+}());

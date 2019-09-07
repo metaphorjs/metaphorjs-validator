@@ -1,18 +1,19 @@
 
-var Validator = require("../Validator.js"),
-    defineClass = require("metaphorjs-class/src/func/defineClass.js"),
-    bind = require("metaphorjs/src/func/bind.js"),
-    createFunc = require("metaphorjs-watchable/src/func/createFunc.js"),
-    error = require("metaphorjs/src/func/error.js"),
-    eachNode = require("metaphorjs/src/func/dom/eachNode.js"),
-    isField = require("metaphorjs/src/func/dom/isField.js"),
-    getAttr = require("metaphorjs/src/func/dom/getAttr.js");
+var cls = require("metaphorjs-class/src/cls.js"),
+    bind = require("metaphorjs-shared/src/func/bind.js"),
+    error = require("metaphorjs-shared/src/func/error.js"),
+    MetaphorJs = require("metaphorjs-shared/src/MetaphorJs.js");
+
+require("metaphorjs/src/lib/Config.js");
+require("../__init.js");
+require("./Validator.js");
+require("metaphorjs/src/lib/Expression.js");
+require("metaphorjs/src/func/dom/eachNode.js");
+require("metaphorjs/src/func/dom/isField.js");
+require("metaphorjs/src/func/dom/getAttr.js");
 
 
-
-module.exports = defineClass({
-
-    $class: "validator.Component",
+module.exports = MetaphorJs.validator.Component = cls({
 
     node: null,
     scope: null,
@@ -26,13 +27,18 @@ module.exports = defineClass({
 
         var self        = this;
 
+        self.$self.initConfig(nodeCfg);
+
         self.node       = node;
         self.scope      = scope;
         self.scopeState = {};
         self.fields     = [];
         self.nodeCfg    = nodeCfg;
         self.validator  = self.createValidator();
-        self.formName   = getAttr(node, 'name') || getAttr(node, 'id') || '$form';
+        self.formName   = nodeCfg.get("ref") ||
+                            MetaphorJs.dom.getAttr(node, 'name') || 
+                            MetaphorJs.dom.getAttr(node, 'id') || 
+                            '$form';
 
         self.initScope();
         self.initScopeState();
@@ -40,7 +46,9 @@ module.exports = defineClass({
 
         // wait for the renderer to finish
         // before making judgements :)
-        renderer.once("rendered", self.validator.check, self.validator);
+        renderer.on("rendered", self.validator.check, self.validator, {
+            once: true
+        });
         renderer.on("destroy", self.$destroy, self);
         scope.$on("destroy", self.$destroy, self);
     },
@@ -52,7 +60,7 @@ module.exports = defineClass({
             ncfg    = self.nodeCfg,
             submit;
 
-        if ((submit = ncfg.submit)) {
+        if ((submit = ncfg.get("submit"))) {
             cfg.callback = cfg.callback || {};
             cfg.callback.submit = function(fn, scope){
                 return function() {
@@ -63,10 +71,10 @@ module.exports = defineClass({
                         error(thrownError);
                     }
                 }
-            }(createFunc(submit), self.scope);
+            }(submit, self.scope);
         }
 
-        return new Validator(node, cfg);
+        return new MetaphorJs.validator.Validator(node, cfg);
     },
 
     initValidatorEvents: function() {
@@ -106,8 +114,8 @@ module.exports = defineClass({
         }
         else {
             els     = [];
-            eachNode(node, function(el) {
-                if (isField(el)) {
+            MetaphorJs.dom.eachNode(node, function(el) {
+                if (MetaphorJs.dom.isField(el)) {
                     els.push(el);
                 }
             });
@@ -115,7 +123,8 @@ module.exports = defineClass({
 
         for (i = -1, l = els.length; ++i < l;) {
             el = els[i];
-            name = getAttr(el, "name") || getAttr(el, 'id');
+            name = MetaphorJs.dom.getAttr(el, "name") || 
+                    MetaphorJs.dom.getAttr(el, 'id');
 
             if (name && !state[name]) {
                 fields.push(name);
@@ -223,7 +232,7 @@ module.exports = defineClass({
     },
 
 
-    destroy: function() {
+    onDestroy: function() {
         var self = this;
 
         self.validator.$destroy();
@@ -233,5 +242,9 @@ module.exports = defineClass({
         }
     }
 
+}, {
+    initConfig: function(config) {
+        config.setDefaultMode("ref", MetaphorJs.lib.Config.MODE_STATIC);
+    }
 });
 

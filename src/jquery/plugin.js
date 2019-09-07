@@ -24,7 +24,7 @@ if (window.jQuery) {
 
             if (options == "destroy") {
                 if (v) {
-                    v.destroy();
+                    v.$destroy();
                     o.data(dataName, null);
                 }
             }

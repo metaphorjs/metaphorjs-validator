@@ -1,26 +1,28 @@
 
-var defineClass     = require("metaphorjs-class/src/func/defineClass.js"),
-    extend          = require("metaphorjs/src/func/extend.js"),
-    bind            = require("metaphorjs/src/func/bind.js"),
-    addListener     = require("metaphorjs/src/func/event/addListener.js"),
-    removeListener  = require("metaphorjs/src/func/event/removeListener.js"),
-    addClass        = require("metaphorjs/src/func/dom/addClass.js"),
-    removeClass     = require("metaphorjs/src/func/dom/removeClass.js"),
-    select          = require("metaphorjs-select/src/func/select.js"),
-    isField         = require("metaphorjs/src/func/dom/isField.js"),
-    normalizeEvent  = require("metaphorjs/src/func/event/normalizeEvent.js"),
-    isFunction      = require("metaphorjs/src/func/isFunction.js"),
-    isString        = require("metaphorjs/src/func/isString.js"),
-    getAttr         = require("metaphorjs/src/func/dom/getAttr.js"),
-    setAttr         = require("metaphorjs/src/func/dom/setAttr.js"),
-    nextUid         = require("metaphorjs/src/func/nextUid.js");
+var cls             = require("metaphorjs-class/src/cls.js"),
+    MetaphorJs      = require("metaphorjs-shared/src/MetaphorJs.js"),
+    extend          = require("metaphorjs-shared/src/func/extend.js"),
+    bind            = require("metaphorjs-shared/src/func/bind.js"),
+    isFunction      = require("metaphorjs-shared/src/func/isFunction.js"),
+    isString        = require("metaphorjs-shared/src/func/isString.js"),
+    nextUid         = require("metaphorjs-shared/src/func/nextUid.js");
+
+require("../__init.js");
+require("metaphorjs/src/func/dom/addListener.js");
+require("metaphorjs/src/func/dom/removeListener.js");
+require("metaphorjs/src/func/dom/addClass.js");
+require("metaphorjs/src/func/dom/removeClass.js");
+require("metaphorjs/src/func/dom/select.js");
+require("metaphorjs/src/func/dom/isField.js");
+require("metaphorjs/src/func/dom/normalizeEvent.js");
+require("metaphorjs/src/func/dom/getAttr.js");
+require("metaphorjs/src/func/dom/setAttr.js");
+require("metaphorjs-observable/src/mixin/Observable.js");    
+require("./Field.js");
+require("./Group.js");
 
 
-require("./validator/Field.js");
-require("./validator/Group.js");
-require("metaphorjs-observable/src/mixin/Observable.js");
-
-module.exports = (function(){
+module.exports = MetaphorJs.validator.Validator = (function(){
 
 
     var validators  = {};
@@ -29,29 +31,88 @@ module.exports = (function(){
         Group = MetaphorJs.validator.Group;
 
 
-    var defaults = /*validator-options-start*/{
+    /**
+     * @object MetaphorJs.validator.Validator.defaults
+     */
+    var defaults = {
 
-        form:               null,           // form element -- jquery
+        /**
+         * @property {HTMLElement} form The form being validated
+         */
+        form:               null,
 
-        all: 				{},				// {} of field properties which work as a preset
-        fields: 			{},				// {field: properties}
+        /**
+         * @property {object} all All fields properties. 
+         * See <code>MetaphorJs.validator.Field.defaults</code>
+         */
+        all: 				{},
+
+        /**
+         * @property {object} fields {
+         *  <code>name: config</code>. 
+         * For config see <code>MetaphorJs.validator.Field.defaults</code>.
+         * }
+         */
+        fields: 			{},
+
+        /**
+         * @property {object} rules {
+         *  <code>field: []</code> set of rules. 
+         *  See <code>MetaphorJs.validator.Field.defaults</code> for rules description.
+         * }
+         */
         rules: 				{},				// {field: rules}
 
+        /**
+         * Css classes to apply to the form
+         * @object cls
+         */
         cls: {
-            valid: 			'',				// css class for a valid form
-            error:			'',				// css class for a not valid form
-            checking:		''				// css class for a form while it is being checked with ajax request
+            /**
+             * @property {string} valid Form is valid
+             */
+            valid: 			'',	
+            /**
+             * @property {string} valid Form has an error
+             */	
+            error:			'',			
+            /**
+             * @property {string} valid Form is being checked (async check)
+             */
+            checking:		''
+
+            /**
+             * @end-object
+             */
         },
 
+        /**
+         * @property {object} groups {
+         *  <code>name: cfg</code> set of options. 
+         * See <code>MetaphorJs.validator.Group.defaults</code>.
+         * }
+         */
         groups: 			{},				// see groupDefaults. {name: cfg}
 
         // callbacks are case insensitive
         // you can use camel case if you like.
+        /**
+         * @object callback
+         */
         callback: {
-
+            /**
+             * @property {object} scope all callback's context
+             */
             scope:			null,
 
-            destroy:		null,			// when validator is being destroyd. fn(api)
+            /**
+             * @property {function} * {
+             *  eventName: function(v); See class's events
+             *  @param {MetaphorJs.validator.Validator} v
+             * }
+             */
+
+            destroy:		null,			// when validator is being destroyed. fn(api)
             reset:			null,			// when the form was resetted. fn(api)
             beforesubmit:	null,			// when form is about to be submitted: valid and non-valid. fn(api)
             submit:			null,			// when form is about to be submitted: only valid. fn(api).
@@ -62,14 +123,88 @@ module.exports = (function(){
 
             displaystate:	null,			// fn(api, valid)
             displaystatechange:	null		// fn(api, state)
+
+            /**
+             * @end-object
+             */
         }
-    }/*validator-options-end*/;
+        /**
+         * @end-object
+         */
+    };
 
 
-    var Validator = defineClass({
+    /**
+     * @class MetaphorJs.validator.Validator
+     * @mixes MetaphorJs.mixin.Observable
+     */
+    var Validator = cls({
 
-        $class: "Validator",
-        $mixins: ["mixin.Observable"],
+        /**
+         * @event display-state-change {
+         *  When displayState has been enabled or disabled
+         *  @param {MetaphorJs.validator.Validator} v
+         *  @param {boolean} state
+         * }
+         */
+        /**
+         * @event check {
+         *  When form is being checked
+         *  @param {MetaphorJs.validator.Validator} v
+         *  @returns {boolean} return false to cancel check
+         * }
+         */
+        /**
+         * @event state-change {
+         *  After form check, if it changed its state
+         *  @param {MetaphorJs.validator.Validator} v
+         *  @param {boolean} valid 
+         * }
+         */
+        /**
+         * @event reset {
+         *  @param {MetaphorJs.validator.Validator} v
+         * }
+         */
+        /**
+         * @event before-submit {
+         *  @param {MetaphorJs.validator.Validator} v
+         *  @returns {boolean} return false to cancel submitting
+         * }
+         */
+        /**
+         * @event submit {
+         *  @param {MetaphorJs.validator.Validator} v
+         *  @returns {boolean} return false to cancel submitting
+         * }
+         */
+        /**
+         * @event failed-submit {
+         *  @param {MetaphorJs.validator.Validator} v
+         * }
+         */
+        /**
+         * @event field-error-change {
+         *  @param {MetaphorJs.validator.Validator} v
+         *  @param {MetaphorJs.validator.Field} f 
+         *  @param {string} error
+         * }
+         */
+        /**
+         * @event field-state-change {
+         *  @param {MetaphorJs.validator.Validator} v
+         *  @param {MetaphorJs.validator.Field} f 
+         *  @param {boolean} valid
+         * }
+         */
+        /**
+         * @event display-state {
+         *  @param {MetaphorJs.validator.Validator} v
+         *  @param {boolean} valid
+         * }
+         */
+
+        $mixins: [MetaphorJs.mixin.Observable],
 
         id:             null,
         el:             null,
@@ -91,6 +226,22 @@ module.exports = (function(){
         fields:         null,
         groups:         null,
 
+
+        /**
+         * @constructor
+         * @method
+         * @param {HTMLElement} el 
+         * @param {object} options See <code>MetaphorJs.validator.Validator.defaults</code>
+         */
+
+        /**
+         * @constructor
+         * @method
+         * @param {HTMLElement} el 
+         * @param {string} preset Preset name to take options from. 
+         * (Preset options will be overriden by <code>options</code>)
+         * @param {object} options See <code>MetaphorJs.validator.Validator.defaults</code>
+         */
         $init: function(el, preset, options) {
 
             var self    = this,
@@ -100,7 +251,7 @@ module.exports = (function(){
             self.id     = nextUid();
             validators[self.id] = self;
 
-            setAttr(el, "data-validator", self.id);
+            MetaphorJs.dom.setAttr(el, "data-validator", self.id);
 
             self.el     = el;
 
@@ -155,33 +306,47 @@ module.exports = (function(){
             self.enabled = true;
         },
 
+        /**
+         * Get validator id
+         * @method
+         * @returns {string}
+         */
         getVldId:       function() {
             return this.id;
         },
 
         /**
-         * @returns {Element}
+         * Get form element
+         * @method
+         * @returns {HTMLElement}
          */
         getElem:        function() {
             return this.el;
         },
 
         /**
-         * @return {validator.Group}
+         * Get group by its name
+         * @method
+         * @param {string} name
+         * @returns {MetaphorJs.validator.Group}
          */
         getGroup: function(name) {
             return this.groups[name] || null;
         },
 
         /**
-         * @return {validator.Field}
+         * Get field by name or id
+         * @method
+         * @param {string} id
+         * @return {MetaphorJs.validator.Field}
          */
         getField:	function(id) {
             return this.fields[id] || null;
         },
 
         /**
-         * Enable validator
+         * Enable validator (enabled by default)
+         * @method
          */
         enable: function() {
             this.enabled = true;
@@ -190,6 +355,7 @@ module.exports = (function(){
 
         /**
          * Disable validator
+         * @method
          */
         disable: function() {
             this.enabled = false;
@@ -197,12 +363,18 @@ module.exports = (function(){
         },
 
         /**
-         * @return boolean
+         * Is this validator enabled
+         * @method
+         * @returns {boolean}
          */
         isEnabled: function() {
             return this.enabled;
         },
 
+        /**
+         * Make validator show form errors and other messages. (Enabled by default)
+         * @method
+         */
         enableDisplayState:	function() {
 
             var self    = this,
@@ -227,6 +399,10 @@ module.exports = (function(){
             return self;
         },
 
+        /**
+         * Make validator not show form errors and other messages
+         * @method
+         */
         disableDisplayState:	function() {
 
             var self    = this,
@@ -252,15 +428,16 @@ module.exports = (function(){
         },
 
         /**
+         * Check if form shows errors and messages
+         * @method
          * @return {boolean}
          */
         isDisplayStateEnabled:	function() {
             return this.displayState;
         },
 
-
         /**
-         * Is form valid
+         * Is the form valid
          * @return {boolean}
          */
         isValid: function() {
@@ -276,6 +453,15 @@ module.exports = (function(){
                       self.outside === true;
         },
 
+        /**
+         * Get form errors
+         * @method 
+         * @param {boolean} plain {
+         *  If plain=true, will return array [err, err], if false (default),
+         *  object: (field: err, field: err)
+         * }
+         * @returns {array|object}
+         */
         getErrors: function(plain) {
 
             var self    = this,
@@ -321,9 +507,11 @@ module.exports = (function(){
 
         /**
          * Check form for errors
+         * @method
+         * @returns {boolean} returns current form state 
+         * (it may change in a second after remote checks)
          */
         check: function() {
-
 
             var self    = this,
                 fields  = self.fields,
@@ -360,22 +548,27 @@ module.exports = (function(){
 
         /**
          * Add field
+         * @method 
+         * @param {HTMLElement} node
+         * @param {object} fieldCfg See <code>MetaphorJs.validator.Field.defaults</code>
+         * @returns {MetaphorJs.validator.Validator}
          */
         add: function(node, fieldCfg) {
 
             var self    = this;
 
-            if (!isField(node)) {
+            if (!MetaphorJs.dom.isField(node)) {
                 return self;
             }
-            if (getAttr(node, "data-no-validate") !== null) {
+            if (MetaphorJs.dom.getAttr(node, "data-no-validate") !== null) {
                 return self;
             }
-            if (getAttr(node, "data-validator") !== null) {
+            if (MetaphorJs.dom.getAttr(node, "data-validator") !== null) {
                 return self;
             }
 
-            var id 			= getAttr(node, 'name') || getAttr(node, 'id'),
+            var id 			= MetaphorJs.dom.getAttr(node, 'name') || 
+                                MetaphorJs.dom.getAttr(node, 'id'),
                 cfg         = self.cfg,
                 fields      = self.fields,
                 fcfg,
@@ -428,6 +621,10 @@ module.exports = (function(){
 
         /**
          * Add group of fields
+         * @method
+         * @param {string} name
+         * @param {object} cfg See <code>MetaphorJs.validator.Group.defaults</code>
+         * @returns {MetaphorJs.validator.Validator}
          */
         addGroup:		function(name, cfg) {
 
@@ -445,11 +642,14 @@ module.exports = (function(){
                     groups[name].check();
                 }
             }
+
+            return self;
         },
 
 
         /**
          * Focus first invalid field
+         * @method
          */
         focusInvalid: function() {
             var fields  = this.fields;
@@ -463,7 +663,8 @@ module.exports = (function(){
 
 
         /**
-         * Reset validator
+         * Reset validator: reset all groups and fields to untouched state.
+         * @method
          */
         reset: function() {
 
@@ -497,7 +698,8 @@ module.exports = (function(){
 
 
         /**
-         * Submit form
+         * Submit form or display errors
+         * @method
          */
         submit: function() {
 
@@ -547,7 +749,7 @@ module.exports = (function(){
                 return self;
             }
 
-            els = select("input, textarea, select", el);
+            els = MetaphorJs.dom.select("input, textarea, select", el);
 
             for (i = -1, l = els.length; ++i < l; self.add(els[i])){}
 
@@ -559,9 +761,10 @@ module.exports = (function(){
             var self    = this,
                 el      = self.el,
                 nodes   = el.getElementsByTagName("input"),
-                submits = select(".submit", el),
-                resets  = select(".reset", el),
-                fn      = mode === "bind" ? addListener : removeListener,
+                submits = MetaphorJs.dom.select(".submit", el),
+                resets  = MetaphorJs.dom.select(".reset", el),
+                fn      = mode === "bind" ? MetaphorJs.dom.addListener : 
+                                            MetaphorJs.dom.removeListener,
                 i, l,
                 type,
                 node;
@@ -577,10 +780,12 @@ module.exports = (function(){
                 }
             }
 
-            for (i = -1, l = submits.length;
-                 ++i < l;
-                 submits[i].type !== "submit" && fn(submits[i], "click", self.onSubmitClickDelegate)
-            ){}
+            for (i = -1, l = submits.length; ++i < l;){
+                if (submits[i].type !== "submit" || 
+                    submits[i].tagName.toLowerCase() === "button")  {
+                    fn(submits[i], "click", self.onSubmitClickDelegate);
+                }
+            }
 
             for (i = -1, l = resets.length;
                  ++i < l;
@@ -593,7 +798,7 @@ module.exports = (function(){
         },
 
         onRealSubmitClick: function(e) {
-            e = normalizeEvent(e || window.event);
+            e = MetaphorJs.dom.normalizeEvent(e || window.event);
             this.submitButton  = e.target || e.srcElement;
             this.preventFormSubmit = false;
             return this.onSubmit(e);
@@ -601,11 +806,11 @@ module.exports = (function(){
 
         onSubmitClick: function(e) {
             this.preventFormSubmit = false;
-            return this.onSubmit(normalizeEvent(e || window.event));
+            return this.onSubmit(MetaphorJs.dom.normalizeEvent(e || window.event));
         },
 
         onFormSubmit: function(e) {
-            e = normalizeEvent(e);
+            e = MetaphorJs.dom.normalizeEvent(e);
             if (!this.isValid() || this.preventFormSubmit) {
                 e.preventDefault();
                 return false;
@@ -614,7 +819,6 @@ module.exports = (function(){
         },
 
         onFieldSubmit: function(fapi, e) {
-
             var self    = this;
             self.preventFormSubmit = false;
             self.enableDisplayState();
@@ -624,7 +828,6 @@ module.exports = (function(){
         },
 
         onSubmit: function(e) {
-
             var self    = this;
 
             self.enableDisplayState();
@@ -654,7 +857,7 @@ module.exports = (function(){
                 if (self.submitButton && /input|button/.test(self.submitButton.nodeName)) {
                     self.hidden = window.document.createElement("input");
                     self.hidden.type = "hidden";
-                    setAttr(self.hidden, "name", self.submitButton.name);
+                    MetaphorJs.dom.setAttr(self.hidden, "name", self.submitButton.name);
                     self.hidden.value = self.submitButton.value;
                     self.el.appendChild(self.hidden);
                 }
@@ -702,7 +905,8 @@ module.exports = (function(){
         onFieldDestroy: function(f) {
 
             var elem 	= f.getElem(),
-                id		= getAttr(elem, 'name') || getAttr(elem, 'id');
+                id		= MetaphorJs.dom.getAttr(elem, 'name') || 
+                            MetaphorJs.dom.getAttr(elem, 'id');
 
             delete this.fields[id];
         },
@@ -769,10 +973,12 @@ module.exports = (function(){
             }
 
             if (errorCls) {
-                valid === false ? addClass(el, errorCls) : removeClass(el, errorCls);
+                valid === false ? MetaphorJs.dom.addClass(el, errorCls) : 
+                                MetaphorJs.dom.removeClass(el, errorCls);
             }
             if (validCls) {
-                valid === true ? addClass(el, validCls) : removeClass(el, validCls);
+                valid === true ? MetaphorJs.dom.addClass(el, validCls) : 
+                                MetaphorJs.dom.removeClass(el, validCls);
             }
 
             self.trigger('display-state', self, valid);
@@ -782,7 +988,7 @@ module.exports = (function(){
             var self = this;
             self.pending++;
             if (self.cfg.cls.ajax) {
-                addClass(self.el, self.cfg.cls.ajax);
+                MetaphorJs.dom.addClass(self.el, self.cfg.cls.ajax);
             }
         },
 
@@ -801,7 +1007,7 @@ module.exports = (function(){
             self.doDisplayState();
 
             if (cfg.cls.ajax) {
-                removeClass(self.el, cfg.cls.ajax);
+                MetaphorJs.dom.removeClass(self.el, cfg.cls.ajax);
             }
 
             if (self.submitted && self.pending == 0) {
@@ -817,10 +1023,7 @@ module.exports = (function(){
         },
 
 
-        /**
-         * Destroy validator
-         */
-        destroy: function() {
+        onDestroy: function() {
 
             var self    = this,
                 groups  = self.groups,
@@ -835,14 +1038,14 @@ module.exports = (function(){
             for (i in groups) {
                 if (groups.hasOwnProperty(i) && groups[i]) {
                     self.setGroupEvents(groups[i], 'un');
-                    groups[i].destroy();
+                    groups[i].$destroy();
                 }
             }
 
             for (i in fields) {
                 if (fields.hasOwnProperty(i) && fields[i]) {
                     self.setFieldEvents(fields[i], 'un');
-                    fields[i].destroy();
+                    fields[i].$destroy();
                 }
             }
 
@@ -858,8 +1061,25 @@ module.exports = (function(){
 
         defaults:   {},
 
+        /**
+         * Add validator
+         * @static
+         * @method
+         * @param {string} name 
+         * @param {function} fn {
+         *  @param {string} value
+         *  @param {HTMLElement} node
+         *  @param {string|*} param {
+         *      Validator's attribute value. <br>
+         *      <pre><input minlength="10"></pre><br>
+         *      param=10
+         *  }
+         *  @returns {boolean} Return false to invalidate field
+         * }
+         * @param {string} message Error message to display if the field is invalid
+         */
         addMethod:  function(name, fn, message) {
-            var methods = ns.get("validator.methods");
+            var methods = ns.get("MetaphorJs.validator.methods");
             if (!methods[name]) {
                 methods[name] = fn;
                 if (message) {
@@ -868,12 +1088,17 @@ module.exports = (function(){
             }
         },
 
+        /**
+         * Check if dom element already has validator initialized
+         * @static
+         * @method
+         * @param {HTMLElement} el 
+         * @returns {MetaphorJs.validator.Validator|null}
+         */
         getValidator: function(el) {
-            var vldId = getAttr(el, "data-validator");
+            var vldId = MetaphorJs.dom.getAttr(el, "data-validator");
             return validators[vldId] || null;
         }
-
-
     });
 
 

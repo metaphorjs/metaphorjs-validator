@@ -268,6 +268,12 @@ module.exports = (function(){
             return value != MetaphorJs.dom.getInputValue(target);
         },
 
+        // this is handled separately, but should be here
+        // so that validator knew that remote method exists
+        remote: function() {
+            return false;
+        },
+
         /**
          * Password strength estimator. Expects zxcvbn() 
          * func to be available globally. 

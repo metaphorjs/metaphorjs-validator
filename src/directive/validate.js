@@ -1,7 +1,7 @@
 
 require("metaphorjs/src/func/dom/data.js");
 require("metaphorjs/src/func/dom/getAttr.js");
-require("metaphorjs-validator/src/validator/Validator.js");
+require("../validator/Validator.js");
 
 var Directive = require("metaphorjs/src/app/Directive.js"),
     MetaphorJs = require("metaphorjs-shared/src/MetaphorJs.js");

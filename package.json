@@ -17,5 +17,6 @@
     "bugs": {
         "url": "https://github.com/metaphorjs/metaphorjs-validator/issues"
     },
-    "homepage": "https://github.com/metaphorjs/metaphorjs-validator"
+    "homepage": "https://github.com/metaphorjs/metaphorjs-validator",
+    "dependencies": {}
 }

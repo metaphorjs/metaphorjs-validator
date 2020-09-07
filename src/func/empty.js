@@ -4,13 +4,13 @@ require("./checkable.js");
 require("./getLength.js");
 require("metaphorjs/src/func/dom/getInputValue.js");
 
-var MetaphorJs = require("metaphorjs-shared/src/MetaphorJs.js");
+const MetaphorJs = require("metaphorjs-shared/src/MetaphorJs.js");
 
 // from http://bassistance.de/jquery-plugins/jquery-plugin-validation/
 module.exports = MetaphorJs.validator.empty = function(value, element) {
 
     if (!element) {
-        return value == undf || value === '';
+        return value == undefined || value === '';
     }
 
     switch(element.nodeName.toLowerCase()) {

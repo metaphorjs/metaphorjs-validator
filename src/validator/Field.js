@@ -1,13 +1,12 @@
 
-var cls             = require("metaphorjs-class/src/cls.js"),
+const cls             = require("metaphorjs-class/src/cls.js"),
     MetaphorJs      = require("metaphorjs-shared/src/MetaphorJs.js"),
     extend          = require("metaphorjs-shared/src/func/extend.js"),
     bind            = require("metaphorjs-shared/src/func/bind.js"),
     isFunction      = require("metaphorjs-shared/src/func/isFunction.js"),
     isString        = require("metaphorjs-shared/src/func/isString.js"),
     isBool          = require("metaphorjs-shared/src/func/isBool.js"),
-    ajax            = require("metaphorjs-ajax/src/func/ajax.js"),
-    undf            = require("metaphorjs-shared/src/var/undf.js");
+    ajax            = require("metaphorjs-ajax/src/func/ajax.js");
 
 require("../__init.js");
 require("metaphorjs/src/func/dom/data.js");
@@ -204,7 +203,7 @@ module.exports = MetaphorJs.validator.Field = (function(){
             var value   = options[level1],
                 yes     = false;
 
-            if (value === undf) {
+            if (value === undefined) {
                 return;
             }
 
@@ -406,7 +405,7 @@ module.exports = MetaphorJs.validator.Field = (function(){
 
             var self    = this;
 
-            check = check == undf ? true : check;
+            check = check == undefined ? true : check;
 
             for (var i in list) {
                 self.setRule(i, list[i], false);
@@ -437,7 +436,7 @@ module.exports = MetaphorJs.validator.Field = (function(){
             var self    = this,
                 rules   = self.rules;
 
-            check = check == undf ? true : check;
+            check = check == undefined ? true : check;
 
             if (value === null) {
                 if (rules[rule]) {
@@ -522,7 +521,7 @@ module.exports = MetaphorJs.validator.Field = (function(){
                     val = MetaphorJs.dom.getAttr(elem, i) || 
                             MetaphorJs.dom.getAttr(elem, "data-validate-" + i);
 
-                    if (val == undf || val === false) {
+                    if (val == undefined || val === false) {
                         continue;
                     }
                     if ((i === 'minlength' || i === 'maxlength') && 
@@ -571,7 +570,7 @@ module.exports = MetaphorJs.validator.Field = (function(){
 
                     val = config.get(i);
 
-                    if (val == undf || val === false) {
+                    if (val == undefined || val === false) {
                         continue;
                     }
                     if ((i === 'minlength' || i === 'maxlength') && 

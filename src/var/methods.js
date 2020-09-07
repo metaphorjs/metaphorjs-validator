@@ -6,7 +6,7 @@ require("metaphorjs/src/func/dom/getInputValue.js");
 require("metaphorjs-shared/src/var/regexp/url.js");
 require("metaphorjs-shared/src/var/regexp/email.js");
 
-var MetaphorJs      = require("metaphorjs-shared/src/MetaphorJs.js"),
+const MetaphorJs      = require("metaphorjs-shared/src/MetaphorJs.js"),
     isString        = require("metaphorjs-shared/src/func/isString.js");
 
 module.exports = (function(){

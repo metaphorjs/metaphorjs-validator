@@ -3,7 +3,7 @@ require("metaphorjs/src/func/dom/data.js");
 require("metaphorjs/src/func/dom/getAttr.js");
 require("../validator/Validator.js");
 
-var Directive = require("metaphorjs/src/app/Directive.js"),
+const Directive = require("metaphorjs/src/app/Directive.js"),
     MetaphorJs = require("metaphorjs-shared/src/MetaphorJs.js");
 
 Directive.registerAttribute("validate", 200, function(){

@@ -2,7 +2,7 @@
 require("../__init.js");
 require("./checkable.js");
 
-var MetaphorJs      = require("metaphorjs-shared/src/MetaphorJs.js"),
+const MetaphorJs      = require("metaphorjs-shared/src/MetaphorJs.js"),
     eachNode        = require("metaphorjs/src/func/dom/eachNode.js"),
     select          = require("metaphorjs/src/func/dom/select.js"),
     isAttached      = require("metaphorjs/src/func/dom/isAttached.js");

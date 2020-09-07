@@ -1,5 +1,5 @@
 
-var cls = require("metaphorjs-class/src/cls.js"),
+const cls = require("metaphorjs-class/src/cls.js"),
     bind = require("metaphorjs-shared/src/func/bind.js"),
     error = require("metaphorjs-shared/src/func/error.js"),
     MetaphorJs = require("metaphorjs-shared/src/MetaphorJs.js");

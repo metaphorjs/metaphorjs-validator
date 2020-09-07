@@ -1,9 +1,8 @@
 
-var cls             = require("metaphorjs-class/src/cls.js"),
+const cls             = require("metaphorjs-class/src/cls.js"),
     MetaphorJs      = require("metaphorjs-shared/src/MetaphorJs.js"),
     extend          = require("metaphorjs-shared/src/func/extend.js"),
-    isFunction      = require("metaphorjs-shared/src/func/isFunction.js"),
-    undf            = require("metaphorjs-shared/src/var/undf.js");
+    isFunction      = require("metaphorjs-shared/src/func/isFunction.js");
 
 require("../__init.js");
 require("metaphorjs/src/func/dom/addClass.js");
@@ -329,7 +328,7 @@ module.exports = MetaphorJs.validator.Group = (function(){
 
             var self = this;
 
-            check = check == undf ? true : check;
+            check = check == undefined ? true : check;
 
             for (var i in list) {
                 self.setRule(i, list[i], false);
@@ -357,7 +356,7 @@ module.exports = MetaphorJs.validator.Group = (function(){
             var self = this,
                 rules = self.rules;
 
-            check = check == undf ? true : check;
+            check = check == undefined ? true : check;
 
             if (value === null) {
                 if (rules[rule]) {

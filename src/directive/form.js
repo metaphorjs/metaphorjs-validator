@@ -1,7 +1,7 @@
 
 require("metaphorjs/src/lib/Config.js");
 
-var Directive = require("metaphorjs/src/app/Directive.js"),
+const Directive = require("metaphorjs/src/app/Directive.js"),
     ns = require("metaphorjs-namespace/src/var/ns.js"),
     MetaphorJs = require("metaphorjs-shared/src/MetaphorJs.js");
 

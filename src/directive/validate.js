@@ -8,7 +8,7 @@ const Directive = require("metaphorjs/src/app/Directive.js"),
 
 Directive.registerAttribute("validate", 200, function(){
 
-    var dir = function validate_directive(scope, node, config, renderer) { 
+    var dir = function validate_directive(state, node, config, renderer) { 
 
         Directive.resolveNode(node, "validate", function(node){
     

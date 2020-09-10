@@ -119,9 +119,9 @@ module.exports = MetaphorJs.validator.Group = (function(){
          */
         callback:		{
             /**
-             * @property {object} scope all callback's context
+             * @property {object} state all callback's context
              */
-            scope:			null,
+            state:			null,
 
             /**
              * @property {function} * {

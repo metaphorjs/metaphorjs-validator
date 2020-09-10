@@ -8,7 +8,7 @@ const Directive = require("metaphorjs/src/app/Directive.js"),
 require("../validator/Component.js");
 
 Directive.registerAttribute("form", 250, function(){
-    var dir = function form_directive(scope, node, config, renderer, attrSet) {
+    var dir = function form_directive(state, node, config, renderer, attrSet) {
 
         dir.initConfig(config)
     
@@ -21,7 +21,7 @@ Directive.registerAttribute("form", 250, function(){
         else {
             Directive.resolveNode(node, "form", function(node) {
                 if (!renderer.$destroyed) {
-                    var v = new constr(node, scope, renderer, config);
+                    var v = new constr(node, state, renderer, config);
                     renderer.on("destroy", v.$destroy, v);
                 }
             });

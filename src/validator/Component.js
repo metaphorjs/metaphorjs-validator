@@ -16,22 +16,22 @@ require("metaphorjs/src/func/dom/getAttr.js");
 module.exports = MetaphorJs.validator.Component = cls({
 
     node: null,
-    scope: null,
+    state: null,
     validator: null,
-    scopeState: null,
+    stateData: null,
     fields: null,
     formName: null,
     nodeCfg: null,
 
-    $init: function(node, scope, renderer, nodeCfg) {
+    $init: function(node, state, renderer, nodeCfg) {
 
         var self        = this;
 
         self.$self.initConfig(nodeCfg);
 
         self.node       = node;
-        self.scope      = scope;
-        self.scopeState = {};
+        self.state      = state;
+        self.stateData = {};
         self.fields     = [];
         self.nodeCfg    = nodeCfg;
         self.validator  = self.createValidator();
@@ -40,8 +40,8 @@ module.exports = MetaphorJs.validator.Component = cls({
                             MetaphorJs.dom.getAttr(node, 'id') || 
                             '$form';
 
-        self.initScope();
-        self.initScopeState();
+        self.initState();
+        self.initStateData();
         self.initValidatorEvents();
 
         // wait for the renderer to finish
@@ -50,7 +50,7 @@ module.exports = MetaphorJs.validator.Component = cls({
             once: true
         });
         renderer.on("destroy", self.$destroy, self);
-        scope.$on("destroy", self.$destroy, self);
+        state.$on("destroy", self.$destroy, self);
     },
 
     createValidator: function() {
@@ -62,16 +62,16 @@ module.exports = MetaphorJs.validator.Component = cls({
 
         if ((submit = ncfg.get("submit"))) {
             cfg.callback = cfg.callback || {};
-            cfg.callback.submit = function(fn, scope){
+            cfg.callback.submit = function(fn, state){
                 return function() {
                     try {
-                        return fn(scope);
+                        return fn(state);
                     }
                     catch(thrownError) {
                         error(thrownError);
                     }
                 }
-            }(submit, self.scope);
+            }(submit, self.state);
         }
 
         return new MetaphorJs.validator.Validator(node, cfg);
@@ -89,21 +89,20 @@ module.exports = MetaphorJs.validator.Component = cls({
         v.on('reset', self.onFormReset, self);
     },
 
-    initScope: function() {
+    initState: function() {
 
-        var self    = this,
-            scope   = self.scope,
-            name    = self.formName;
+        const state   = this.state,
+              name    = this.formName;
 
-        scope[name] = self.scopeState;
+        state[name] = this.stateData;
     },
 
 
-    initScopeState: function() {
+    initStateData: function() {
 
         var self    = this,
             node    = self.node,
-            state   = self.scopeState,
+            state   = self.stateData,
             fields  = self.fields,
             els, el,
             i, l,
@@ -153,7 +152,7 @@ module.exports = MetaphorJs.validator.Component = cls({
             self.onFormReset(vld);
         }
         else {
-            state   = self.scopeState;
+            state   = self.stateData;
             var i, l, f,
                 fields = self.fields;
 
@@ -167,7 +166,7 @@ module.exports = MetaphorJs.validator.Component = cls({
             state.$invalid = !vld.isValid();
             state.$pristine = false;
 
-            self.scope.$check();
+            self.state.$check();
         }
 
     },
@@ -179,7 +178,7 @@ module.exports = MetaphorJs.validator.Component = cls({
     onFormReset: function(vld) {
 
         var self    = this,
-            state   = self.scopeState,
+            state   = self.stateData,
             i, l, f,
             fields = self.fields;
 
@@ -194,24 +193,24 @@ module.exports = MetaphorJs.validator.Component = cls({
         state.$invalid = false;
         state.$pristine = true;
 
-        self.scope.$check();
+        self.state.$check();
     },
 
     onFormStateChange: function(vld, valid) {
 
         var self    = this,
-            state   = self.scopeState;
+            state   = self.stateData;
 
         state.$invalid = valid === false && vld.isDisplayStateEnabled();
         state.$pristine = false;
 
-        self.scope.$check();
+        self.state.$check();
     },
 
     onFieldStateChange: function(vld, field, valid) {
 
         var self    = this,
-            state   = self.scopeState,
+            state   = self.stateData,
             name    = field.getName(),
             ds      = vld.isDisplayStateEnabled(),
             fstate  = {
@@ -228,7 +227,7 @@ module.exports = MetaphorJs.validator.Component = cls({
             state[name].$real = fstate;
         }
 
-        self.scope.$check();
+        self.state.$check();
     },
 
 
@@ -237,8 +236,8 @@ module.exports = MetaphorJs.validator.Component = cls({
 
         self.validator.$destroy();
 
-        if (self.scope) {
-            delete self.scope[self.formName];
+        if (self.state) {
+            delete self.state[self.formName];
         }
     }
 

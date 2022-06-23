@@ -726,8 +726,8 @@ module.exports = MetaphorJs.validator.Validator = (function(){
         setFieldEvents: function(v, mode) {
             var self    = this;
             v[mode]('state-change', self.onFieldStateChange, self);
-            v[mode]('before-ajax', self.onBeforeAjax, self);
-            v[mode]('after-ajax', self.onAfterAjax, self);
+            v[mode]('before-remote', self.onBeforeRemote, self);
+            v[mode]('after-remote', self.onAfterRemote, self);
             v[mode]('submit', self.onFieldSubmit, self);
             v[mode]('destroy', self.onFieldDestroy, self);
             v[mode]('error-change', self.onFieldErrorChange, self);
@@ -852,7 +852,7 @@ module.exports = MetaphorJs.validator.Validator = (function(){
                 }
 
                 // submit button's value is only being sent with the form if you click the button.
-                // since there can be a delay due to ajax checks and the form will be submitted later
+                // since there can be a delay due to remote checks and the form will be submitted later
                 // automatically, we need to create a hidden field
                 if (self.submitButton && /input|button/.test(self.submitButton.nodeName)) {
                     self.hidden = window.document.createElement("input");
@@ -984,15 +984,15 @@ module.exports = MetaphorJs.validator.Validator = (function(){
             self.trigger('display-state', self, valid);
         },
 
-        onBeforeAjax: function() {
+        onBeforeRemote: function() {
             var self = this;
             self.pending++;
-            if (self.cfg.cls.ajax) {
-                MetaphorJs.dom.addClass(self.el, self.cfg.cls.ajax);
+            if (self.cfg.cls.remote) {
+                MetaphorJs.dom.addClass(self.el, self.cfg.cls.remote);
             }
         },
 
-        onAfterAjax: function() {
+        onAfterRemote: function() {
 
             var self    = this,
                 fields  = self.fields,
@@ -1006,8 +1006,8 @@ module.exports = MetaphorJs.validator.Validator = (function(){
 
             self.doDisplayState();
 
-            if (cfg.cls.ajax) {
-                MetaphorJs.dom.removeClass(self.el, cfg.cls.ajax);
+            if (cfg.cls.remote) {
+                MetaphorJs.dom.removeClass(self.el, cfg.cls.remote);
             }
 
             if (self.submitted && self.pending == 0) {

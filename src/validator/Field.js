@@ -5,8 +5,7 @@ const cls             = require("metaphorjs-class/src/cls.js"),
     bind            = require("metaphorjs-shared/src/func/bind.js"),
     isFunction      = require("metaphorjs-shared/src/func/isFunction.js"),
     isString        = require("metaphorjs-shared/src/func/isString.js"),
-    isBool          = require("metaphorjs-shared/src/func/isBool.js"),
-    ajax            = require("metaphorjs-ajax/src/func/ajax.js");
+    isBool          = require("metaphorjs-shared/src/func/isBool.js");
 
 require("../__init.js");
 require("metaphorjs/src/func/dom/data.js");
@@ -79,9 +78,9 @@ module.exports = MetaphorJs.validator.Field = (function(){
              */
             error:			'',
             /**
-             * @property {string} ajax css class for the field with it is being checked remotely
+             * @property {string} remote css class for the field with it is being checked remotely
              */
-            ajax:			''
+            remote:			''
 
             /**
              * @end-object
@@ -158,9 +157,9 @@ module.exports = MetaphorJs.validator.Field = (function(){
             errorchange:	null,			// fn(api, error)
             submit:			null,			// when enter key was pressed. fn(api, event). return false to prevent submitting even
             // if the form is valid
-            check:          null,           // called after each check (may not be relevant, if there is a ajax check) fn(api, valid)
-            beforeAjax:		null,			// when ajax check is about to be executed. fn(api, requestData)
-            afterAjax:		null,			// when ajax check ended. fn(api)
+            check:          null,           // called after each check (may not be relevant, if there is a remote check) fn(api, valid)
+            beforeRemote:	null,			// when remote check is about to be executed. fn(api, requestData)
+            afterRemote:	null,			// when remote check ended. fn(api)
 
             displaystate:	null			// use this to display custom field state: fn(api, valid, error)
             /**
@@ -281,13 +280,13 @@ module.exports = MetaphorJs.validator.Field = (function(){
          * }
          */
         /**
-         * @event before-ajax {
+         * @event before-remote {
          *  @param {MetaphorJs.validator.Field} f
-         *  @param {object} ajaxCfg
+         *  @param {object} remoteCfg
          * }
          */
         /**
-         * @event after-ajax {
+         * @event after-remote {
          *  @param {MetaphorJs.validator.Field} f
          * }
          */
@@ -810,14 +809,15 @@ module.exports = MetaphorJs.validator.Field = (function(){
         },
 
         /**
-         * Abort ajax check
+         * Abort remote check
          * @method
          */
         abort: function() {
             var self = this;
             if (self.pending) {
-                self.pending.abort();
-                self.pending = null;
+                console.error("Abort not implemented; Implement AbortController!")
+                //self.pending.abort();
+                //self.pending = null;
             }
             return self;
         },
@@ -912,7 +912,7 @@ module.exports = MetaphorJs.validator.Field = (function(){
                 self.doDisplayState();
             }
             else {
-                self.ajaxCheck();
+                self.remoteCheck();
             }
 
             self.dirty = false;
@@ -1109,7 +1109,7 @@ module.exports = MetaphorJs.validator.Field = (function(){
             }
         },
 
-        ajaxCheck: function() {
+        remoteCheck: function() {
 
             var self    = this,
                 rules   = self.rules,
@@ -1120,10 +1120,8 @@ module.exports = MetaphorJs.validator.Field = (function(){
 
             var acfg 	= extend({}, isString(rm) ? {url: rm} : rm, true);
 
-            //ajax.success 	= self.onAjaxSuccess;
-            //ajax.error 		= self.onAjaxError;
-            acfg.data 		= acfg.data || {};
-            acfg.data[acfg.paramName || MetaphorJs.dom.getAttr(elem, 'name') || 
+            acfg.body 		= acfg.body || {};
+            acfg.body[acfg.paramName || MetaphorJs.dom.getAttr(elem, 'name') || 
                                         MetaphorJs.dom.getAttr(elem, 'id')] = val;
 
             if (!acfg.handler) {
@@ -1132,19 +1130,18 @@ module.exports = MetaphorJs.validator.Field = (function(){
 
             acfg.cache 		= false;
 
-            if (cfg.cls.ajax) {
-                MetaphorJs.dom.addClass(elem, cfg.cls.ajax);
+            if (cfg.cls.remote) {
+                MetaphorJs.dom.addClass(elem, cfg.cls.remote);
             }
 
-            self.trigger('before-ajax', self, acfg);
+            self.trigger('before-remote', self, acfg);
 
-            self.pending = ajax(acfg);
-
-            self.pending.done(bind(self.onAjaxSuccess, self));
-            self.pending.fail(bind(self.onAjaxError, self));
+            self.pending = fetch(acfg)
+                .then(bind(self.onRemoteSuccess, self))
+                .catch(bind(self.onRemoteError, self));
         },
 
-        onAjaxSuccess: function(data) {
+        onRemoteSuccess: function(data) {
 
             var self    = this,
                 rules   = self.rules,
@@ -1172,16 +1169,16 @@ module.exports = MetaphorJs.validator.Field = (function(){
                 }
             }
 
-            if (cfg.cls.ajax) {
-                MetaphorJs.dom.removeClass(self.elem, cfg.cls.ajax);
+            if (cfg.cls.remote) {
+                MetaphorJs.dom.removeClass(self.elem, cfg.cls.remote);
             }
 
             self.setValidState(valid);
             self.doDisplayState();
-            self.trigger('after-ajax', self);
+            self.trigger('after-remote', self);
         },
 
-        onAjaxError: function(xhr, status) {
+        onRemoteError: function(xhr, status) {
 
             var self        = this,
                 cfg         = self.cfg,
@@ -1197,8 +1194,8 @@ module.exports = MetaphorJs.validator.Field = (function(){
                 }
             }
 
-            if (cfg.cls.ajax) {
-                MetaphorJs.dom.removeClass(self.elem, cfg.cls.ajax);
+            if (cfg.cls.remote) {
+                MetaphorJs.dom.removeClass(self.elem, cfg.cls.remote);
             }
 
             self.pending = null;
@@ -1206,7 +1203,7 @@ module.exports = MetaphorJs.validator.Field = (function(){
             if (status != 'abort' && xhr != "abort") {
                 self.setValidState(false);
                 self.doDisplayState();
-                self.trigger('after-ajax', self);
+                self.trigger('after-remote', self);
             }
         }
     }, {

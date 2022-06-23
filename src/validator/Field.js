@@ -1124,6 +1124,15 @@ module.exports = MetaphorJs.validator.Field = (function(){
             acfg.body[acfg.paramName || MetaphorJs.dom.getAttr(elem, 'name') || 
                                         MetaphorJs.dom.getAttr(elem, 'id')] = val;
 
+            if (acfg.fn) {
+                if (cfg.cls.remote) {
+                    MetaphorJs.dom.addClass(elem, cfg.cls.remote);
+                }
+                self.trigger('before-remote', self, acfg);
+                self.pending = acfg.fn(acfg.body).then(bind(self.onRemoteSuccess, self));
+                return;
+            }
+
             if (!acfg.handler) {
                 acfg.dataType 	= 'text';
             }
@@ -1136,7 +1145,7 @@ module.exports = MetaphorJs.validator.Field = (function(){
 
             self.trigger('before-remote', self, acfg);
 
-            self.pending = fetch(acfg)
+            self.pending = fetch(acfg).then(r => r.text())
                 .then(bind(self.onRemoteSuccess, self))
                 .catch(bind(self.onRemoteError, self));
         },
